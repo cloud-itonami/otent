@@ -430,6 +430,20 @@ exits 2 naming it.
 they are past the horizon or they are not. Doing it first would delete rows
 whose replacement then failed to commit.
 
+### The tick ledger is not in the checkout
+
+`~/.gftd/otent/tick.ledger.edn` (or `$OTENT_LEDGER_DIR`). It was
+`./ledger/tick.ledger.edn`, tracked in git, which was fine while a person
+ran the tick by hand and wrong the moment launchd started running it every
+ten minutes: **a scheduled job that appends to a tracked file leaves the
+shared checkout permanently dirty**, and every other session's `main` sync
+then tries to preserve somebody's WIP. CLAUDE.md records what that costs in
+piled-up stashes; the detector tick next door holds the same invariant for
+the same reason.
+
+The committed `ledger/` stays as the record of the hand-run era. It is no
+longer written to.
+
 ### Retention
 
 `otent.cljs retain`, per kind, horizons in `scripts/iceberg_retain.py`:

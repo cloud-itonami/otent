@@ -245,6 +245,27 @@
 
           :else {:ok? true :appended (count rows) :before before :after after})))))
 
+(defn ledger-file
+  "Where the tick ledger lives.
+
+  **Not in the checkout.** `$OTENT_LEDGER_DIR`, or `~/.gftd/otent`.
+
+  It was `./ledger/tick.ledger.edn`, tracked in git, which was fine while a
+  person ran the tick by hand and wrong the moment launchd started running
+  it every ten minutes: a scheduled job that appends to a tracked file
+  leaves the shared checkout permanently dirty, and CLAUDE.md records what
+  that costs -- every other session's `main` sync then tries to preserve
+  somebody's WIP, and stashes pile up. The detector tick next door holds the
+  same invariant for the same reason: state lives under `~/.gftd/`, never in
+  a checkout.
+
+  The committed `ledger/` in git stays as the record of the hand-run era. It
+  is no longer written to."
+  []
+  (let [dir (or (some-> (aget js/process.env "OTENT_LEDGER_DIR") str/trim not-empty)
+                (path/join (or (aget js/process.env "HOME") ".") ".gftd" "otent"))]
+    (path/join dir "tick.ledger.edn")))
+
 (defn watermarks
   "The newest `observed-at` each feed has committed, read back from the
   ledger.
@@ -258,7 +279,7 @@
   (correct for a first run) and 0 would too, but only by accident, and the
   day someone changes the comparison the two stop being the same."
   []
-  (let [f (path/join (js/process.cwd) "ledger" "tick.ledger.edn")]
+  (let [f (ledger-file)]
     (if-not (fs/existsSync f)
       {}
       (->> (str/split-lines (fs/readFileSync f "utf8"))
@@ -291,7 +312,7 @@
   there is nothing to back off from, and treating it as contact would make
   a missing key look like a satisfied interval."
   []
-  (let [f (path/join (js/process.cwd) "ledger" "tick.ledger.edn")]
+  (let [f (ledger-file)]
     (if-not (fs/existsSync f)
       {}
       (->> (str/split-lines (fs/readFileSync f "utf8"))
@@ -311,9 +332,8 @@
   exempts measurement and event streams for exactly this reason -- the
   value of a tick log is the sequence."
   [r]
-  (let [dir (path/join (js/process.cwd) "ledger")
-        f (path/join dir "tick.ledger.edn")]
-    (fs/mkdirSync dir #js {:recursive true})
+  (let [f (ledger-file)]
+    (fs/mkdirSync (path/dirname f) #js {:recursive true})
     (fs/appendFileSync f (str (pr-str r) "\n"))
     f))
 
