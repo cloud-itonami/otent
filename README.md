@@ -138,6 +138,44 @@ duplicate in it came from a stray re-run. That is recorded because a
 silently-cleaned table and a table that never had the problem look the same
 afterwards.
 
+## Buildings, and the ground under them
+
+`bin/buildings.cljs` pulls OpenStreetMap building footprints — via
+**OpenFreeMap**, keyless, ODbL 1.0 — plus water, landcover and parks from
+the same tiles, and stores them as flat coordinate arrays in R2.
+
+```bash
+nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljs areas
+nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljs ingest --area tokyo
+```
+
+Measured 2026-08-26: **19,016 buildings across 100 tiles, four metro
+areas, 0 failed.**
+
+| | tiles | buildings | fetched | stored |
+|---|---|---|---|---|
+| Tokyo | 25 | 2,199 | 15.2 MB | 2.8 MB |
+| New York (Manhattan) | 25 | 10,129 | 8.8 MB | 6.4 MB |
+| London | 25 | 3,895 | 10.1 MB | 3.6 MB |
+| Singapore | 25 | 2,793 | 6.1 MB | 3.1 MB |
+
+**The MVT is decoded here, once.** A z14 tile is 730 KB of protobuf
+carrying sixteen layers, of which this wants four; shipping it to the
+browser would make every viewer pay to reach the same answer.
+`kotoba.map.mvt` does the decoding, so nothing downstream parses protobuf.
+
+**Coverage is bounded and named.** OpenFreeMap serves buildings at z14
+only, and the planet is 268 million z14 tiles. The manifest records the
+exact tile block per area, so the renderer asks only where something
+exists — a globe that requested buildings everywhere and 404'd would be
+the same picture plus a request storm.
+
+⚠ `manifest` MEASURES the deepest raster zoom present rather than taking
+it from a flag, and the presence probe is a **one-byte ranged GET, not
+HEAD**: Cloudflare's REST object API answers HEAD with a non-2xx, so a
+HEAD probe reported every object as absent and concluded there was no
+basemap at all in a bucket holding 1,365 tiles.
+
 ## The tables are a projection, not the source of truth
 
 Every row carries `payload_sha256`, `source_url` and `fetched_at`, so the
