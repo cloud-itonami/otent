@@ -2,7 +2,7 @@
   "One scheduled cycle: ingest what is due, then prune what is past its
   horizon.
 
-    nbb --classpath src:../../kotoba-lang/sgp4/src bin/scheduled.cljs
+    nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src bin/scheduled.cljs
 
   Run by launchd every five minutes. Five minutes is not the poll rate --
   each feed's `:min-interval-ms` decides that, and a feed inside its
@@ -66,7 +66,9 @@
 (defn- run [token & args]
   (let [r (cp/spawnSync "nbb"
                         (clj->js (concat ["--classpath"
-                                          (str "src:" (path/join ".." ".." "kotoba-lang" "sgp4" "src"))
+                                          (str "src:"
+                                               (path/join ".." ".." "kotoba-lang" "sgp4" "src") ":"
+                                               (path/join ".." ".." "kotoba-lang" "kotobase-client" "src"))
                                           (path/join "bin" "otent.cljs")]
                                          args))
                         #js {:encoding "utf8"

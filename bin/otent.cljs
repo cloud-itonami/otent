@@ -40,6 +40,7 @@
             [otent.observation :as obs]
             [otent.r2 :as r2]
             [otent.cli :as cli]
+            [otent.kotobase :as kb]
             [otent.receipt :as receipt]))
 
 (def ACCOUNT "4da88288dc30d9ee257f319d3c33ecf0")
@@ -483,7 +484,29 @@
                        r (receipt/build results now)]
                    (append-receipt! r)
                    (println (receipt/render r (.toISOString (js/Date. now))))
-                   (js/process.exit (receipt/exit-code r)))))))))
+                   ;; The catalog goes to kotobase.net AFTER the receipt is
+                   ;; on disk. The ledger is the record; this plane is a
+                   ;; projection of it, so a publish that fails costs
+                   ;; queryability and not history -- and it is reported
+                   ;; rather than swallowed, because a catalog that has
+                   ;; silently stopped being written looks exactly like a
+                   ;; workspace where nothing happened.
+                   (-> (if (contains? (:flags args) "no-publish")
+                         (js/Promise.resolve {:ok? true :skipped? true})
+                         (kb/publish-tick! r))
+                       (.then (fn [p]
+                                (println
+                                 (cond
+                                   (:skipped? p) "  catalog: not published (--no-publish)"
+                                   (:ok? p) (str "  catalog -> kotobase.net/" kb/db-name
+                                                 "  " (:entities p) " entities, graph "
+                                                 (some-> (:graph p) (subs 0 20)) "...")
+                                   :else (str "  catalog NOT published [" (name (:error p)) "] "
+                                              (:detail p))))
+                                (js/process.exit
+                                 (if (:ok? p)
+                                   (receipt/exit-code r)
+                                   (max 1 (receipt/exit-code r))))))))))))))
 
 ;; ---------------------------------------------------------------- main
 

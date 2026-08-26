@@ -214,6 +214,59 @@ HEAD**: Cloudflare's REST object API answers HEAD with a non-2xx, so a
 HEAD probe reported every object as absent and concluded there was no
 basemap at all in a bucket holding 1,365 tiles.
 
+## Three planes, and what is allowed on each
+
+| plane | holds | addressed by |
+|---|---|---|
+| **bucket** `otent/payload/<sha>.json.gz` | the bytes exactly as the feed served them | their own sha256 |
+| **Iceberg** `cloud_itonami.otent_*` | governed observation rows | table + snapshot |
+| **kotobase.net** `otent-catalog` | the catalog: what ran, what it wrote, which payload backs it | otent's own DID |
+
+**Bytes and bulk observations do not go on the datom plane** (superproject
+ADR-2608039970). Not as a size optimisation: a datom plane is for things you
+join across datasets, and nobody joins an aircraft's latitude against
+anything — but `otent_aircraft` as a table, `celestrak` as a source, and a
+tick's provenance all join against `:source/dataset` neighbours in the same
+workspace plane.
+
+So `otent.catalog/tick->tx` is a projection that **drops almost everything**,
+and the suite asserts what it drops rather than only what it keeps — a
+coordinate arriving there would look like a richer catalog rather than like a
+leak. `publish-tick!` re-checks before writing and **refuses** rather than
+publishing one under otent's key.
+
+```clojure
+;; what a tick leaves behind, queryable from anywhere
+{:find [?feed ?status ?table]
+ :where [[?e :otent.result/feed ?feed]
+         [?e :otent.result/status ?status]
+         [?e :otent.result/table ?table]]}
+;; => [["usgs" "nothing-new" "otent_quake"]]
+```
+
+Every status reaches the plane, including `not-due` and `unmeasured`. A
+catalog that recorded only successful polls could not answer why a table
+stopped growing.
+
+**The identity is otent's own** — a 32-byte Ed25519 seed at
+`.otent/identity.edn`, gitignored, mode 0600. The key *is* the authority: the
+graph a write lands in is derived from it, so there is no token to request
+and no owner hand-off. CACAO minting is
+[`kotoba-lang/kotobase-client`](https://github.com/kotoba-lang/kotobase-client);
+nothing here re-implements signing, because a second implementation drifts
+from the first silently.
+
+Identity of a published entity is derived from values the receipt already
+carries (`otent/tick/<at>` and `otent/tick/<at>/<feed>`), so republishing is
+an upsert. That is what makes `:retry?` safe on a transient 5xx: the ledger
+on disk is append-only, this plane is not.
+
+Publishing happens **after** the receipt is on disk. The ledger is the
+record; this is a projection of it, so a failed publish costs queryability
+rather than history — and it is reported, never swallowed, because a catalog
+that has silently stopped being written looks exactly like a workspace where
+nothing happened. `--no-publish` skips it.
+
 ## The tables are a projection, not the source of truth
 
 Every row carries `payload_sha256`, `source_url` and `fetched_at`, and

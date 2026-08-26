@@ -4,10 +4,15 @@
   "description": "Ingest actor: public satellite/quake/aircraft/fire/vessel feeds -> governed rows -> Cloudflare R2 Data Catalog (Apache Iceberg)",
   "license": "MIT",
   "scripts": {
-    "test": "nbb --classpath src:test:../../kotoba-lang/sgp4/src test/run.cljs",
-    "tick": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs tick",
-    "feeds": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs feeds",
-    "retain": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs retain",
-    "cycle": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/scheduled.cljs"
+    "test": "nbb --classpath src:test:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src test/run.cljs",
+    "tick": "nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src bin/otent.cljs tick",
+    "feeds": "nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src bin/otent.cljs feeds",
+    "retain": "nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src bin/otent.cljs retain",
+    "cycle": "nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src bin/scheduled.cljs"
+  },
+  "dependencies": {
+    "@ipld/dag-cbor": "^10.0.2",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^2.3.0"
   }
 }

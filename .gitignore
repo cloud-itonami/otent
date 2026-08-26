@@ -3,3 +3,6 @@
 node_modules/
 out/
 .DS_Store
+
+# otent kotobase write identity -- never commit
+.otent/

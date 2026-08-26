@@ -43,7 +43,7 @@
   <array>
     <string>/bin/zsh</string>
     <string>-lc</string>
-    <string>cd /Users/junkawasaki/github/com-junkawasaki/orgs/cloud-itonami/otent &amp;&amp; exec /opt/homebrew/bin/nbb --classpath src:../../kotoba-lang/sgp4/src bin/scheduled.cljs</string>
+    <string>cd /Users/junkawasaki/github/com-junkawasaki/orgs/cloud-itonami/otent &amp;&amp; exec /opt/homebrew/bin/nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src bin/scheduled.cljs</string>
   </array>
 
   <key>StartInterval</key>

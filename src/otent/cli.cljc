@@ -17,7 +17,7 @@
 
 (def boolean-flags
   "Switches that take no value."
-  #{"--dry-run" "--create" "--verbose" "--force"})
+  #{"--dry-run" "--create" "--verbose" "--force" "--no-publish"})
 
 (def value-options
   "Options that consume the next argument."
