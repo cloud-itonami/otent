@@ -1,0 +1,3 @@
+# Only for scripts/iceberg_append.py -- the Iceberg commit, which nbb cannot do.
+# Everything else in this repository is ClojureScript on nbb.
+pyiceberg[pyarrow]>=0.11.1
