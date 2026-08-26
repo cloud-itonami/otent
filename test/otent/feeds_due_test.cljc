@@ -30,10 +30,16 @@
     (is (zero? (feeds/next-due-in-ms celestrak now (- now 21600000))))))
 
 (deftest a-faster-feed-is-due-when-a-slower-one-is-not
-  (testing "the whole point: one tick, different answers per feed"
-    (let [last (- now 120000)]                ; 2 minutes ago
-      (is (false? (feeds/due? celestrak now last)))
-      (is (true?  (feeds/due? opensky   now last))))))
+  (testing "the whole point: one tick, different answers per feed.
+            Derived from the intervals rather than pinned to a literal --
+            the first version hard-coded two minutes, which stopped
+            discriminating the day OpenSky moved from one minute to ten."
+    (let [fast (:min-interval-ms opensky)
+          slow (:min-interval-ms celestrak)
+          last (- now (inc fast))]            ; just past the faster interval
+      (is (< fast slow) "the fixture needs one feed faster than the other")
+      (is (true?  (feeds/due? opensky   now last)))
+      (is (false? (feeds/due? celestrak now last))))))
 
 (deftest zero-interval-is-always-due
   (testing "a feed that declares no interval must not be silently backed
