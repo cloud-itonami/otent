@@ -47,3 +47,33 @@
     (doseq [f feeds/registry]
       (is (number? (:min-interval-ms f))
           (str (name (:id f)) " has no :min-interval-ms")))))
+
+;; ── the feed that says "you already have this" with a 403 ────────────────────
+
+(def celestrak-not-modified
+  (str "GP data has not updated since your last successful\n"
+       "download of GROUP=active at 2026-08-26 07:15:15 UTC.\n"
+       "Data is updated once every 2 hours.\n"))
+
+(deftest celestraks-403-is-an-observation-not-a-failure
+  (testing "reading it as a failure would report a sky that had not moved as
+            a sky nobody could see -- the one confusion this repository
+            exists to avoid"
+    (is (true? (feeds/not-modified? celestrak 403 celestrak-not-modified)))))
+
+(deftest a-real-403-still-counts-as-not-observed
+  (testing "blocked, rate-limited or banned carries a different body, and
+            that one really is a failure to observe"
+    (is (false? (feeds/not-modified? celestrak 403 "Forbidden")))
+    (is (false? (feeds/not-modified? celestrak 403 "")))
+    (is (false? (feeds/not-modified? celestrak 403 nil)))))
+
+(deftest another-status-is-not-the-signal
+  (is (false? (feeds/not-modified? celestrak 500 celestrak-not-modified)))
+  (is (false? (feeds/not-modified? celestrak 429 celestrak-not-modified))))
+
+(deftest a-feed-without-the-declaration-never-takes-this-path
+  (testing "USGS has no :not-modified, so nothing it returns may be read as
+            `you already have this`"
+    (is (nil? (:not-modified (feeds/by-id :usgs))))
+    (is (false? (feeds/not-modified? (feeds/by-id :usgs) 403 celestrak-not-modified)))))

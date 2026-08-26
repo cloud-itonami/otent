@@ -24,12 +24,25 @@
     :access :open
     :label "CelesTrak GP element sets"
     :url "https://celestrak.org/NORAD/elements/gp.php"
-    :default-params {"GROUP" "stations" "FORMAT" "tle"}
+    :default-params {"GROUP" "active" "FORMAT" "tle"}
     :terms "https://celestrak.org/publications/"
     ;; Element sets are re-fitted on the order of once a day. Polling faster
     ;; adds rows that are byte-identical to the last ones and are then held
     ;; as duplicates -- work done to produce a hold.
     :min-interval-ms 21600000
+    ;; CelesTrak answers a repeat request with **HTTP 403** and a body
+    ;; saying the data has not changed -- not 304, and not an error. Without
+    ;; this the tick reports the feed UNMEASURED, which is the one thing
+    ;; this repository is built to avoid: it would say the sky could not be
+    ;; observed when in fact it was observed and had not moved. Measured
+    ;; 2026-08-26: `GP data has not updated since your last successful
+    ;; download of GROUP=active at 2026-08-26 07:15:15 UTC.`
+    ;;
+    ;; Matched on the body, deliberately narrowly. A genuine 403 -- blocked,
+    ;; rate-limited, banned -- carries a different body and must stay
+    ;; UNMEASURED, because that one really is a failure to observe.
+    :not-modified {:status 403
+                   :body-contains "has not updated since your last successful"}
     :notes "Two-line element sets. Parsed by kotoba-lang/sgp4, which refuses
             deep-space element sets rather than propagating them wrongly."}
 
@@ -84,6 +97,27 @@
             is not part of this repository. This feed is UNMEASURED."}])
 
 (def by-id (into {} (map (juxt :id identity)) registry))
+
+(defn not-modified?
+  "Did this feed answer `you already have this` rather than fail?
+
+  Some feeds say it with a non-2xx and a body. CelesTrak uses **403** with
+  `GP data has not updated since your last successful download of
+  GROUP=... at ... UTC.` -- not 304, and not an error. Reading that as a
+  failure to observe would report a sky that had not moved as a sky nobody
+  could see, which is the one confusion this whole repository is built to
+  avoid.
+
+  Matched on status AND body, deliberately narrowly. A genuine 403 --
+  blocked, rate-limited, banned -- carries a different body and must stay
+  UNMEASURED, because that one really is a failure to observe. A feed with
+  no `:not-modified` declaration never takes this path."
+  [feed status body]
+  (boolean
+   (when-let [nm (:not-modified feed)]
+     (and (= (:status nm) status)
+          (string? body)
+          (str/includes? body (:body-contains nm))))))
 
 (defn due?
   "Has enough time passed since this feed was last CONTACTED to be worth

@@ -32,7 +32,7 @@ CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cl
 | table | rows | source |
 |---|---|---|
 | `cloud_itonami.otent_quake` | 66 | USGS 2.5+ past day |
-| `cloud_itonami.otent_satellite` | 21 | CelesTrak GP (stations) |
+| `cloud_itonami.otent_satellite` | 21 → 16,054 | CelesTrak GP (**active**, from 2026-08-26) |
 | `cloud_itonami.otent_aircraft` | 7,214 | OpenSky anonymous state vectors |
 | `cloud_itonami.otent_vessel` | — | **UNMEASURED**, see below |
 | `cloud_itonami.otent_fire` | — | **UNMEASURED**, see below |
@@ -67,6 +67,36 @@ is implemented and tested, so that collector has nothing to invent, but
 until something runs it the vessel table does not exist. A scheduler that
 treated exit 2 as success would record a month of missing vessels as a
 month of empty oceans.
+
+## The whole active catalogue, and the 799 it refuses
+
+The feed asked CelesTrak for `GROUP=stations` — twenty-one objects, the
+crewed stations and what is docked to them. It now asks for `GROUP=active`:
+**16,057 element sets, of which 16,054 are admitted** (three held for
+implausible epochs) and **15,258 can actually be propagated**. The other 799
+are deep-space — geostationary, Molniya, anything with a period past 225
+minutes — and `kotoba-lang/sgp4` refuses them with
+`:sgp4/deep-space-unsupported` rather than propagating them wrongly. SDP4 is
+not implemented; a satellite that cannot be propagated is named, not drawn
+in the wrong place.
+
+Two things had to change to make that survivable, and both are measured
+rather than assumed.
+
+**The browser propagates a slice per frame.** 18.2 µs per propagation × 15,258
+is 278 ms, which is 3.4 fps. `app-otent.propagate/slice-size` moves 512 per
+advance and everything else holds its last position, so the sky refreshes in
+half a second — 3.7 km of drift, about a fifth of a pixel at globe zoom.
+
+**A 403 from CelesTrak is not an error.** They answer a repeat request with
+`403` and a body reading `GP data has not updated since your last successful
+download of GROUP=active at ... UTC. Data is updated once every 2 hours.` Not
+304, and not a failure. Before this, the tick reported the feed UNMEASURED —
+saying the sky could not be observed when it had been observed and had not
+moved, which is precisely the confusion this repository exists to prevent.
+`feeds/not-modified?` matches status **and** body, narrowly: a genuine 403,
+blocked or rate-limited, carries a different body and stays UNMEASURED,
+because that one really is a failure to observe.
 
 ## The governor
 

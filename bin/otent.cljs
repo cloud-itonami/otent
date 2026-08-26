@@ -87,9 +87,29 @@
                                      "otent/0.1 (cloud-itonami; +https://github.com/cloud-itonami/otent)"}})
         (.then (fn [r]
                  (if-not (.-ok r)
-                   {:ok? false :error :feed/http-error
-                    :detail (str (.-status r) " " (.-statusText r) " from " url)
-                    :url url}
+                   ;; Some feeds answer "you already have this" with a
+                   ;; non-2xx and a body that says so. CelesTrak uses 403.
+                   ;; Reading that as a failure to observe would report a
+                   ;; sky that had not moved as a sky nobody could see.
+                   (let [nm (:not-modified feed)]
+                     (if (and nm (= (:status nm) (.-status r)))
+                       (.then (.text r)
+                              (fn [b]
+                                (if (feeds/not-modified? feed (.-status r) b)
+                                  {:ok? false :error :feed/not-modified
+                                   :detail (str (.-status r) " with the feed's own "
+                                                "not-modified body: "
+                                                (str/trim (subs b 0 (min 120 (count b)))))
+                                   :url url}
+                                  {:ok? false :error :feed/http-error
+                                   :detail (str (.-status r) " " (.-statusText r)
+                                                " from " url " -- body did not match "
+                                                "this feed's not-modified signal, so "
+                                                "this is a real refusal")
+                                   :url url})))
+                       {:ok? false :error :feed/http-error
+                        :detail (str (.-status r) " " (.-statusText r) " from " url)
+                        :url url}))
                    (.then (.text r)
                           (fn [t]
                             (if (str/blank? t)
@@ -304,8 +324,15 @@
         (.then
          (fn [f]
            (if-not (:ok? f)
-             {:feed (:id feed) :status :unmeasured
-              :error (:error f) :detail (:detail f)}
+             (if (= :feed/not-modified (:error f))
+               ;; The feed was reached and said nothing has changed. That is
+               ;; an observation, and it must not be counted with the feeds
+               ;; nobody could read.
+               {:feed (:id feed) :status :nothing-new
+                :table (obs/table-name (:kind feed))
+                :detail (:detail f)}
+               {:feed (:id feed) :status :unmeasured
+                :error (:error f) :detail (:detail f)})
              ;; Exact short-circuit: a byte-identical payload cannot contain
              ;; anything new, whatever the timestamps say. This is what
              ;; catches polling faster than a feed republishes, and unlike
