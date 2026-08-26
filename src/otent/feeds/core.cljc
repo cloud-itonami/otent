@@ -85,6 +85,37 @@
 
 (def by-id (into {} (map (juxt :id identity)) registry))
 
+(defn due?
+  "Has enough time passed since this feed was last CONTACTED to be worth
+  contacting again?
+
+  `:min-interval-ms` sat in this registry, one line per feed, from the day
+  the registry was written -- and nothing read it. Every entry carried a
+  comment explaining the cost of polling faster, and the tick polled at
+  whatever rate it was invoked at. A field that looks like a control and
+  controls nothing is worse than no field: it reads, to the next person, as
+  a decision already taken.
+
+  `last-contact-ms` is nil for a feed that has never been reached, and nil
+  admits -- a first run must look. It is deliberately NOT the watermark:
+  the watermark says when the newest observation happened, which for a
+  quiet feed can be days before the last time we asked. Backing off on that
+  would poll a quiet feed hardest."
+  [feed now-ms last-contact-ms]
+  (or (nil? last-contact-ms)
+      (>= (- now-ms last-contact-ms) (or (:min-interval-ms feed) 0))))
+
+(defn next-due-in-ms
+  "How long until `due?` turns true. Zero when it already is.
+
+  Reported rather than computed at the call site so the run report can say
+  *when* rather than only *not yet* -- `not yet` alone is the shape that
+  reads the same whether the backoff is a minute or six hours."
+  [feed now-ms last-contact-ms]
+  (if (nil? last-contact-ms)
+    0
+    (max 0 (- (or (:min-interval-ms feed) 0) (- now-ms last-contact-ms)))))
+
 (defn open-feeds [] (filter #(= :open (:access %)) registry))
 
 (defn describe

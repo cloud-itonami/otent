@@ -32,3 +32,34 @@
     (is (re-find #"UNMEASURED" rep))
     (is (re-find #"NOT READ" rep)
         "the report must state plainly that a feed was not read")))
+
+(deftest not-due-is-its-own-class-not-a-quiet-feed
+  (testing "counted separately -- `nothing-new` means we asked and it had
+            not changed; `not-due` means we did not ask. Collapsing them
+            reports a deliberate backoff as an observation."
+    (let [r (r/build [{:feed :a :status :nothing-new}
+                      {:feed :b :status :not-due}
+                      {:feed :c :status :not-due}]
+                     0)]
+      (is (= 1 (:tick/nothing-new r)))
+      (is (= 2 (:tick/not-due r)))))
+  (testing "a tick where every feed was inside its declared interval is a
+            correct run, not a run that could not answer"
+    (is (= 0 (code :not-due)))
+    (is (= 0 (code :not-due :not-due))))
+  (testing "backing off does not hide a feed that was never read"
+    (is (= 2 (code :not-due :unmeasured))))
+  (testing "nor a refusal"
+    (is (= 1 (code :not-due :refused)))))
+
+(deftest the-report-distinguishes-not-asked-from-asked-and-quiet
+  (let [rep (r/render (r/build [{:feed :celestrak :status :not-due
+                                 :detail "due again in 3600s. NOT asked"}]
+                               0)
+                      "1970-01-01T00:00:00.000Z")]
+    (is (re-find #"not-due 1" rep)
+        "the summary line must carry the count, or a reader cannot tell a
+         backed-off tick from an idle one")
+    (is (re-find #"NOT-DUE celestrak" rep))
+    (is (not (re-find #"NOTHING-NEW" rep))
+        "a feed that was never asked must not be rendered as one that was")))

@@ -219,10 +219,89 @@ writer — the same split `com-junkawasaki/org-gleif-projections` already
 uses in this workspace. The boundary is NDJSON on disk; that script knows
 nothing about feeds, governors or EDN.
 
+## How often each feed is asked, and why nothing schedules this yet
+
+Every feed in the registry declares a `:min-interval-ms` — six hours for
+CelesTrak element sets, five minutes for USGS, a minute for OpenSky. Those
+numbers were written down with the registry and, until 2026-08-26, **nothing
+read them.** The tick polled at whatever rate it was invoked at. A field that
+looks like a control and controls nothing is worse than no field: it reads,
+to the next person, as a decision already taken.
+
+`feeds/due?` now gates the tick, and a feed inside its interval comes back as
+`NOT-DUE` — a status of its own, never folded into `nothing-new`:
+
+```
+NOT-DUE celestrak -> otent_satellite  last contacted 9715s ago; this feed
+  declares a minimum interval of 21600s, so it is due again in 11885s.
+  NOT asked -- this is not an observation.
+```
+
+`nothing-new` means we asked and the feed had not changed. `not-due` means we
+did not ask. Collapsing them would report a deliberate backoff as an
+observation. `--force` overrides.
+
+### The bug this uncovered
+
+The first real tick after the interval landed **refused USGS**:
+
+```
+REFUSED usgs -> otent_quake  [held-fraction-too-high]
+  42 of 46 rows held (91%), over the 50% ceiling: {:already-committed 42}
+```
+
+Two and a half hours after the previous poll, USGS returned 46 quakes: 42
+already in the table, 4 genuinely new. The ceiling exists to catch a broken
+parser wearing the shape of a quiet day — but it was counting deduplication
+as a defect, so **four new earthquakes were dropped for arriving next to
+forty-two old ones**, and the receipt said `held-fraction-too-high`, which
+reads like a parser fault. Scheduling the tick would have made this the normal
+outcome for every slow feed.
+
+`:already-committed` now leaves both the numerator and the denominator. What
+the ceiling measures is the fraction of rows *this poll could have
+contributed* that were held for a reason about the row. A parser emitting the
+same row a thousand times is still caught — that is `:duplicate-observation`,
+which stays in.
+
+### Why there is still no launchd job
+
+Measured 2026-08-26, one OpenSky poll appends **6,399 rows** (18,820 →
+25,219), and the read path scans the whole table:
+
+```
+GET /api/objects/aircraft   HTTP 200   6,555,324 bytes   33.9 s
+```
+
+| poll every | aircraft rows/day |
+|---|---|
+| 60s (the declared minimum) | 9,214,560 |
+| 5 min | 1,842,912 |
+| 15 min | 614,304 |
+| 1 hour | 153,576 |
+
+At 25k rows the read already takes 34 seconds. **Scheduling at any cadence
+breaks the app within a day**, because the table is append-only with no
+retention and the API bounds nothing. So the interval control landed and the
+scheduler did not: installing one now would produce a growing table behind a
+page that times out, and call it automation. Retention and a bounded read come
+first.
+
 ## Tests
 
-`npm test` — 23 tests, 583 assertions, against **captured real payloads**
-rather than invented ones. Four deliberate breakages, run 2026-08-26:
+`npm test` — 33 tests, 614 assertions, against **captured real payloads**
+rather than invented ones.
+
+The runner has two floors and four exit codes, each watched on 2026-08-26:
+**0** pass · **1** a test failed · **2** the runner and the `test/otent`
+directory disagree · **3** too few tests ran to report a pass. Two and three
+are not failing tests and must not look like ones. The directory check exists
+because the namespace list has to be written literally — nbb resolves
+`require` at read time, so a runtime symbol loads nothing while looking like
+it did — and a written list is the shape where a test file lands, the line is
+forgotten, and the runner goes green over a suite it never loaded.
+
+Seven deliberate breakages, run 2026-08-26:
 
 | break | result |
 |---|---|
@@ -230,6 +309,18 @@ rather than invented ones. Four deliberate breakages, run 2026-08-26:
 | make `person-identifier?` always false | exit 1, in `an-attribute-that-names-a-person` |
 | make an unmeasured feed exit 0 | exit 1, in `unmeasured-does-not-collapse-into-its-neighbours` |
 | replace a fixture with `{}` | exit 1, 2 errors — a truncated fixture does not read as a pass |
+| make `due?` always admit (the state before this change) | exit 1, 2 failures |
+| count `:already-committed` in the held fraction again | exit 1, 2 failures |
+| remove the held-fraction ceiling entirely | exit 1, 4 failures, 2 errors |
+| add a `_test.cljc` the runner does not list | **exit 2**, `REFUSED: the runner and the directory disagree` |
+| raise the minimum test count above the suite | **exit 3**, `REFUSING to report a pass` |
+
+One of those breakages was mine to begin with: the first version of the
+`already-committed` test failed for the wrong reason — its "new" rows carried
+the fixture's own timestamp, which was older than the watermark, so all 46
+were held and the batch came back `:nothing-new` rather than committing four.
+The code was right and the fixture was wrong. A test that fails is not
+automatically a test that discriminates.
 
 One test bug worth keeping: the parse suite originally pinned the ingest
 clock to a constant that **predated the captured OpenSky payload**, so

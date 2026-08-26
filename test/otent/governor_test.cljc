@@ -136,3 +136,52 @@
         v (gov/commit-decision (gov/admit rows now))]
     (is (true? (:commit? v)))
     (is (= 20 (:rows v)))))
+
+(deftest already-committed-rows-do-not-spend-the-ceiling
+  ;; Measured 2026-08-26 against the live USGS feed: a poll two and a half
+  ;; hours after the last one returned 46 quakes, 42 of them already in the
+  ;; table and 4 genuinely new. The ceiling counted the 42 and refused the
+  ;; batch at 91%, so four new earthquakes were dropped for arriving next
+  ;; to forty-two old ones. Scheduling the tick would have made this the
+  ;; normal outcome for every slow feed.
+  (let [old-rows (map #(assoc clean :object-id (str "old" %)
+                              :observed-at (- now 3600000))
+                      (range 42))
+        new-rows (map #(assoc clean :object-id (str "new" %)
+                              :observed-at (- now 30000))
+                      (range 4))
+        r (gov/admit (concat old-rows new-rows) now
+                     {:watermark-ms (- now 60000)})
+        v (gov/commit-decision r)]
+    (testing "the 42 are held, and held for being already committed"
+      (is (= 42 (:already-committed (:counts r)))))
+    (testing "and the four new ones are committed anyway"
+      (is (true? (:commit? v))
+          (str "refused a healthy repeated poll: " (pr-str v)))
+      (is (= 4 (:rows v))))))
+
+(deftest the-ceiling-still-catches-a-broken-parser-behind-a-repeated-poll
+  ;; The other direction, and the one that matters: dedup no longer spends
+  ;; the ceiling, so the ceiling has to still fire on the rows that a poll
+  ;; could actually have contributed. Without this, the fix above would
+  ;; have quietly disabled the rule whenever a feed was polled twice.
+  (let [old-rows (map #(assoc clean :object-id (str "old" %)
+                              :observed-at (- now 3600000))
+                      (range 42))
+        bad-rows (map #(assoc clean :object-id (str "bad" %)
+                              :observed-at (- now 30000) :lat 999.0)
+                      (range 9))
+        ok-rows  (map #(assoc clean :object-id (str "ok" %)
+                              :observed-at (- now 30000))
+                      (range 3))
+        r (gov/admit (concat old-rows bad-rows ok-rows) now
+                     {:watermark-ms (- now 60000)})
+        v (gov/commit-decision r)]
+    (testing "9 of the 12 contributable rows are bad -- 75%, over the ceiling"
+      (is (false? (:commit? v)))
+      (is (= :held-fraction-too-high (:reason v))))
+    (testing "and the message counts the contributable rows, not the payload,
+              so a reader is not told 51 of 54 and left to guess"
+      (is (re-find #"9 of 12" (:detail v))
+          (str "the detail still counts already-committed rows: " (:detail v)))
+      (is (re-find #"further 42 were already committed" (:detail v))))))

@@ -226,6 +226,31 @@
                        (assoc-in [(:feed r) :payload-sha256] (:payload-sha256 r))))
                    {})))))
 
+(defn last-contacts
+  "When each feed was last CONTACTED, from the same ledger.
+
+  `:tick/at` rather than any timestamp inside the data: the question is how
+  long ago we asked, not how fresh the answer was. A feed that has gone
+  quiet for a week was still contacted a minute ago, and backing off on the
+  data's own timestamps would poll the quietest feeds hardest.
+
+  Only statuses that mean the feed was actually reached count. `:unmeasured`
+  does not -- a feed skipped for want of a credential was never asked, so
+  there is nothing to back off from, and treating it as contact would make
+  a missing key look like a satisfied interval."
+  []
+  (let [f (path/join (js/process.cwd) "ledger" "tick.ledger.edn")]
+    (if-not (fs/existsSync f)
+      {}
+      (->> (str/split-lines (fs/readFileSync f "utf8"))
+           (remove str/blank?)
+           (map cljs.reader/read-string)
+           (mapcat (fn [r] (for [x (:tick/results r)] (assoc x :at (:tick/at r)))))
+           (filter #(#{:committed :nothing-new :refused :dry-run} (:status %)))
+           (reduce (fn [acc x]
+                     (update acc (:feed x) (fnil max 0) (:at x)))
+                   {})))))
+
 (defn append-receipt!
   "Append one EDN map per line to `ledger/tick.ledger.edn`.
 
@@ -337,11 +362,35 @@
             (js/process.exit 2))
         skipped (for [f fs* :let [r (runnable? f)] :when r]
                   (merge {:feed (:id f) :status :unmeasured} r))
-        runnable (remove #(runnable? %) fs*)]
+        reachable (remove #(runnable? %) fs*)
+        force? (contains? (:flags args) "force")
+        now0 (js/Date.now)
+        contacts (last-contacts)
+        ;; `:min-interval-ms` has been declared per feed in the registry
+        ;; since it was written, and until now nothing read it. Without
+        ;; this the tick polls at whatever rate it is invoked at, which is
+        ;; how a scheduler turns a 6-hourly element set into 96 identical
+        ;; payloads a day, every one of them held as a duplicate.
+        due-fn (fn [f] (or force?
+                           (feeds/due? f now0 (get contacts (:id f)))))
+        not-due (for [f reachable :when (not (due-fn f))]
+                  {:feed (:id f) :status :not-due
+                   :table (obs/table-name (:kind f))
+                   :detail (str "last contacted "
+                                (Math/round (/ (- now0 (get contacts (:id f))) 1000))
+                                "s ago; this feed declares a minimum interval of "
+                                (Math/round (/ (:min-interval-ms f) 1000))
+                                "s, so it is due again in "
+                                (Math/round (/ (feeds/next-due-in-ms f now0 (get contacts (:id f))) 1000))
+                                "s. NOT asked -- this is not an observation.")})
+        runnable (filter due-fn reachable)]
     (log (str "otent tick: " (count runnable) " runnable, "
+              (count not-due) " not due, "
               (count skipped) " unmeasured, of " (count fs*) " feeds"))
     (doseq [s skipped]
       (log (str "  " (name (:feed s)) ": UNMEASURED -- " (:detail s))))
+    (doseq [s not-due]
+      (log (str "  " (name (:feed s)) ": not due -- " (:detail s))))
     (let [wm (watermarks)]
       (doseq [[k v] wm]
         (log (str "  watermark " (name k)
@@ -349,7 +398,8 @@
                   " sha=" (some-> (:payload-sha256 v) (subs 0 12)))))
       (-> (js/Promise.all (clj->js (map #(tick-feed % args (get wm (:id %))) runnable)))
         (.then (fn [rs]
-                 (let [results (concat (js->clj rs :keywordize-keys true) skipped)
+                 (let [results (concat (js->clj rs :keywordize-keys true)
+                                       not-due skipped)
                        now (js/Date.now)
                        r (receipt/build results now)]
                    (append-receipt! r)

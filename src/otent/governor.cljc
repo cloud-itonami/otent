@@ -211,6 +211,26 @@
   wearing the shape of a quiet day, so it is refused rather than committed
   as a small batch. `:max-held-fraction` defaults to 0.5.
 
+  **`:already-committed` is not counted in that fraction, and the rows it
+  covers are not counted in the denominator either.** Being already
+  committed is not a defect in the row; it is the ordinary result of
+  polling a feed that publishes more slowly than we ask. Counting it made
+  the ceiling fire hardest exactly when the feed was healthiest: measured
+  2026-08-26, a USGS poll two and a half hours after the last one returned
+  46 quakes of which 42 were already in the table and 4 were new, and the
+  ceiling refused the batch at 91% -- so the four new earthquakes were
+  dropped for the crime of arriving alongside forty-two old ones. Left
+  alone this would have refused nearly every scheduled poll of every slow
+  feed, and the receipt would have said `held-fraction-too-high`, which
+  reads like a parser fault.
+
+  What the ceiling still measures is the fraction of rows this poll could
+  actually have contributed that were held for a reason about the row:
+  bad coordinates, an implausible timestamp, a person identifier, or the
+  same observation repeated inside one payload. A parser emitting the same
+  row a thousand times is still caught -- that is `:duplicate-observation`,
+  which stays in the numerator.
+
   Also refuses an empty admitted set: committing zero rows creates an
   Iceberg snapshot that says a poll happened and found nothing, which is
   indistinguishable from a poll that failed."
@@ -218,7 +238,14 @@
   ([{:keys [admitted held counts]} opts]
    (let [max-frac (get opts :max-held-fraction 0.5)
          proposed (:proposed counts)
-         frac (if (pos? proposed) (/ (double (count held)) proposed) 0.0)]
+         already (get counts :already-committed 0)
+         ;; The rows this poll could have contributed, and of those, the
+         ;; ones held for a reason about the row itself.
+         contributable (- proposed already)
+         quality-held (- (count held) already)
+         frac (if (pos? contributable)
+                (/ (double quality-held) contributable)
+                0.0)]
      (cond
        (zero? proposed)
        {:commit? false :reason :nothing-proposed
@@ -240,10 +267,14 @@
 
        (> frac max-frac)
        {:commit? false :reason :held-fraction-too-high
-        :detail (str (count held) " of " proposed " rows held ("
+        :detail (str quality-held " of " contributable
+                     " rows this poll could contribute were held ("
                      (Math/round (* 100.0 frac)) "%), over the "
                      (Math/round (* 100.0 max-frac)) "% ceiling: "
-                     (pr-str (dissoc counts :proposed :admitted :held)))}
+                     (pr-str (dissoc counts :proposed :admitted :held :already-committed))
+                     (when (pos? already)
+                       (str "; a further " already " were already committed, "
+                            "which is not counted here")))}
 
        :else
        {:commit? true :rows (count admitted) :held (count held)}))))

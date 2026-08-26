@@ -32,6 +32,12 @@
      :tick/nothing-new (count (:nothing-new by))
      :tick/refused (count (:refused by))
      :tick/unmeasured (count (:unmeasured by))
+     ;; Counted separately from `nothing-new`, which is the shape that
+     ;; matters here. `nothing-new` means we asked and the feed had not
+     ;; changed. `not-due` means we did not ask, on purpose, because the
+     ;; feed declares how often it changes. Collapsing them would report a
+     ;; deliberate backoff as an observation.
+     :tick/not-due (count (:not-due by))
      :tick/rows-appended (reduce + 0 (keep :appended (:committed by)))}))
 
 (defn exit-code
@@ -42,7 +48,12 @@
   (cond
     (pos? (:tick/unmeasured r)) 2
     (pos? (:tick/refused r)) 1
-    (zero? (+ (:tick/committed r) (:tick/dry-run r) (:tick/nothing-new r))) 2
+    ;; A tick where every feed was inside its declared interval asked
+    ;; nothing and is still a correct run -- backing off is what the
+    ;; interval is for. It exits 0. What must never exit 0 is a tick where
+    ;; nothing happened for no stated reason, which is the last clause.
+    (zero? (+ (:tick/committed r) (:tick/dry-run r)
+              (:tick/nothing-new r) (:tick/not-due r 0))) 2
     :else 0))
 
 (defn render
@@ -57,6 +68,7 @@
           "  dry-run " (:tick/dry-run r)
           "  nothing-new " (:tick/nothing-new r)
           "  refused " (:tick/refused r)
+          "  not-due " (:tick/not-due r 0)
           "  UNMEASURED " (:tick/unmeasured r)
           "  rows " (:tick/rows-appended r))]
     (for [x (:tick/results r)]
