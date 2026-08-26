@@ -65,7 +65,15 @@
     :terms "https://opensky-network.org/about/terms-of-use"
     ;; The anonymous tier is rate-limited and the underlying data updates
     ;; every 10 s. 60 s is inside the limit and above the update period.
-    :min-interval-ms 60000
+    ;; Ten minutes, not one. The registry's job is to say how fast the
+    ;; feed changes, but a poll also COMMITS -- and a commit moves the
+    ;; Iceberg snapshot, which is the read cache's key. Measured 2026-08-26
+    ;; with the scheduler live: polling every five minutes invalidated the
+    ;; cache every five minutes, so somebody always paid the cold scan, and
+    ;; the Worker returned `error code: 1102` -- exceeded CPU -- before
+    ;; succeeding on retry at 51 s. Ten minutes is also the considerate rate
+    ;; for a free anonymous tier.
+    :min-interval-ms 600000
     :notes "Positional arrays, not objects. Timestamps are UNIX SECONDS --
             unlike USGS's. This pair is why the governor has a plausibility
             window on timestamps."}
