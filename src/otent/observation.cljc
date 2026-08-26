@@ -1,4 +1,4 @@
-(ns tenkyu.observation
+(ns otent.observation
   "The one row shape every feed lands in.
 
   Five public feeds -- orbital elements, seismic events, aircraft
@@ -19,7 +19,7 @@
 
   ## Why provenance is columns and not a side table
 
-  `tenkyu.governor` refuses a row that cannot say where it came from, and it
+  `otent.governor` refuses a row that cannot say where it came from, and it
   can only do that if the answer travels with the row. A provenance table
   joined on batch id is one deletion away from a lake full of coordinates
   nobody can attribute -- and the deletion looks like a cleanup.
@@ -85,7 +85,7 @@
    "payload_sha256" (:payload-sha256 o)})
 
 (defn table-name
-  "The Iceberg table a kind lands in: one table per kind, `tenkyu_<kind>`.
+  "The Iceberg table a kind lands in: one table per kind, `otent_<kind>`.
 
   Not one table for everything. The kinds have wildly different row rates
   -- aircraft is thousands per poll, satellites is a daily catalogue -- and
@@ -93,4 +93,4 @@
   satellite rows live in. Not one table per poll either: that is a metadata
   explosion, and commit cost is per-commit, not per-row."
   [kind]
-  (str "tenkyu_" (str/replace (name kind) "-" "_")))
+  (str "otent_" (str/replace (name kind) "-" "_")))

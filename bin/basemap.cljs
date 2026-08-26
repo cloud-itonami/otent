@@ -40,7 +40,7 @@
 
 (def ACCOUNT "4da88288dc30d9ee257f319d3c33ecf0")
 (def BUCKET "cloud-itonami-datalake")
-(def PREFIX "tenkyu/basemap")
+(def PREFIX "otent/basemap")
 
 (def raster-source
   {:id "blue-marble"
@@ -98,7 +98,7 @@
       (.catch (fn [e] {:ok? false :error :r2/unreachable :detail (str (.-message e))}))))
 
 (defn- fetch-bytes [url]
-  (-> (js/fetch url #js {:headers #js {"user-agent" "tenkyu-basemap/0.1 (cloud-itonami)"}})
+  (-> (js/fetch url #js {:headers #js {"user-agent" "otent-basemap/0.1 (cloud-itonami)"}})
       (.then (fn [r]
                (if-not (.-ok r)
                  {:ok? false :error :source/http-error

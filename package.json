@@ -1,11 +1,11 @@
 {
-  "name": "@cloud-itonami/tenkyu",
+  "name": "@cloud-itonami/otent",
   "version": "0.1.0",
   "description": "Ingest actor: public satellite/quake/aircraft/fire/vessel feeds -> governed rows -> Cloudflare R2 Data Catalog (Apache Iceberg)",
   "license": "MIT",
   "scripts": {
     "test": "nbb --classpath src:test:../../kotoba-lang/sgp4/src test/run.cljs",
-    "tick": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/tenkyu.cljs tick",
-    "feeds": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/tenkyu.cljs feeds"
+    "tick": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs tick",
+    "feeds": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs feeds"
   }
 }

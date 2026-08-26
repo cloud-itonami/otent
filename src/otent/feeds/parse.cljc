@@ -1,16 +1,16 @@
-(ns tenkyu.feeds.parse
+(ns otent.feeds.parse
   "Payload bytes -> observations. Pure: every function here takes the text
   a feed returned plus the provenance of that fetch, and returns rows.
 
   No network. That is what makes the parsers testable against a captured
-  payload, and it is why the fixtures under `test/tenkyu/fixtures/` are
+  payload, and it is why the fixtures under `test/otent/fixtures/` are
   real responses rather than invented ones.
 
   Each parser returns `{:ok [obs ...] :failed [{...}]}` for the same reason
   `sgp4.tle/parse-catalog` does: a feed with four unparsable records must
   not be shaped like a clean one."
   (:require [clojure.string :as str]
-            [tenkyu.observation :as obs]
+            [otent.observation :as obs]
             [sgp4.tle :as tle]))
 
 (defn- prov [feed url fetched-at sha]
@@ -112,7 +112,7 @@
   "OpenSky `/states/all` -> aircraft observations.
 
   `time_position` is UNIX **SECONDS** and is multiplied by 1000 here. That
-  multiplication is the entire reason `tenkyu.governor` carries a timestamp
+  multiplication is the entire reason `otent.governor` carries a timestamp
   plausibility window: without it, dropping this `* 1000` yields timestamps
   in January 1970 that are numerically valid and visually invisible.
 
@@ -244,7 +244,7 @@
   **The collector that holds this socket open is not in this repository.**
   This parser exists and is tested against a captured message shape so that
   the resident collector, when written, has nothing to invent -- but the
-  vessel table is UNMEASURED until something runs it. `tenkyu.feeds.core`
+  vessel table is UNMEASURED until something runs it. `otent.feeds.core`
   marks the feed `:access :stream` for that reason, and the CLI reports it
   as unmeasured rather than as zero vessels."
   [parsed feed url fetched-at sha]

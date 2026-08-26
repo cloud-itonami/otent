@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """iceberg_append.py -- append a batch to a Cloudflare R2 Data Catalog table.
 
-`bin/tenkyu.cljs` (nbb) owns the orchestration; this owns the Iceberg
+`bin/otent.cljs` (nbb) owns the orchestration; this owns the Iceberg
 commit and nothing else. The boundary is NDJSON on disk. This script knows
 nothing about feeds, governors or EDN.
 

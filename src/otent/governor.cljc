@@ -1,4 +1,4 @@
-(ns tenkyu.governor
+(ns otent.governor
   "The independent check between what a feed said and what gets written.
 
   This is the Governor half of the actor pattern: the fetch/parse side
@@ -51,7 +51,7 @@
 
   `admit` returns `{:admitted [...] :held [...]}` and **both keys are
   always present**. A batch where 4,000 of 4,100 rows were held must not
-  be shaped like a clean one. `bin/tenkyu.cljs` refuses to commit when the
+  be shaped like a clean one. `bin/otent.cljs` refuses to commit when the
   held fraction crosses a threshold, because at that point the parser is
   wrong, not the feed."
   (:require [clojure.string :as str]))

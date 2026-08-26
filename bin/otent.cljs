@@ -1,11 +1,11 @@
-(ns tenkyu
+(ns otent
   "One ingest tick: fetch the public feeds, govern the rows, append them to
   the R2 Data Catalog, read back, and write a receipt.
 
-    nbb --classpath src bin/tenkyu.cljs tick
-    nbb --classpath src bin/tenkyu.cljs tick --feed usgs --dry-run
-    nbb --classpath src bin/tenkyu.cljs feeds
-    nbb --classpath src bin/tenkyu.cljs count --kind quake
+    nbb --classpath src bin/otent.cljs tick
+    nbb --classpath src bin/otent.cljs tick --feed usgs --dry-run
+    nbb --classpath src bin/otent.cljs feeds
+    nbb --classpath src bin/otent.cljs count --kind quake
 
   ## Exit codes
 
@@ -21,7 +21,7 @@
 
   ## What is written, and what is not
 
-  Rows go to `tenkyu_<kind>` in the `cloud_itonami` namespace of the
+  Rows go to `otent_<kind>` in the `cloud_itonami` namespace of the
   `cloud-itonami-datalake` bucket. **The Iceberg tables are a projection,
   not the source of truth**: the raw payload of every fetch is content-
   addressed and its sha256 travels on every row, so the tables can be
@@ -34,11 +34,11 @@
             ["crypto" :as crypto]
             ["child_process" :as cp]
             [clojure.string :as str]
-            [tenkyu.feeds.core :as feeds]
-            [tenkyu.feeds.parse :as parse]
-            [tenkyu.governor :as gov]
-            [tenkyu.observation :as obs]
-            [tenkyu.receipt :as receipt]))
+            [otent.feeds.core :as feeds]
+            [otent.feeds.parse :as parse]
+            [otent.governor :as gov]
+            [otent.observation :as obs]
+            [otent.receipt :as receipt]))
 
 (def ACCOUNT "4da88288dc30d9ee257f319d3c33ecf0")
 (def BUCKET "cloud-itonami-datalake")
@@ -95,7 +95,7 @@
   (let [url (url-with feed opts)]
     (-> (js/fetch url
                   #js {:headers #js {"user-agent"
-                                     "tenkyu/0.1 (cloud-itonami; +https://github.com/cloud-itonami/tenkyu)"}})
+                                     "otent/0.1 (cloud-itonami; +https://github.com/cloud-itonami/otent)"}})
         (.then (fn [r]
                  (if-not (.-ok r)
                    {:ok? false :error :feed/http-error
@@ -128,7 +128,7 @@
 ;; ---------------------------------------------------------------- write
 
 (defn- write-ndjson! [rows]
-  (let [dir (path/join (or (aget js/process.env "TMPDIR") "/tmp") "tenkyu")
+  (let [dir (path/join (or (aget js/process.env "TMPDIR") "/tmp") "otent")
         _ (fs/mkdirSync dir #js {:recursive true})
         f (path/join dir (str "batch-" (js/Date.now) "-" (rand-int 100000) ".ndjson"))]
     (fs/writeFileSync
@@ -338,7 +338,7 @@
         skipped (for [f fs* :let [r (runnable? f)] :when r]
                   (merge {:feed (:id f) :status :unmeasured} r))
         runnable (remove #(runnable? %) fs*)]
-    (log (str "tenkyu tick: " (count runnable) " runnable, "
+    (log (str "otent tick: " (count runnable) " runnable, "
               (count skipped) " unmeasured, of " (count fs*) " feeds"))
     (doseq [s skipped]
       (log (str "  " (name (:feed s)) ": UNMEASURED -- " (:detail s))))
@@ -367,7 +367,7 @@
   the user typed nothing."
   []
   (let [argv (js->clj js/process.argv)
-        i (first (keep-indexed (fn [i a] (when (str/ends-with? a "tenkyu.cljs") i)) argv))]
+        i (first (keep-indexed (fn [i a] (when (str/ends-with? a "otent.cljs") i)) argv))]
     (if i (drop (inc i) argv) (drop 2 argv))))
 
 (defn -main [& _]
@@ -381,7 +381,7 @@
                   (do (println t "UNREADABLE -- not zero") (js/process.exit 2))
                   (println t n)))
       "tick" (tick args)
-      (do (println "usage: tenkyu.cljs <tick|feeds|count> [--feed a,b] [--dry-run] [--create]")
+      (do (println "usage: otent.cljs <tick|feeds|count> [--feed a,b] [--dry-run] [--create]")
           (js/process.exit 2)))))
 
 (-main)

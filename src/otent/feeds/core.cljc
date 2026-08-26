@@ -1,7 +1,7 @@
-(ns tenkyu.feeds.core
+(ns otent.feeds.core
   "The feed registry: what each public source is, and what it costs to read.
 
-  Every entry is data, so `bin/tenkyu.cljs` can report the whole roster --
+  Every entry is data, so `bin/otent.cljs` can report the whole roster --
   including the feeds it could **not** run and why -- rather than silently
   polling the subset that happens to be configured.
 
@@ -15,7 +15,7 @@
 
   A feed that cannot be read is `UNMEASURED`. It is not zero rows, and a
   run that skipped four of five feeds must not exit like a run that read
-  all five. `bin/tenkyu.cljs` exits 2 for that -- not 0, not 1."
+  all five. `bin/otent.cljs` exits 2 for that -- not 0, not 1."
   (:require [clojure.string :as str]))
 
 (def registry

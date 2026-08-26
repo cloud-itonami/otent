@@ -45,7 +45,7 @@
 
 (def ACCOUNT "4da88288dc30d9ee257f319d3c33ecf0")
 (def BUCKET "cloud-itonami-datalake")
-(def PREFIX "tenkyu/basemap/buildings")
+(def PREFIX "otent/basemap/buildings")
 
 (def source
   {:id "openfreemap-buildings"
@@ -137,7 +137,7 @@
   (let [url (-> template
                 (str/replace "{z}" (str z)) (str/replace "{x}" (str x))
                 (str/replace "{y}" (str y)))]
-    (-> (js/fetch url #js {:headers #js {"user-agent" "tenkyu-buildings/0.1 (cloud-itonami)"}})
+    (-> (js/fetch url #js {:headers #js {"user-agent" "otent-buildings/0.1 (cloud-itonami)"}})
         (.then (fn [r]
                  (if-not (.-ok r)
                    {:ok? false :error :source/http-error :detail (str (.-status r) " " url)}

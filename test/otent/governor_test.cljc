@@ -1,4 +1,4 @@
-(ns tenkyu.governor-test
+(ns otent.governor-test
   "The governor, and specifically whether each rule can fire.
 
   A rule that has never rejected anything for the reason it names is not a
@@ -6,7 +6,7 @@
   admitted, and a row broken in exactly the way the rule describes is held
   **with that rule's reason** -- not merely held."
   (:require [clojure.test :refer [deftest is testing]]
-            [tenkyu.governor :as gov]))
+            [otent.governor :as gov]))
 
 (def now 1787700000000)                       ; 2026-08-25T18:00Z, ms
 

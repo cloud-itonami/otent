@@ -1,4 +1,4 @@
-(ns tenkyu.receipt
+(ns otent.receipt
   "The append-only audit ledger, and the run report a human reads.
 
   Every tick appends one entry recording what each feed did -- including
@@ -52,7 +52,7 @@
   (str/join
    "\n"
    (concat
-    [(str "tenkyu tick " iso)
+    [(str "otent tick " iso)
      (str "  committed " (:tick/committed r)
           "  dry-run " (:tick/dry-run r)
           "  nothing-new " (:tick/nothing-new r)
@@ -82,4 +82,4 @@
 ;; this namespace is the pure half -- `build`, `exit-code` and `render` are
 ;; all functions of their arguments, so a test can assert the exit code for
 ;; a given set of feed results without a filesystem. The append lives in
-;; `bin/tenkyu.cljs`, which already holds the only `fs` handle in the repo.
+;; `bin/otent.cljs`, which already holds the only `fs` handle in the repo.

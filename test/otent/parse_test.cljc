@@ -1,4 +1,4 @@
-(ns tenkyu.parse-test
+(ns otent.parse-test
   "The parsers, against REAL captured payloads.
 
   The fixtures under `fixtures/` are byte-for-byte what CelesTrak, USGS and
@@ -7,10 +7,10 @@
   was wrong in the first place."
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.string :as str]
-            [tenkyu.feeds.parse :as p]
-            [tenkyu.feeds.core :as feeds]
-            [tenkyu.governor :as gov]
-            [tenkyu.fixtures :as fx]))
+            [otent.feeds.parse :as p]
+            [otent.feeds.core :as feeds]
+            [otent.governor :as gov]
+            [otent.fixtures :as fx]))
 
 (def now 1787700000000)
 (def prov ["https://example.test/feed" now "sha256-of-the-payload"])

@@ -2,9 +2,9 @@
   "The suite, with an exit code the caller can see and a floor under the
   number of tests that ran."
   (:require [clojure.test :as t]
-            [tenkyu.governor-test]
-            [tenkyu.parse-test]
-            [tenkyu.receipt-test]))
+            [otent.governor-test]
+            [otent.parse-test]
+            [otent.receipt-test]))
 
 (defmethod t/report [:cljs.test/default :end-run-tests] [m]
   (println)
@@ -17,4 +17,4 @@
     (t/successful? m) (println "OK")
     :else (set! (.-exitCode js/process) 1)))
 
-(t/run-tests 'tenkyu.governor-test 'tenkyu.parse-test 'tenkyu.receipt-test)
+(t/run-tests 'otent.governor-test 'otent.parse-test 'otent.receipt-test)

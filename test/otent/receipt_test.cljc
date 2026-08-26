@@ -1,8 +1,8 @@
-(ns tenkyu.receipt-test
+(ns otent.receipt-test
   "The exit code. This is the whole 'did not look' vs 'looked and found
   nothing' distinction, and it is pure, so it can be asserted directly."
   (:require [clojure.test :refer [deftest is testing]]
-            [tenkyu.receipt :as r]))
+            [otent.receipt :as r]))
 
 (defn- code [& statuses]
   (r/exit-code (r/build (map #(hash-map :feed :x :status %) statuses) 0)))
