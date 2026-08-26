@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  cloud.itonami.otent-tick — one otent cycle: ingest what is due, prune what
+  is past its horizon.
+
+  Every five minutes, which is NOT the poll rate. Each feed's
+  :min-interval-ms decides that (CelesTrak 6h, USGS 5m, OpenSky 1m) and a
+  feed inside its interval comes back NOT-DUE without being asked. The timer
+  only has to be faster than the fastest feed wants.
+
+  Nothing was scheduled before 2026-08-26, and it could not honestly have
+  been. Three things had to land first:
+
+    the payloads had to be stored, or retention would destroy the only
+    record of an observation;
+    retention had to exist, or the table would only grow;
+    the reader had to prune files by manifest bounds, or the read cost would
+    track the history rather than the answer -- measured at 25,219 rows and
+    33.9 s before, 6,787 rows after.
+
+  Scheduling before those would have grown a table behind a page that timed
+  out, and called it automation.
+
+  The logic is in bin/scheduled.cljs. Nothing goes in this plist: launchctl
+  needs bootout/bootstrap on every edit, so a plist that carries decisions
+  is a plist nobody fixes.
+
+  install:
+    cp ops/cloud.itonami.otent-tick.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/cloud.itonami.otent-tick.plist
+  watch:
+    tail -40 /tmp/otent-tick.log
+  stop:
+    launchctl bootout gui/$(id -u)/cloud.itonami.otent-tick
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>cloud.itonami.otent-tick</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /Users/junkawasaki/github/com-junkawasaki/orgs/cloud-itonami/otent &amp;&amp; exec /opt/homebrew/bin/nbb --classpath src:../../kotoba-lang/sgp4/src bin/scheduled.cljs</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>300</integer>
+
+  <!-- Not at load. A bootstrap during an edit should not fire a cycle. -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/otent-tick.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/otent-tick.err</string>
+
+  <!-- The cycle takes ~1 min when both feeds are due and the tables are
+       large. 10 minutes is the ceiling before something is wrong. -->
+  <key>ExitTimeOut</key>
+  <integer>600</integer>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+
+  <key>LowPriorityIO</key>
+  <true/>
+</dict>
+</plist>

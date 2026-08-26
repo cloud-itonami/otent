@@ -472,6 +472,76 @@
         i (first (keep-indexed (fn [i a] (when (str/ends-with? a "otent.cljs") i)) argv))]
     (if i (drop (inc i) argv) (drop 2 argv))))
 
+(def archive-began-ms
+  "When `archive-payload!` started storing payloads.
+
+  Rows observed before this were written when nothing kept the bytes, so no
+  payload can ever be found for them and `iceberg_retain.py` would refuse
+  forever on a fixed set of old rows. The waiver is passed explicitly rather
+  than defaulted inside the Python, so widening it is an edit here with a
+  date attached, not a flag someone reaches for.
+
+  2026-08-26T07:24:00Z, the first tick that archived."
+  1787729040000)
+
+(defn retain
+  "Delete observations past their horizon, per kind.
+
+  Each table is a separate run so one refusal does not stop the others: a
+  missing payload behind aircraft rows says nothing about quakes."
+  [args]
+  (let [dry? (contains? (:flags args) "dry-run")
+        now (js/Date.now)
+        kinds (if-let [k (:kind (:opts args))]
+                (map keyword (str/split k #","))
+                (map :kind feeds/registry))
+        all-tables (distinct (map obs/table-name kinds))
+        ;; A table the tick has never created cannot be retained, and the R2
+        ;; catalog answers "not found or forbidden" with one message -- so
+        ;; absence and denial are indistinguishable from the error alone.
+        ;; Rather than guess, ask whether it is readable, and treat
+        ;; unreadable as SKIPPED with the reason named. `fire` and `vessel`
+        ;; are UNMEASURED by design (no key, no resident collector), and a
+        ;; job that exits 2 on every run for a known reason is one a
+        ;; scheduler cannot tell from a broken one.
+        readable (into {} (map (juxt identity table-count)) all-tables)
+        tables (filterv #(some? (readable %)) all-tables)
+        skipped (remove #(some? (readable %)) all-tables)
+        results
+        (doall
+         (for [t tables]
+           (let [r (cp/spawnSync
+                    "python3"
+                    (clj->js (cond-> [(path/join (js/process.cwd) "scripts" "iceberg_retain.py")
+                                      "--table" t
+                                      "--now-ms" (str now)
+                                      "--pre-archive-ms" (str archive-began-ms)]
+                               dry? (conj "--dry-run")))
+                    #js {:stdio #js ["ignore" "pipe" "inherit"] :env js/process.env})]
+             {:table t :code (.-status r) :out (str/trim (str (.-stdout r)))})))]
+    (doseq [t skipped]
+      (println (str "SKIPPED " t "  not readable: the tick reports this feed "
+                    "UNMEASURED, so there is nothing to retain -- which is "
+                    "not the same as having retained nothing")))
+    (doseq [{:keys [table code out]} results]
+      (println (str (case code 0 "OK      " 1 "REFUSED " "UNKNOWN ") table "  " out)))
+    (let [refused (filter #(= 1 (:code %)) results)
+          unknown (remove #(#{0 1} (:code %)) results)]
+      (println (str "retain: " (count results) " table(s) examined, "
+                    (count skipped) " skipped as unreadable, "
+                    (count refused) " refused, " (count unknown) " could not answer"))
+      ;; The evidence floor. Skipping a known-absent table is fine; skipping
+      ;; EVERY table is what a catalog outage looks like, and it must not
+      ;; exit like a clean run.
+      (when (empty? tables)
+        (println "REFUSING to report a pass: no table was readable at all, "
+                 "which is what an outage looks like from here")
+        (js/process.exit 2))
+      ;; 2 wins over 1 for the same reason it does in the tick receipt:
+      ;; `could not answer` changes what a reader should conclude more than
+      ;; `answered no` does.
+      (js/process.exit (cond (seq unknown) 2 (seq refused) 1 :else 0)))))
+
 (defn -main [& _]
   (let [parsed (cli/parse-args (user-args))
         _ (when (:error parsed)
@@ -487,7 +557,8 @@
                   (do (println t "UNREADABLE -- not zero") (js/process.exit 2))
                   (println t n)))
       "tick" (tick args)
-      (do (println "usage: otent.cljs <tick|feeds|count> [--feed a,b] [--dry-run] [--create]")
+      "retain" (retain args)
+      (do (println "usage: otent.cljs <tick|retain|feeds|count> [--feed a,b] [--kind a,b] [--dry-run] [--create] [--force]")
           (js/process.exit 2)))))
 
 (-main)

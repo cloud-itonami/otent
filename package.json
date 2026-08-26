@@ -6,6 +6,8 @@
   "scripts": {
     "test": "nbb --classpath src:test:../../kotoba-lang/sgp4/src test/run.cljs",
     "tick": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs tick",
-    "feeds": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs feeds"
+    "feeds": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs feeds",
+    "retain": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs retain",
+    "cycle": "nbb --classpath src:../../kotoba-lang/sgp4/src bin/scheduled.cljs"
   }
 }

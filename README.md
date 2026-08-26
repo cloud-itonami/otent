@@ -249,7 +249,7 @@ writer — the same split `com-junkawasaki/org-gleif-projections` already
 uses in this workspace. The boundary is NDJSON on disk; that script knows
 nothing about feeds, governors or EDN.
 
-## How often each feed is asked, and why nothing schedules this yet
+## How often each feed is asked
 
 Every feed in the registry declares a `:min-interval-ms` — six hours for
 CelesTrak element sets, five minutes for USGS, a minute for OpenSky. Those
@@ -294,35 +294,82 @@ contributed* that were held for a reason about the row. A parser emitting the
 same row a thousand times is still caught — that is `:duplicate-observation`,
 which stays in.
 
-### Retention is now possible, and was not before
+### The launchd job, and what had to land before it
 
-Retention needs somewhere else for the observation to live, or deleting a
-row destroys the only record of it. That is why the payload archive above
-had to come first, and why this repository grew a table it could never
-prune for as long as the claim in *The tables are a projection* was untrue.
+`ops/cloud.itonami.otent-tick.plist`, every **five minutes** — which is not
+the poll rate. Each feed's `:min-interval-ms` decides that, and a feed inside
+its interval comes back `NOT-DUE` without being asked. The timer only has to
+be faster than the fastest feed wants.
 
-### Why there is still no launchd job
-
-Measured 2026-08-26, one OpenSky poll appends **6,399 rows** (18,820 →
-25,219), and the read path scans the whole table:
-
-```
-GET /api/objects/aircraft   HTTP 200   6,555,324 bytes   33.9 s
+```bash
+cp ops/cloud.itonami.otent-tick.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/cloud.itonami.otent-tick.plist
+tail -40 /tmp/otent-tick.log
 ```
 
-| poll every | aircraft rows/day |
+Nothing was scheduled before 2026-08-26 and it could not honestly have been.
+Three things had to land first, in this order, each because the one after it
+would otherwise have been a lie:
+
+1. **The payloads had to be stored.** Retention deletes rows; without the
+   bytes somewhere else, deleting one destroys the only record of an
+   observation.
+2. **Retention had to exist.** Otherwise the table only grows.
+3. **The reader had to prune files by manifest bounds.** Otherwise the read
+   cost tracks the history rather than the answer — measured at 25,219 rows
+   and 33.9 s before, 6,787 rows after, on the same question.
+
+Scheduling before those would have grown a table behind a page that timed
+out, and called it automation.
+
+`bin/scheduled.cljs` is the cycle, not the plist: launchctl needs
+`bootout`/`bootstrap` on every edit, so a plist carrying decisions is a plist
+nobody fixes. It does three things a plist cannot express.
+
+**The credential comes from the Keychain, by name.** `security
+find-generic-password -s gftd.cf -a API_TOKEN` — one item, targeted. Never an
+enumeration: a dump exposes unrelated credentials' metadata and raises a
+prompt per item. Absent, the cycle exits 2 and says nothing ran, rather than
+running a tick that reports every feed UNMEASURED and reads like a quiet
+planet.
+
+**UNMEASURED feeds are expected here, by name.** `tick` exits 2 whenever a
+feed could not be read, which is right for a person and wrong for a timer:
+`firms` needs a key nobody has entered and `aisstream` needs a resident
+collector this repository does not run, so an unwrapped tick would exit 2 on
+every run forever — and a job that is permanently red is one nobody can tell
+from a broken one. The expected set is declared in `expected-unmeasured` with
+a date, a reason and a clearing condition, and **a third feed going dark is a
+failure**: watched on 2026-08-26 by removing `aisstream` from the set, which
+exits 2 naming it.
+
+**Retention runs after ingest.** Deleting rows the tick just wrote is fine —
+they are past the horizon or they are not. Doing it first would delete rows
+whose replacement then failed to commit.
+
+### Retention
+
+`otent.cljs retain`, per kind, horizons in `scripts/iceberg_retain.py`:
+aircraft 1 day, vessel 1 week, fire and satellite 3 months, quake 1 year.
+Longer than the read window in every case, because the two answer different
+questions — the window is *what should be drawn now*, the horizon is *how
+much history is worth keeping queryable*. Anything older is still in the
+bucket, addressed by its hash.
+
+Four refusals, each watched on 2026-08-26:
+
+| | |
 |---|---|
-| 60s (the declared minimum) | 9,214,560 |
-| 5 min | 1,842,912 |
-| 15 min | 614,304 |
-| 1 hour | 153,576 |
+| a table with no declared horizon | refuses rather than inheriting another table's |
+| a cutoff that is not 13 digits | refuses — `observed_at` is text, so string order equals numeric order only while every value has the same digit count (2001–2286) |
+| rows whose payloads are not in the bucket | refuses, naming the count: deleting them would destroy the only record |
+| every table unreadable | exits 2 — that is what an outage looks like from here, and it must not read as a clean run |
 
-At 25k rows the read already takes 34 seconds. **Scheduling at any cadence
-breaks the app within a day**, because the table is append-only with no
-retention and the API bounds nothing. So the interval control landed and the
-scheduler did not: installing one now would produce a growing table behind a
-page that times out, and call it automation. Retention and a bounded read come
-first.
+Rows written before the payload archive existed can never have a payload, so
+they would block retention forever. `--pre-archive-ms` waives exactly those,
+has no default, and prints how many it waived. Set to the epoch — covering
+nothing — the same three rows refuse again, naming them as observed *after*
+the archive existed, which is a failure rather than history.
 
 ## Tests
 
