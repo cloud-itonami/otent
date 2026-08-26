@@ -31,13 +31,15 @@
             [clojure.string :as str]
             ["fs" :as fs]
             ["path" :as path]
-            [otent.feeds-due-test]
+            [otent.cli-test]
+    [otent.feeds-due-test]
             [otent.governor-test]
             [otent.parse-test]
             [otent.receipt-test]))
 
 (def declared
-  '[otent.feeds-due-test
+  '[otent.cli-test
+    otent.feeds-due-test
     otent.governor-test
     otent.parse-test
     otent.receipt-test])

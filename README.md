@@ -186,14 +186,44 @@ basemap at all in a bucket holding 1,365 tiles.
 
 ## The tables are a projection, not the source of truth
 
-Every row carries `payload_sha256`, `source_url` and `fetched_at`, so the
-Iceberg tables can be dropped and rebuilt from the payloads. The moment
-that stops being true they have become a *premise*, and this workspace does
-not put a premise behind one vendor's SQL endpoint
+Every row carries `payload_sha256`, `source_url` and `fetched_at`, and
+**every fetched payload is stored in the bucket under its own hash** at
+`otent/payload/<sha256>.json.gz`. So the Iceberg tables can be dropped and
+rebuilt. The moment that stops being true they have become a *premise*, and
+this workspace does not put a premise behind one vendor's SQL endpoint
 (superproject ADR-2608039000). Provenance is columns rather than a joined
 side table for the same reason: a provenance table is one deletion away
 from a lake full of coordinates nobody can attribute, and the deletion
 looks like a cleanup.
+
+> ### This section was false until 2026-08-26
+>
+> It said the tables could be rebuilt from the payloads "because the raw
+> payload of every fetch is content-addressed and its sha256 travels on
+> every row". The sha did travel on every row. The payload was fetched,
+> hashed, parsed and **dropped on the floor** — nothing wrote it anywhere.
+> You cannot rebuild anything from a hash.
+>
+> So the tables were the only copy, which made them exactly the premise
+> this section says they are not, and it made retention impossible to do
+> honestly: deleting a row would have destroyed the only record of an
+> observation, so the table could only grow.
+>
+> `archive-payload!` now puts the bytes in the bucket **before** the rows
+> go to the table, and a failure to store refuses the commit — watched
+> failing on 2026-08-26 by pointing the bucket at a name that does not
+> exist: `exit 1`, the reason named, and the aircraft table unchanged at
+> 32,006 rows rather than 32,006 + 6,139. Committing rows whose payload was
+> not stored would put the table back to being the only copy, silently, and
+> only for the ticks where the write happened to fail.
+>
+> The key is the sha256 of the *uncompressed* bytes — the same hash the
+> rows carry, so a row points at its payload with no second identifier. The
+> object is gzipped, which is transport and does not change identity;
+> measured on a USGS payload, 32,064 bytes stored as 5,060. A payload
+> already present is not written again: two objects with the same content
+> and different write times would make the second one the answer to *when
+> did we first see this*.
 
 **Satellite rows carry no position.** They carry the element set, and
 position is a function of elements and time — evaluated by
@@ -263,6 +293,13 @@ the ceiling measures is the fraction of rows *this poll could have
 contributed* that were held for a reason about the row. A parser emitting the
 same row a thousand times is still caught — that is `:duplicate-observation`,
 which stays in.
+
+### Retention is now possible, and was not before
+
+Retention needs somewhere else for the observation to live, or deleting a
+row destroys the only record of it. That is why the payload archive above
+had to come first, and why this repository grew a table it could never
+prune for as long as the claim in *The tables are a projection* was untrue.
 
 ### Why there is still no launchd job
 

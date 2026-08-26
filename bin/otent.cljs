@@ -38,6 +38,8 @@
             [otent.feeds.parse :as parse]
             [otent.governor :as gov]
             [otent.observation :as obs]
+            [otent.r2 :as r2]
+            [otent.cli :as cli]
             [otent.receipt :as receipt]))
 
 (def ACCOUNT "4da88288dc30d9ee257f319d3c33ecf0")
@@ -51,20 +53,7 @@
 
 ;; ---------------------------------------------------------------- args
 
-(defn parse-args [argv]
-  (loop [a (seq argv) out {:flags #{} :opts {}}]
-    (if-not a
-      out
-      (let [x (first a)]
-        (cond
-          (#{"--dry-run" "--create" "--verbose"} x)
-          (recur (next a) (update out :flags conj (subs x 2)))
 
-          (str/starts-with? x "--")
-          (recur (nnext a) (assoc-in out [:opts (keyword (subs x 2))] (second a)))
-
-          (nil? (:cmd out)) (recur (next a) (assoc out :cmd x))
-          :else (recur (next a) out))))))
 
 ;; ---------------------------------------------------------------- fetch
 
@@ -113,6 +102,48 @@
         (.catch (fn [e] {:ok? false :error :feed/unreachable
                          :detail (str (.-message e) " (" url ")")
                          :url url})))))
+
+(defn archive-payload!
+  "Put the fetched bytes in the bucket, keyed by their own sha256.
+
+  ## Why this is not optional
+
+  The README has said since day one that the Iceberg tables are a
+  projection and not the source of truth, because \"the raw payload of
+  every fetch is content-addressed and its sha256 travels on every row, so
+  the tables can be dropped and rebuilt from the payloads.\"
+
+  That was false. The payload was fetched, hashed, parsed and dropped on
+  the floor; only the hash survived, on the rows. **You cannot rebuild
+  anything from a hash.** The tables were the only copy, which makes them
+  a premise, which is the one thing ADR-2608039000 says a distributed
+  path must not put behind a single vendor.
+
+  It also made retention impossible to do honestly: deleting a row would
+  have destroyed the only record of an observation, so the table could
+  only ever grow.
+
+  ## Content-addressed, so a repeat costs one ranged GET
+
+  The key is the sha256 of the UNCOMPRESSED bytes -- the same hash that
+  travels on every row, so a row points at its payload without a second
+  identifier. The stored object is gzipped, which is a transport detail
+  and does not change the identity.
+
+  A payload already present is not written again. That is not only an
+  optimisation: PUT-ing it twice would be two objects with the same
+  content and different write times, and the second one would be the
+  answer to \"when did we first see this?\"."
+  [{:keys [text sha]}]
+  (let [key (str "otent/payload/" sha ".json.gz")]
+    (-> (r2/head key)
+        (.then (fn [h]
+                 (cond
+                   (:present? h) (js/Promise.resolve {:ok? true :key key :already? true})
+                   ;; A probe that could not run is not a probe that found
+                   ;; nothing. Write, rather than assume either way.
+                   :else (r2/put! key (r2/gzip (js/Buffer.from text "utf8"))
+                                  "application/gzip")))))))
 
 ;; ---------------------------------------------------------------- parse
 
@@ -317,19 +348,40 @@
                   :parse-failures (count failed)}
 
                  :else
-                 (let [c (commit! table (:admitted result)
-                                  (contains? flags "create"))]
-                   (merge {:feed (:id feed) :table table
+                 ;; The payload goes to the bucket BEFORE the rows go to the
+                 ;; table, and a failure to store it refuses the commit.
+                 ;;
+                 ;; Order matters, and so does the refusal. Rows whose payload
+                 ;; was never stored are rows that cannot be rebuilt or
+                 ;; audited: the sha256 on them points at nothing. Committing
+                 ;; them anyway would put the table back to being the only
+                 ;; copy -- silently, and only for the ticks where the write
+                 ;; happened to fail, which is the worst of both.
+                 (-> (archive-payload! f)
+                     (.then
+                      (fn [a]
+                        (if-not (:ok? a)
+                          {:feed (:id feed) :status :refused :table table
+                           :error :payload/not-archived
                            :counts (:counts result)
-                           :parse-failures (count failed)}
-                          (if (:ok? c)
-                            {:status :committed :appended (:appended c)
-                             :rows-before (:before c) :rows-after (:after c)
-                             ;; The watermark the NEXT tick will read.
-                             :max-observed-at (reduce max 0 (map :observed-at (:admitted result)))
-                             :payload-sha256 (:sha f)
-                             :note (:note c)}
-                            {:status :refused :error (:error c) :detail (:detail c)})))))))))
+                           :detail (str "the payload was not stored (" (name (:error a))
+                                        ": " (:detail a) "), so these " (count (:admitted result))
+                                        " rows would have been unrebuildable. Nothing was appended.")}
+                          (let [c (commit! table (:admitted result)
+                                           (contains? flags "create"))]
+                            (merge {:feed (:id feed) :table table
+                                    :counts (:counts result)
+                                    :parse-failures (count failed)}
+                                   (if (:ok? c)
+                                     {:status :committed :appended (:appended c)
+                                      :rows-before (:before c) :rows-after (:after c)
+                                      ;; The watermark the NEXT tick will read.
+                                      :max-observed-at (reduce max 0 (map :observed-at (:admitted result)))
+                                      :payload-sha256 (:sha f)
+                                      :payload-key (:key a)
+                                      :payload-already-stored (boolean (:already? a))
+                                      :note (:note c)}
+                                     {:status :refused :error (:error c) :detail (:detail c)})))))))))))))
         (.catch (fn [e] {:feed (:id feed) :status :unmeasured
                          :error :tick/threw :detail (str (.-message e))})))))
 
@@ -421,7 +473,11 @@
     (if i (drop (inc i) argv) (drop 2 argv))))
 
 (defn -main [& _]
-  (let [{:keys [cmd opts] :as args} (parse-args (user-args))]
+  (let [parsed (cli/parse-args (user-args))
+        _ (when (:error parsed)
+            (binding [*print-fn* *print-err-fn*] (println (:detail parsed)))
+            (js/process.exit 2))
+        {:keys [cmd opts] :as args} parsed]
     (case cmd
       "feeds" (doseq [l (feeds/describe)] (println l))
       "count" (let [k (keyword (or (:kind opts) "quake"))
