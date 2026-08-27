@@ -111,17 +111,48 @@
 (defn unmeasured-counts
   "How many times each feed came back unmeasured, and how many times it was
   reached. A feed that failed three polls in ninety is not dark; it is
-  reachable 97% of the time, and that number is coverage."
+  reachable 97% of the time, and that number is coverage.
+
+  **Counted from a feed's first successful contact onward.** Before that it
+  was not failing -- it was not running, for a reason already recorded as
+  an exemption. Measured 2026-08-27: `firms` went live at 09:07 after a
+  free key was entered, and counting the whole ledger reported it
+  `reachable 1% of the time (179 of 180 attempts could not be read)` --
+  true about the history and false about the feed. Every newly enabled feed
+  would read as broken for a day, and a report that is red for a bad reason
+  is one nobody reads for the good ones.
+
+  The statistic this keeps is `since it started working, how often does it
+  work`. A feed that has never worked has no reachability at all, which is
+  what `:unmeasured` already says."
   [entries]
-  (reduce (fn [acc e]
-            (reduce (fn [a r]
-                      (cond-> a
-                        (= :unmeasured (:status r)) (update-in [(:feed r) :unmeasured] (fnil inc 0))
-                        (contacted-statuses (:status r)) (update-in [(:feed r) :reached] (fnil inc 0))))
-                    acc
-                    (:tick/results e)))
-          {}
-          entries))
+  (let [ordered (sort-by :tick/at entries)
+        ;; When each feed was first actually reached. Feeds absent from
+        ;; this map have never been reached, and get no denominator rather
+        ;; than a denominator of everything.
+        first-contact (reduce (fn [acc e]
+                                (reduce (fn [a r]
+                                          (if (and (contacted-statuses (:status r))
+                                                   (not (contains? a (:feed r))))
+                                            (assoc a (:feed r) (:tick/at e))
+                                            a))
+                                        acc (:tick/results e)))
+                              {}
+                              ordered)]
+    (reduce (fn [acc e]
+              (reduce (fn [a r]
+                        (let [since (get first-contact (:feed r))]
+                          (if (or (nil? since) (< (:tick/at e) since))
+                            a
+                            (cond-> a
+                              (= :unmeasured (:status r))
+                              (update-in [(:feed r) :unmeasured] (fnil inc 0))
+                              (contacted-statuses (:status r))
+                              (update-in [(:feed r) :reached] (fnil inc 0))))))
+                      acc
+                      (:tick/results e)))
+            {}
+            ordered)))
 
 (defn dark-now
   "Which feeds are unmeasured **as of the last tick that mentioned them**.

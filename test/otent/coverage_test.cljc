@@ -172,12 +172,14 @@
                          :expected-unmeasured #{"firms"}})
           firms (first (filter #(= :firms (:id %)) (:feeds r)))]
       (is (= [:firms] (:flaky r)))
-      (is (= 0.5 (:reachability firms)))
+      (is (< 0.45 (:reachability firms) 0.55)
+          "counted from its first successful contact, not from the top of
+           the ledger -- so the denominator is one tick short of half")
       (is (= :ok (:status firms)) "600s of contact gap against a 3600s declared
                                    interval is not drift")
       (is (= :flaky (:verdict r)))
       (is (= 1 (cov/exit-code r)))
-      (is (some #(re-find #"reachable 50%" %)
+      (is (some #(re-find #"reachable 5\d%" %)
                 (map #(nth % 2) (:findings r)))))))
 
 (deftest a-window-lets-a-repair-be-seen-and-names-itself
@@ -223,3 +225,44 @@
   (is (= 5000 (cov/parse-window "5000")))
   (is (nil? (cov/parse-window "soon")))
   (is (nil? (cov/parse-window ""))))
+
+(deftest a-feed-that-just-came-online-is-not-flaky
+  (testing "firms went live on 2026-08-27 after a free key was entered, and
+            counting the whole ledger called it `reachable 1% of the time`
+            -- true about the history and false about the feed. Every newly
+            enabled feed would read as broken for a day."
+    (let [es (concat
+              ;; 30 ticks before the key existed
+              (for [i (range 30)]
+                {:tick/at (+ 1787800000000 (* i 300000))
+                 :tick/results [{:feed :usgs :status :committed}
+                                {:feed :firms :status :unmeasured}]})
+              ;; 20 ticks after, all fine
+              (for [i (range 20)]
+                {:tick/at (+ 1787800000000 (* (+ 30 i) 300000))
+                 :tick/results [{:feed :usgs :status :committed}
+                                {:feed :firms :status :committed}]}))
+          r (cov/report {:registry registry :entries es :now 0
+                         :tables {:quake 1 :aircraft 1 :fire 1}
+                         :expected-unmeasured #{"firms"}})
+          firms (first (filter #(= :firms (:id %)) (:feeds r)))]
+      (is (= 1 (:reachability firms))
+          "since it started working, it has always worked")
+      (is (zero? (:unmeasured firms))
+          "the runs before it was enabled were not failures")
+      (is (empty? (:flaky r)))
+      (is (= :ok (:verdict r))))))
+
+(deftest a-feed-that-never-worked-has-no-reachability-to-report
+  (let [es (for [i (range 40)]
+             {:tick/at (+ 1787800000000 (* i 300000))
+              :tick/results [{:feed :usgs :status :committed}
+                             {:feed :firms :status :unmeasured}]})
+        r (cov/report {:registry registry :entries es :now 0
+                       :tables {:quake 1 :aircraft 1 :fire :absent}
+                       :expected-unmeasured #{"firms"}})
+        firms (first (filter #(= :firms (:id %)) (:feeds r)))]
+    (is (nil? (:reachability firms))
+        "no denominator rather than a denominator of everything")
+    (is (= :unmeasured (:status firms)))
+    (is (empty? (:flaky r)) "never having run is what :unmeasured already says")))
