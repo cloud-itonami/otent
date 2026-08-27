@@ -33,6 +33,7 @@
             ["path" :as path]
             [otent.catalog-test]
             [otent.coverage-test]
+            [otent.darkness-test]
             [otent.deadline-test]
     [otent.cli-test]
     [otent.feeds-due-test]
@@ -44,6 +45,7 @@
 (def declared
   '[otent.catalog-test
     otent.coverage-test
+    otent.darkness-test
     otent.deadline-test
     otent.cli-test
     otent.feeds-due-test

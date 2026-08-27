@@ -269,6 +269,35 @@ answered nothing, the other says we stopped waiting and do not know what it
 would have said. Watched firing by setting the deadline to 1 ms against the
 live USGS feed.
 
+### A blip is not an outage, and the exit code has to know
+
+The deadline fired in production within the hour: a burst of local load
+made the FIRMS and OpenSky fetches exceed 60 s, both came back
+`[timeout]`, and the cycle **REFUSED**. Strictly true — and the beginning
+of the failure `expected-unmeasured` exists to prevent. Supplying the FIRMS
+key had correctly removed its exemption, so any darkness was now news; a
+job that goes red for a transient reason teaches its reader that red means
+nothing, and then the real outage arrives looking identical to the last
+four false ones.
+
+`otent.darkness` counts **consecutive** unreadable cycles per feed and
+refuses at three — fifteen minutes at a five-minute timer. A single timeout
+is still in the receipt, because it is a real gap in coverage, but it does
+not make the run a failure. The rising count is printed while it is still
+recoverable (`watching: firms 1/3, opensky 1/3`), because a threshold whose
+approach is invisible always arrives as a surprise.
+
+Three things it gets right that the obvious version does not:
+
+| | |
+|---|---|
+| a feed that recovers resets to zero | otherwise every feed accumulates its way to the threshold and the refusal eventually fires for one that has been healthy for a week |
+| a feed that was **not asked** neither grows nor resets | `not-due` and `unmeasured` are different, and resetting on a skip would let a broken feed launder its record by being inside its interval |
+| a declared exemption never refuses, however long it lasts | `aisstream` is at 500 and counting; its darkness is the documented state, not news, and it must not crowd out the feeds whose silence is |
+
+This is the same blip-versus-pattern distinction `otent coverage` draws,
+moved to where the exit code is decided. It had to be learned twice.
+
 ### The suite was green over a file that did not parse
 
 Fixing the above, a one-paren edit left `bin/otent.cljs` unparseable and
@@ -711,7 +740,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 83 tests, 1,132 assertions, against **captured real payloads**
+`npm test` — 88 tests, 1,146 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
