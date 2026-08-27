@@ -32,7 +32,7 @@
   ;; Evidence floor. Every assertion below iterates a parse result.
   (doseq [f ["celestrak-stations.tle" "usgs-2.5_day.geojson" "opensky-states.json"
              "digitraffic-ais-locations.json" "digitraffic-ais-vessels.json"
-             "opensanctions-maritime.csv"]]
+             "opensanctions-maritime.csv" "opensanctions-ownership.ndjson"]]
     (is (< 1000 (count (fx/slurp-fixture f))) (str f " is missing or truncated"))))
 
 (deftest celestrak-carries-elements-and-no-position
@@ -314,3 +314,72 @@
                                     "https://example.test" now "sha")]
     (is (empty? (:ok r)))
     (is (= [:opensanctions/no-entity-id] (map :error (:failed r))))))
+
+(deftest ownership-strips-the-imo-prefix-the-join-needs-gone
+  (testing "`imoNumber` is written `IMO9253325` here and the bare digits are
+            what an AIS transponder broadcasts. Joining without stripping it
+            returns ZERO rows -- which reads exactly like `no ship in these
+            waters has a recorded owner`, and was the first answer this join
+            gave. Twenty of twenty matched once the prefix came off."
+    (let [r (apply p/opensanctions-ownership (fx/slurp-fixture "opensanctions-ownership.ndjson")
+                   (feeds/by-id :opensanctions-ownership) prov)
+          ok (vec (:ok r))]
+      (is (<= 5 (count ok)))
+      (doseq [o ok]
+        (let [imo (get-in o [:attrs :asset_imo])]
+          (is (or (nil? imo) (re-matches #"\d{7}" imo))
+              (str (:object-id o) " asset_imo " (pr-str imo)
+                   " -- a prefixed value here makes every downstream join empty")))))))
+
+(deftest ownership-keeps-only-edges-whose-asset-is-a-vessel
+  (testing "the same Ownership schema links company to company. Those rows are
+            real and belong to a different question; letting them into a table
+            called vessel-ownership would answer it wrongly."
+    (let [r (apply p/opensanctions-ownership (fx/slurp-fixture "opensanctions-ownership.ndjson")
+                   (feeds/by-id :opensanctions-ownership) prov)]
+      (is (pos? (count (:ok r))) "an empty result would pass every check below")
+      (doseq [o (:ok r)]
+        ;; The first version of this asserted that asset_name and owner_name
+        ;; were present -- which a company-to-company edge also satisfies, so
+        ;; it passed when the filter was removed. Watched not discriminating,
+        ;; then fixed by putting the schema on the row.
+        (is (= "Vessel" (get-in o [:attrs :asset_schema]))
+            (str (:object-id o) " owns a "
+                 (get-in o [:attrs :asset_schema]) ", not a vessel"))
+        (is (some? (get-in o [:attrs :org_name]))
+            "an edge with no named organization got through")
+        (is (not= "Person" (get-in o [:attrs :org_schema]))
+            "a vessel owned by a named individual is personal data")))))
+
+(deftest ownership-drops-vessels-owned-by-a-named-individual
+  (testing "49 of 1,545 edges in the OFAC export name a natural person as the
+            owner. The governor caught the first version of this parser by
+            holding all 1,545 rows on the `owner` field name -- and it was
+            protecting something real. The answer is the filter, not a rename
+            that stops the rule noticing."
+    (let [csv (str "{\"id\":\"p1\",\"schema\":\"Person\",\"properties\":{\"name\":[\"A Person\"]}}\n"
+                   "{\"id\":\"v1\",\"schema\":\"Vessel\",\"properties\":{\"name\":[\"SHIP\"],\"imoNumber\":[\"IMO9253325\"]}}\n"
+                   "{\"id\":\"o1\",\"schema\":\"Ownership\",\"properties\":{\"asset\":[\"v1\"],\"owner\":[\"p1\"]}}\n")
+          r (p/opensanctions-ownership csv (feeds/by-id :opensanctions-ownership)
+                                       "https://example.test" now "sha")]
+      (is (empty? (:ok r)))
+      (is (= [:ownership/natural-person-owner] (map :error (:failed r)))
+          "dropped, counted and named -- not vanished"))))
+
+(deftest ownership-is-one-row-per-edge-and-carries-the-role
+  (testing "a ship can be owned and separately controlled, and one company
+            sits behind many hulls -- folding to `vessel -> owner` would drop
+            the second relationship and make fleet size unanswerable"
+    (let [r (apply p/opensanctions-ownership (fx/slurp-fixture "opensanctions-ownership.ndjson")
+                   (feeds/by-id :opensanctions-ownership) prov)
+          ok (vec (:ok r))]
+      (is (= (count ok) (count (distinct (map :object-id ok))))
+          "the edge id is the row identity")
+      (is (some #(get-in % [:attrs :role]) ok)
+          "the role -- owned vs controlled vs held in the interest of -- is kept")
+      (is (every? #(str/includes? (str (get-in % [:attrs :attribution])) "CC-BY-NC") ok)))))
+
+(deftest ownership-carries-no-position
+  (let [r (apply p/opensanctions-ownership (fx/slurp-fixture "opensanctions-ownership.ndjson")
+                 (feeds/by-id :opensanctions-ownership) prov)]
+    (doseq [o (:ok r)] (is (nil? (:lat o))) (is (nil? (:lon o))))))

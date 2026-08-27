@@ -61,6 +61,10 @@ HORIZON_MS = {
     # list alone cannot tell "never listed" from "listed and released" --
     # and because the whole list is ~23,000 rows every day.
     "otent_vessel_risk": 90 * 24 * 3600 * 1000,      # 3 months
+    # Ownership changes on the order of a sale, not a day, but the source is
+    # a daily snapshot and a hull changing hands is only visible in the
+    # difference between two of them.
+    "otent_ownership_link": 90 * 24 * 3600 * 1000,   # 3 months
     "otent_fire": 90 * 24 * 3600 * 1000,       # 3 months
     "otent_quake": 365 * 24 * 3600 * 1000,     # 1 year -- events, not fixes
     "otent_satellite": 90 * 24 * 3600 * 1000,  # 3 months of element sets

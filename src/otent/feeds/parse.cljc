@@ -439,6 +439,119 @@
      {:ok [] :failed []}
      rows)))
 
+(defn- ftm-prop [e k]
+  (get-in e ["properties" k]))
+
+(defn opensanctions-ownership
+  "OpenSanctions' FollowTheMoney entity graph -> who owns which ship.
+
+  NDJSON, one entity per line. The interesting rows are `Ownership` edges
+  whose `asset` is a `Vessel`: 1,545 of them in the OFAC export alone,
+  carrying a role like `Owned or Controlled By` or `Property in the interest
+  of`. That is the operating company behind a hull, which the AIS broadcast
+  never says.
+
+  ## The prefix that made the join silently empty
+
+  `imoNumber` here is `IMO9253325`, not `9253325`. Joining on the bare digits
+  an AIS transponder broadcasts returns ZERO rows, and zero rows looks exactly
+  like `no ship in these waters has a recorded owner` -- which was the first
+  answer this join gave. It was wrong: with the prefix stripped, twenty of
+  twenty matched, every one with a named owner.
+
+  So the IMO is normalised HERE, once, to the form the rest of this workspace
+  already uses. `parse-test` asserts a prefixed value round-trips, because the
+  failure mode is a plausible number rather than an error.
+
+  ## One row per EDGE, not per vessel
+
+  A ship can be owned and separately controlled, and the same company appears
+  behind many hulls. Folding the edges into a `vessel -> owner` column would
+  drop the second relationship and make the fleet-size question -- how many
+  hulls does this operator control -- unanswerable without re-fetching.
+
+  ## The governor refused all 1,545 rows, and it was right
+
+  The first version wrote the owner as `owner_name`, and `otent.governor`
+  held every row: `owner` is on its person-marker list, because on a position
+  row it names a human. Measured on the OFAC export, that list was protecting
+  something real -- 49 of 1,545 vessel-ownership edges name a NATURAL PERSON
+  as the owner.
+
+  The answer is not to rename the field until the rule stops noticing. It is
+  to drop those 49 edges: this table carries organizations, and a vessel held
+  by a named individual is personal data that has no business here. The
+  remaining fields are `org_*` because after the filter they cannot name a
+  person -- which is what the rule protects, enforced more strictly than the
+  field name was doing. Person-owned edges land in `:failed` under
+  `:ownership/natural-person-owner`, counted and named rather than vanishing.
+
+  Data: OpenSanctions, CC-BY-NC 4.0. Attribution rides on every row, and the
+  non-commercial condition is why this table is not on the CC0 wiki plane."
+  [text feed url fetched-at sha]
+  (let [p (prov feed url fetched-at sha)
+        lines (remove str/blank? (str/split-lines text))
+        ents (reduce (fn [m l]
+                       (let [e (js->clj (js/JSON.parse l))]
+                         (assoc m (get e "id") e)))
+                     {} lines)
+        vessel? (fn [id] (= "Vessel" (get-in ents [id "schema"])))]
+    (reduce
+     (fn [acc [id e]]
+       (if-not (= "Ownership" (get e "schema"))
+         acc
+         (let [assets (filter vessel? (ftm-prop e "asset"))
+               owners (ftm-prop e "owner")]
+           (if (or (empty? assets) (empty? owners))
+             acc
+             (reduce
+              (fn [acc2 [a o]]
+                (let [av (get ents a) ov (get ents o)
+                      natural-person? (= "Person" (get ov "schema"))
+                      ;; `IMO9253325` -> `9253325`. The whole reason this
+                      ;; parser exists in one place.
+                      imo (some-> (first (ftm-prop av "imoNumber"))
+                                  str/trim (str/replace #"^IMO" "") not-empty)]
+                  (if natural-person?
+                    (update acc2 :failed conj
+                            {:error :ownership/natural-person-owner
+                             :detail (str "vessel " (pr-str (first (ftm-prop av "name")))
+                                          " is owned by a named individual; this table"
+                                          " carries organizations")})
+                    (update acc2 :ok conj
+                          (obs/observation
+                           (merge p
+                                  {:kind :ownership-link
+                                   :object-id id
+                                   :observed-at fetched-at
+                                   :lat nil :lon nil :alt-km nil
+                                   ;; The schema of what is owned, on the
+                                   ;; row. Without it, `this table holds
+                                   ;; vessel ownership` is an invariant only
+                                   ;; the parser knows, and a test for it can
+                                   ;; only check things a company-to-company
+                                   ;; edge also has -- which is what the
+                                   ;; first version of that test did.
+                                   :attrs {:asset_schema (get av "schema")
+                                           :asset_imo imo
+                                           :asset_mmsi (some-> (first (ftm-prop av "mmsi")) str/trim not-empty)
+                                           :asset_name (some-> (first (ftm-prop av "name")) str/trim not-empty)
+                                           :org_id o
+                                           :org_name (some-> (first (ftm-prop ov "name")) str/trim not-empty)
+                                           :org_schema (get ov "schema")
+                                           :org_jurisdiction (some-> (or (first (ftm-prop ov "jurisdiction"))
+                                                                        (first (ftm-prop ov "country")))
+                                                                     str/trim not-empty)
+                                           :org_topics (some-> (seq (ftm-prop ov "topics")) (->> (str/join ";")))
+                                           :role (some-> (or (first (ftm-prop e "role"))
+                                                             (first (ftm-prop e "summary")))
+                                                         str/trim not-empty)
+                                           :attribution "OpenSanctions, CC-BY-NC 4.0"}}))))))
+              acc
+              (for [a assets o owners] [a o]))))))
+     {:ok [] :failed []}
+     ents)))
+
 (defn aisstream-message
   "One AISStream JSON message -> a vessel observation, or a failure.
 
