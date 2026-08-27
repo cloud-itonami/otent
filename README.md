@@ -301,6 +301,38 @@ the rule protects, enforced more strictly than the field name was managing.
 The dropped edges land in `:failed` under
 `:ownership/natural-person-owner`, counted and named rather than vanishing.
 
+### Two IMO registries, one property name, one live collision
+
+An **IMO Ship Number** identifies a hull. An **IMO Company Number**
+identifies a registered owner or ISM manager. Different registries, same
+seven-digit format — and in FollowTheMoney the same property name,
+`imoNumber`, carried on both `Vessel` and `Organization`.
+
+Measured on the 2026-08-28 export: **one collision in 2,607 values.**
+
+```
+IMO9036387  Vessel        New Konk                       cn
+IMO9036387  Organization  KOREA YUJONG SHIPPING CO LTD   kp
+```
+
+A join on the bare number links a North Korean shipping company to a
+Chinese vessel it has nothing to do with. **One in 2,607 is the dangerous
+frequency** — it will not show up in a hand-written test or a spot check,
+and when it fires the error runs in the direction that matters.
+
+So the two live in differently named columns (`asset_imo` on an ownership
+row, `imo_company_no` on an organization row), `otent.observation/imo-namespaces`
+gives the distinction a name instead of leaving it in whoever last read the
+parser, and a test carries the real collision.
+
+**The port state control join is not available.** The IMO Company Number is
+the identifier this industry uses, and the obvious consumer is a PSC
+inspection record — but Paris MOU serves its search as an application,
+Tokyo MOU's database path 404s, EMSA THETIS has no open API, and Equasis
+requires registration and forbids bulk extraction. Probed 2026-08-28, all
+of them. The number is recorded and ready; the thing to join it to is not
+openly published.
+
 ### The obvious enrichment, measured and refused
 
 The next step after `who controls this hull` is `who controls them`, and the
@@ -962,7 +994,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 103 tests, 1,432 assertions, against **captured real payloads**
+`npm test` — 105 tests, 1,439 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

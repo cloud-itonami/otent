@@ -9,6 +9,7 @@
             [clojure.string :as str]
             [otent.feeds.parse :as p]
             [otent.feeds.core :as feeds]
+            [otent.observation :as obs]
             [otent.governor :as gov]
             [otent.fixtures :as fx]))
 
@@ -466,3 +467,39 @@
           (is (= 1 (count (:ok r)))
               "the prefilter dropped every line for a formatting reason")
           (is (= "9253325" (get-in (first (:ok r)) [:attrs :asset_imo]))))))))
+
+(deftest the-two-imo-registries-are-never-the-same-column
+  (testing "an IMO Ship Number identifies a hull; an IMO Company Number
+            identifies an owner or manager. Different registries, same
+            seven-digit format, and in FollowTheMoney the same property name
+            `imoNumber` on both schemas. Measured on the 2026-08-28 export:
+            IMO9036387 is BOTH the Chinese vessel `New Konk` and the North
+            Korean firm `KOREA YUJONG SHIPPING CO LTD`."
+    (let [nd (str "{\"id\":\"v1\",\"schema\":\"Vessel\",\"properties\":"
+                  "{\"name\":[\"New Konk\"],\"imoNumber\":[\"IMO9036387\"]}}\n"
+                  "{\"id\":\"c1\",\"schema\":\"Organization\",\"properties\":"
+                  "{\"name\":[\"KOREA YUJONG SHIPPING CO LTD\"],\"imoNumber\":[\"IMO9036387\"]}}\n"
+                  "{\"id\":\"v2\",\"schema\":\"Vessel\",\"properties\":"
+                  "{\"name\":[\"OTHER\"],\"imoNumber\":[\"IMO9253325\"]}}\n"
+                  "{\"id\":\"o1\",\"schema\":\"Ownership\",\"properties\":{\"asset\":[\"v2\"],\"owner\":[\"c1\"]}}\n")
+          own (p/opensanctions-ownership nd (feeds/by-id :opensanctions-ownership)
+                                         "https://example.test" now "sha")
+          org (p/opensanctions-organizations nd (feeds/by-id :opensanctions-organizations)
+                                             "https://example.test" now "sha")
+          edge (first (:ok own))
+          firm (first (:ok org))]
+      (is (= "9253325" (get-in edge [:attrs :asset_imo]))
+          "the ownership row carries the SHIP number of the ship it is about")
+      (is (= "IMO9036387" (get-in firm [:attrs :imo_company_no]))
+          "the organization row carries the COMPANY number")
+      (is (not= (get-in edge [:attrs :asset_imo])
+                (get-in firm [:attrs :imo_company_no]))
+          "and they are different columns, so no join can conflate them")
+      (testing "the trap, spelled out: joining the bare numbers links this
+                DPRK firm to a Chinese vessel it has nothing to do with"
+        (is (= "9036387" (str/replace (get-in firm [:attrs :imo_company_no]) #"^IMO" ""))
+            "the company number equals a real, unrelated hull number")))))
+
+(deftest the-imo-namespaces-are-named-rather-than-remembered
+  (is (= #{:ship :company} (set (keys obs/imo-namespaces))))
+  (doseq [[_ v] obs/imo-namespaces] (is (str/includes? v "IMO"))))

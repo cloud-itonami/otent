@@ -48,6 +48,32 @@
   same footing as a satellite's element set. It lands in its own table."
   #{:satellite :quake :aircraft :fire :vessel :vessel-static :vessel-risk :ownership-link :org-identity})
 
+(def imo-namespaces
+  "The two IMO registries, which are NOT the same numbering.
+
+  An **IMO Ship Number** identifies a hull. An **IMO Company Number**
+  identifies a registered owner or ISM manager. They are different registries
+  that happen to share a seven-digit format -- and in FollowTheMoney they
+  also share a property name, `imoNumber`, carried on both `Vessel` and
+  `Organization`.
+
+  So a join on the bare number silently links a company to a ship it has
+  nothing to do with. Measured on the 2026-08-28 multi-jurisdiction export:
+  **one collision in 2,607 values.** `IMO9036387` is both the Chinese vessel
+  `New Konk` and the North Korean firm `KOREA YUJONG SHIPPING CO LTD`.
+
+  One in 2,607 is the dangerous frequency. It will not appear in a test
+  anybody writes by hand, it will not appear in a spot check, and when it
+  fires it asserts that a DPRK shipping company operates a vessel it does
+  not -- an error in the direction that matters.
+
+  These tables therefore keep the two in DIFFERENTLY NAMED columns --
+  `asset_imo` on an ownership row, `imo_company_no` on an organization row --
+  and this var exists so the distinction has a name rather than living in
+  whoever last read the parser."
+  {:ship "IMO Ship Number -- identifies a hull"
+   :company "IMO Company Number -- identifies a registered owner or ISM manager"})
+
 (defn observation
   "Build a row. Present but unknown values stay nil -- a feed that does not
   report altitude must not be made to say zero."
