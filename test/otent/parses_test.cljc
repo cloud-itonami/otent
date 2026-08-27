@@ -46,6 +46,13 @@
   (or (some-> (aget js/process.env "OTENT_TEST_CLASSPATH") not-empty)
       (str "src:" (path/join ".." ".." "kotoba-lang" "sgp4" "src")
            ":" (path/join ".." ".." "kotoba-lang" "kotobase-client" "src")
+           ;; `org-ietf-csv` reached this list the way everything does: the
+           ;; check above failed. A parser was added, its dependency went
+           ;; into package.json and the scheduler's subprocess classpath,
+           ;; and this default was the third copy nobody remembered. That
+           ;; is the point of loading the entry points rather than reading
+           ;; them.
+           ":" (path/join ".." ".." "kotoba-lang" "org-ietf-csv" "src")
            ;; `map` is here for `buildings.cljs` only. It is not in the
            ;; suite's own classpath, which is why the load check nearly
            ;; shipped with that entry point quietly excluded -- the same
