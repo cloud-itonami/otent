@@ -266,3 +266,17 @@
         "no denominator rather than a denominator of everything")
     (is (= :unmeasured (:status firms)))
     (is (empty? (:flaky r)) "never having run is what :unmeasured already says")))
+
+(deftest a-long-kind-name-does-not-run-into-its-row-count
+  (testing "`vessel-static` is 13 characters and the column was 10, so the
+            rendered line read `vessel-static2070` -- one token, with no
+            way to tell where the name ends and the number begins"
+    (let [r (cov/report {:registry registry
+                         :entries (entries 40 300000 {:contacted [:usgs] :dark [:firms]})
+                         :now 0
+                         :tables {:quake 213 :vessel-static 2070 :vessel-risk 23173}
+                         :expected-unmeasured #{"firms"}})
+          out (cov/render r)]
+      (is (some #(re-find #"vessel-static\s+2070" %) out))
+      (is (some #(re-find #"vessel-risk\s+23173" %) out))
+      (is (not-any? #(re-find #"vessel-static\d" %) out)))))

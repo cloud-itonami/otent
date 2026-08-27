@@ -339,7 +339,11 @@
    (if (nil? tables)
      ["tables UNMEASURED -- no $CF_CATALOG_TOKEN. Not zero rows, and not a clean run."]
      (for [[kind v] (sort-by first tables)]
-       (str "table  " (.padEnd (name kind) 10)
+       ;; 16, not 10: `vessel-static` is 13 characters and ran straight
+       ;; into its own row count -- `vessel-static2070` reads as one token
+       ;; and there is no way to tell where the name ends. A column that
+       ;; silently joins two numbers is worse than no column.
+       (str "table  " (.padEnd (name kind) 16)
             (if (number? v) v (str (str/upper-case (name v)) " -- not zero")))))
    [""]
    (if (seq dark)
