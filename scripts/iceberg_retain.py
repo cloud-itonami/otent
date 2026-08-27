@@ -65,6 +65,10 @@ HORIZON_MS = {
     # a daily snapshot and a hull changing hands is only visible in the
     # difference between two of them.
     "otent_ownership_link": 90 * 24 * 3600 * 1000,   # 3 months
+    # Company identity, like vessel identity: a firm keeps its registration
+    # number for years and its name for as long as it suits it. A year, so a
+    # rename is visible in the difference between two snapshots.
+    "otent_org_identity": 365 * 24 * 3600 * 1000,    # 1 year
     "otent_fire": 90 * 24 * 3600 * 1000,       # 3 months
     "otent_quake": 365 * 24 * 3600 * 1000,     # 1 year -- events, not fixes
     "otent_satellite": 90 * 24 * 3600 * 1000,  # 3 months of element sets

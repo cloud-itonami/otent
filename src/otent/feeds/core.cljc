@@ -283,6 +283,39 @@
             **Data: OpenSanctions, CC-BY-NC 4.0.** Non-commercial is why this
             is not on the CC0 wiki plane."}
 
+   {:id :opensanctions-organizations
+    :kind :org-identity
+    :access :open
+    :label "The organizations that control vessels, and what identifies them"
+    :url "https://data.opensanctions.org/datasets/latest/us_ofac_sdn/entities.ftm.json"
+    :default-params {}
+    :terms "https://www.opensanctions.org/licensing/"
+    :min-interval-ms 86400000
+    :scope "The 555 organizations on the far end of a vessel-ownership edge in
+            the OFAC export -- not all 9,819 organizations in it. Identifiers
+            are taken AS PUBLISHED and nothing is matched by name.
+
+            Measured on a sample of 40: exact-name lookup in GLEIF hit 4, and
+            only 1 of those 4 agreed on jurisdiction. GLEIF placed
+            `Odyssey Marine Inc.` in Nevada and `Patriot Inc.` in Delaware
+            where the sanctions record says Marshall Islands. Recording those
+            as identity would assert that a Nevada company owns a sanctioned
+            tanker, and the error direction on that is defamatory.
+
+            Measured over all 555: LEI on 2. IMO Company Number on 478.
+            Registration number on 316. Fifteen carry no identifier at all,
+            which `has_identifier` records rather than leaving as a blank
+            that reads like a gap in the ingest.
+
+            Same OFAC-only ceiling as the ownership table, and the same
+            reason: `otent_vessel_risk` measured OFAC at 20 of 60."
+    :notes "Same 53 MB payload as `opensanctions-ownership`, fetched twice a
+            day because a feed maps to one kind and one table. The archive is
+            content-addressed so it is stored once; the fetch is not. That is
+            a real cost and it is written down rather than hidden.
+
+            **Data: OpenSanctions, CC-BY-NC 4.0.** Not on the CC0 wiki plane."}
+
    {:id :aisstream
     :kind :vessel
     :access :stream
