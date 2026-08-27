@@ -196,9 +196,17 @@
            "| streaks:" (if-let [d (:detail v)] d "none"))
       (write-state! (assoc state "dark" streaks))
 
-      (when (:refuse? v)
-        (log "REFUSED:" (:detail v))
-        (js/process.exit 2))
+      ;; The refusal is RECORDED here and acted on at the end. It used to
+      ;; exit immediately, which skipped retention -- and once a feed could
+      ;; stay dark for hours rather than one cycle, that stopped being
+      ;; theoretical: measured 2026-08-27, `firms` went dark and retention
+      ;; did not run for 51 minutes, so rows sat past their horizon because
+      ;; a DIFFERENT feed could not be read.
+      ;;
+      ;; Whether a feed could be read and whether committed rows are past
+      ;; their horizon are unrelated questions. Letting the first answer
+      ;; the second is how one fault becomes two.
+      (when (:refuse? v) (log "REFUSED:" (:detail v)))
 
       ;; The tick's own exit 2 is expected here whenever the declared feeds
       ;; are the only unmeasured ones; 1 is not -- that is a governor
@@ -237,7 +245,8 @@
                  "to measure by how much.")))
 
         (js/process.exit
-         (cond (= 2 (:code r)) 2
+         (cond (:refuse? v) 2
+               (= 2 (:code r)) 2
                (or tick-bad? (= 1 (:code r))) 1
                :else 0))))))
 

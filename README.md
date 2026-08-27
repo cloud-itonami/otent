@@ -332,6 +332,26 @@ that never finishes writes no receipt, so the ledger shows nothing at all,
 which is exactly what a quiet period looks like. The failure is invisible in
 the one place built to make failures visible.
 
+⚠ **And within a day the deadline was blaming the wrong end.** `firms`
+timed out on three consecutive cycles while the same request answered in
+**2.3 s from `curl` on the same machine, at the same minute**.
+`AbortSignal.timeout` is a wall-clock timer, `tick` runs the feeds
+concurrently, and the commit is `cp/spawnSync` — which blocks the whole
+event loop. The deadline kept counting while this process was frozen
+inside a sibling's `python3`, and fired against a healthy server. The
+receipt said *the feed did not answer*, which is a claim about NASA that
+belonged to us. It now says the clock is ours, names the mechanism, and
+names the check that settles it. Telling the two apart for real means not
+blocking the loop.
+
+**A dark feed no longer stops retention.** The refusal used to `exit 2`
+before the retain block. Once a feed could stay dark for hours instead of
+one cycle that stopped being theoretical: retention did not run for 51
+minutes because a *different* feed could not be read. Whether a feed is
+readable and whether committed rows are past their horizon are unrelated
+questions, and letting the first answer the second is how one fault
+becomes two.
+
 `otent.deadline` puts a deadline on every network call — 60 s for reads,
 180 s for writes, on the feed fetch, the R2 archive and the kotobase
 publish (through `make-client`'s `:fetch-fn`, so the tolerance stays this
@@ -813,7 +833,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 91 tests, 1,331 assertions, against **captured real payloads**
+`npm test` — 93 tests, 1,338 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
