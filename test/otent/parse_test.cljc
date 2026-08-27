@@ -31,7 +31,8 @@
 (deftest fixtures-are-present
   ;; Evidence floor. Every assertion below iterates a parse result.
   (doseq [f ["celestrak-stations.tle" "usgs-2.5_day.geojson" "opensky-states.json"
-             "digitraffic-ais-locations.json" "digitraffic-ais-vessels.json"]]
+             "digitraffic-ais-locations.json" "digitraffic-ais-vessels.json"
+             "opensanctions-maritime.csv"]]
     (is (< 1000 (count (fx/slurp-fixture f))) (str f " is missing or truncated"))))
 
 (deftest celestrak-carries-elements-and-no-position
@@ -247,3 +248,69 @@
     (is (empty? (:ok r)))
     (is (= 2 (count (:failed r))))
     (is (every? #(= :digitraffic/incomplete-vessel (:error %)) (:failed r)))))
+
+(deftest opensanctions-keeps-the-three-claims-apart
+  (let [r (apply p/opensanctions-maritime (fx/slurp-fixture "opensanctions-maritime.csv")
+                 (feeds/by-id :opensanctions-maritime) prov)
+        ok (vec (:ok r))]
+    (is (<= 20 (count ok)))
+    (is (empty? (:failed r)) (str "real payload had parse failures: " (pr-str (:failed r))))
+    (testing "`risk` is semicolon-separated and its values are DIFFERENT
+              claims -- `mare.shadow` is a shadow-fleet assessment,
+              `sanction` a designation by a named authority,
+              `mare.detained` a port state control detention. Flattening
+              them into one `flagged` boolean loses the distinction that is
+              the entire reason to hold this data."
+      (let [risks (set (mapcat #(str/split (or (get-in % [:attrs :risk]) "") #";") ok))]
+        (is (contains? risks "mare.detained"))
+        (is (some #(str/starts-with? % "reg.") risks))))
+    (testing "identity is OpenSanctions', not the vessel's -- 754 of 23,191
+              real records carry neither IMO nor MMSI, and keying on a
+              vessel identifier would silently drop exactly the entries
+              whose identity is most obscured"
+      (doseq [o ok]
+        (is (string? (:object-id o)))
+        (is (seq (:object-id o)))))
+    (testing "the IMO is stored as the bare digits that an AIS broadcast
+              carries, not as the `IMO9427366` the CSV writes -- the join
+              is the whole point and it has to be possible without a
+              string transform at query time"
+      (doseq [o ok]
+        (let [imo (get-in o [:attrs :imo])]
+          (is (or (nil? imo) (re-matches #"\d{7}" imo))
+              (str (:object-id o) " imo " (pr-str imo))))))
+    (testing "no position: a sanctions designation is not a sighting"
+      (doseq [o ok] (is (nil? (:lat o))) (is (nil? (:lon o)))))
+    (testing "attribution rides on every row, because CC-BY-NC requires it"
+      (doseq [o ok]
+        ;; `str` first: a nil attribution should FAIL this test, not
+        ;; error it. An error says the test broke; a failure says the code
+        ;; did, and the two must not look the same.
+        (is (str/includes? (str (get-in o [:attrs :attribution])) "OpenSanctions"))
+        (is (str/includes? (str (get-in o [:attrs :attribution])) "CC-BY-NC"))))
+    (testing "and the governor admits them"
+      (let [v (gov/admit ok (ingest-clock ok))]
+        (is (= (count ok) (count (:admitted v))) (str "held: " (pr-str (:counts v))))))))
+
+(deftest opensanctions-reads-quoted-commas-rather-than-splitting-on-them
+  (testing "vessel names contain commas. A naive split would shift every
+            column after the name and put a risk tag in the flag field --
+            silently, because the result is still a string."
+    (let [csv (str "\"type\",\"caption\",\"imo\",\"risk\",\"countries\",\"flag\",\"mmsi\",\"id\",\"url\",\"datasets\",\"aliases\"\n"
+                   "\"VESSEL\",\"OCEAN TRADER, LTD\",\"IMO1234567\",\"mare.shadow;sanction\",\"ru\",\"pa\",\"273000001\",\"os-1\",\"u\",\"eu_fsf\",\"\"\n")
+          r (p/opensanctions-maritime csv (feeds/by-id :opensanctions-maritime)
+                                      "https://example.test" now "sha")
+          o (first (:ok r))]
+      (is (= 1 (count (:ok r))))
+      (is (= "OCEAN TRADER, LTD" (get-in o [:attrs :ship_name])))
+      (is (= "pa" (get-in o [:attrs :flag])) "the flag column did not shift")
+      (is (= "1234567" (get-in o [:attrs :imo])))
+      (is (= "273000001" (get-in o [:attrs :mmsi]))))))
+
+(deftest opensanctions-refuses-a-record-with-no-entity-id
+  (let [csv (str "\"type\",\"caption\",\"imo\",\"risk\",\"countries\",\"flag\",\"mmsi\",\"id\",\"url\",\"datasets\",\"aliases\"\n"
+                 "\"VESSEL\",\"NO ID\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"\n")
+        r (p/opensanctions-maritime csv (feeds/by-id :opensanctions-maritime)
+                                    "https://example.test" now "sha")]
+    (is (empty? (:ok r)))
+    (is (= [:opensanctions/no-entity-id] (map :error (:failed r))))))

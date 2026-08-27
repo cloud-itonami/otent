@@ -56,6 +56,11 @@ HORIZON_MS = {
     # destination for a voyage, so a week would throw away the answer to
     # "what was this called when we saw it" while keeping the sighting.
     "otent_vessel_static": 365 * 24 * 3600 * 1000,   # 1 year
+    # A daily snapshot of what the lists said. Ninety days because
+    # DELISTING is only visible in history -- a table holding the current
+    # list alone cannot tell "never listed" from "listed and released" --
+    # and because the whole list is ~23,000 rows every day.
+    "otent_vessel_risk": 90 * 24 * 3600 * 1000,      # 3 months
     "otent_fire": 90 * 24 * 3600 * 1000,       # 3 months
     "otent_quake": 365 * 24 * 3600 * 1000,     # 1 year -- events, not fixes
     "otent_satellite": 90 * 24 * 3600 * 1000,  # 3 months of element sets

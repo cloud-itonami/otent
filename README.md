@@ -38,6 +38,7 @@ CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cl
 | `cloud_itonami.otent_fire` | 27,833 | NASA FIRMS VIIRS NOAA-20, global, past day |
 | `cloud_itonami.otent_vessel` | 1,282 | Digitraffic (Finnish AIS) — **the Baltic, not the world** |
 | `cloud_itonami.otent_vessel_static` | 1,168 | who those vessels say they are |
+| `cloud_itonami.otent_vessel_risk` | 23,173 | what the sanctions lists say about ships |
 
 Bucket `cloud-itonami-datalake`, catalog
 `https://catalog.cloudflarestorage.com/<account>/cloud-itonami-datalake`.
@@ -180,6 +181,77 @@ Two traps the position parser is tested against, both from the real payload:
 
 The endpoint answers **406 without gzip**. Node's `fetch` negotiates it and
 `curl` does not, so a hand-check fails where the actor succeeds.
+
+## What the lists say, and why that is a table rather than an answer
+
+`otent_vessel_risk` holds the OpenSanctions maritime export: 23,173
+records from OFAC, the EU official journal and sanctions map, UK FCDO,
+Swiss SECO, Canada, Ukraine's NSDC and war-sanctions register, UN 1718,
+and the Paris/Tokyo/Abuja/Black Sea MOU detention registers.
+
+**The list is recorded, not the matches.** Joining it against
+`otent_vessel_static` and storing the vessels that matched was the obvious
+move and is wrong for the reason the ship name was wrong: a matched row is
+a fact about *two* payloads and would carry a `payload_sha256` that cannot
+reproduce it. So each side lands from its own payload, and the
+intersection is a **query** — which is the entire point of both being in
+one catalog:
+
+```
+otent_vessel_risk    23,173 rows
+otent_vessel_static   1,168 vessels in Finnish AIS coverage
+
+  matching a maritime risk record :  92
+  tagged shadow fleet             :  42
+  under sanction                  :  60
+```
+
+Run against the catalog alone, no external file. A number somebody
+computed once in a terminal is not a finding; a join anyone can re-run
+against any day's data is.
+
+### One list is not the answer
+
+The first version of that join used the OFAC SDN list only and reported
+**20**. The multi-jurisdiction table reports **60**. A third. The proof
+case is the tanker `QENDIL`, struck in the Mediterranean in December 2025:
+EU- and UK-designated, and **not on the OFAC SDN list at all** — so a
+check against one authority would have called it clean.
+
+### Three risk tags that are three different claims
+
+`risk` is semicolon-separated and must not be flattened into `flagged`:
+
+| tag | claim | who says it |
+|---|---|---|
+| `mare.shadow` | an assessment that the vessel is part of a shadow fleet | analysts |
+| `sanction` | a designation | a named authority, with a legal instrument |
+| `mare.detained` | the ship was held in port | a port state control inspection |
+
+### A daily snapshot series, deliberately
+
+Every poll commits the whole list again. **Delisting is invisible without
+history**: a vessel removed from a designation simply stops appearing, and
+a table holding only today's list cannot tell *never listed* from *listed
+and released*. The cost is ~23,000 rows a day against a 90-day horizon; a
+re-poll inside the same publication commits nothing, caught by the
+byte-identical payload rule before the watermark is consulted.
+
+### Identity is OpenSanctions', not the vessel's
+
+`object_id` is the OpenSanctions entity id, because **754 of 23,191
+records carry neither IMO nor MMSI** and keying on a vessel identifier
+would drop exactly the entries whose identity is most obscured. IMO and
+MMSI ride as attributes, and the IMO is stored as the bare seven digits an
+AIS transponder broadcasts rather than the `IMO9427366` the CSV writes —
+the join is the point, and it has to work without a string transform at
+query time.
+
+⚠ **Data: OpenSanctions, CC-BY-NC 4.0**, attribution on every row.
+Non-commercial is a real condition rather than a formality: anything that
+serves these rows onward inherits it. That is why this table is **not** in
+`app-otent`'s `kinds` map — publishing it is a licensing decision, and an
+ingest actor is not the place to make one.
 
 ## The whole active catalogue, and the 799 it refuses
 
@@ -572,6 +644,7 @@ src/otent/feeds/core.cljc    the registry, including what cannot be read
 src/otent/feeds/parse.cljc   payload -> observations, per feed. Pure.
 src/otent/coverage.cljc      pure: declared cadence vs measured cadence
 src/otent/deadline.cljc      every network call gets one, and names it
+src/otent/darkness.cljc      consecutive dark cycles, not the first one
 bin/otent.cljs               the only namespace that touches the network
 scripts/iceberg_append.py     the only part nbb cannot do
 ```
@@ -740,7 +813,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 88 tests, 1,146 assertions, against **captured real payloads**
+`npm test` — 91 tests, 1,331 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
