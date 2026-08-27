@@ -1,7 +1,15 @@
 .cpcache/
 .nrepl-port
-node_modules/
+# No trailing slash, deliberately. `node_modules/` matches a DIRECTORY and
+# not a symlink of the same name, so a symlinked node_modules -- which is
+# how you share an install with a worktree -- sails past it and gets
+# committed. That happened on 2026-08-27: a machine-specific absolute path
+# landed on main, and anyone cloning would have got a dangling link into
+# somebody else's home directory.
+node_modules
 out/
+__pycache__/
+*.pyc
 .DS_Store
 
 # otent kotobase write identity -- never commit
