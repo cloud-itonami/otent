@@ -25,17 +25,18 @@ reads **only** what this actor has committed.
 nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs feeds
 nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs tick --dry-run
 CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs tick
+CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs coverage
 ```
 
-## Live, measured 2026-08-26
+## Live, measured 2026-08-27
 
 | table | rows | source |
 |---|---|---|
-| `cloud_itonami.otent_quake` | 66 | USGS 2.5+ past day |
-| `cloud_itonami.otent_satellite` | 21 → 16,054 | CelesTrak GP (**active**, from 2026-08-26) |
-| `cloud_itonami.otent_aircraft` | 7,214 | OpenSky anonymous state vectors |
+| `cloud_itonami.otent_quake` | 201 | USGS **all magnitudes**, past day |
+| `cloud_itonami.otent_satellite` | 21,085 | CelesTrak GP (`GROUP=active`) |
+| `cloud_itonami.otent_aircraft` | 882,554 | OpenSky anonymous state vectors |
+| `cloud_itonami.otent_fire` | 27,833 | NASA FIRMS VIIRS NOAA-20, global, past day |
 | `cloud_itonami.otent_vessel` | — | **UNMEASURED**, see below |
-| `cloud_itonami.otent_fire` | — | **UNMEASURED**, see below |
 
 Bucket `cloud-itonami-datalake`, catalog
 `https://catalog.cloudflarestorage.com/<account>/cloud-itonami-datalake`.
@@ -45,28 +46,89 @@ The token needs **two** permissions — `R2 Data Catalog: Edit` *and*
 storage-side 401: **reaching the catalog is not the same as being able to
 write to it.**
 
-## The three feeds that ran, and the two that did not
+## `otent coverage`, and the two things it found on its first run
+
+    otent coverage
+
+Cadence from the tick ledger, row counts from the catalog, and a refusal
+rather than a clean line whenever either could not be measured. It exists
+because the question *what does this actually cover* was answered by hand
+on 2026-08-27, and the hand answer found two things that every check in
+this repository was structurally unable to see.
+
+**Every feed was being polled at 1.5x its declared interval.** The plist
+asks launchd for a cycle every 300 s. The cycle ran retention inline, which
+takes ~3.4 minutes. launchd will not start a job that is still running. So
+the real cadence was 447 s, aircraft was polled every 15 minutes against a
+declared 10, and **nothing was red at any point** — `due?` was honouring
+`:min-interval-ms` to the millisecond, on a clock it was being handed too
+rarely. This is the same field this repository has already caught being
+decorative once; it was not decorative this time, it was being defeated
+one layer up. Retention now runs on its own hourly interval, against
+horizons whose shortest is a day.
+
+**The fire feed had a clearing condition nobody could act on.** `firms`
+was exempt from being unmeasured because `$FIRMS_MAP_KEY` was not set, and
+the exemption's `:clears-when` read *the key is entered on this machine* —
+a sentence, checkable by nobody. The key is free. It was requested, it
+arrived, and it is in the Keychain as `firms.nasa/MAP_KEY`; the cycle now
+looks it up by name, and **a feed whose key it finds is no longer exempt**.
+First commit: 27,833 global detections in the past 24 hours. `:clears-when`
+is now a condition the code evaluates, because an exemption whose clearing
+condition is prose is one that outlives its reason.
+
+```
+feed        kind       polls  declared  measured  ratio   reach
+celestrak   satellite      7      6.0h      6.1h   1.01x   100%
+usgs        quake        177      5.0m      7.5m   1.50x    99%  DRIFT
+opensky     aircraft      90     10.0m     15.1m   1.51x    96%  DRIFT
+firms       fire           0     60.0m        --      --     0%  UNMEASURED
+aisstream   vessel         0        0s        --      --     0%  UNMEASURED
+```
+
+Exit **0** clean · **1** a finding · **2** could not answer. The tolerance
+is 1.25x, and a test asserts it is below 1.49 — the drift it was written
+for — because a tolerance chosen after the fact to make the current state
+pass is not a tolerance.
+
+Three things it will not do, each with a test that fails when it does:
+
+| | |
+|---|---|
+| call an unmeasured interval zero | a feed polled once has no gap; a feed polled never has no evidence. Both are `UNMEASURED`, which is not `ok` |
+| read one blip as darkness | the first version called *unmeasured at any point in 30 hours* dark, which made two healthy feeds look as dark as the two that have never been readable — and a permanently red report is a permanently ignored one. Dark is now **as of the last tick**, and intermittent failure is a separate `reach` column |
+| let a missing table pass | absent under a feed nobody can read is consistent; absent under a feed that has been committing rows is a finding |
+
+The counter behind it learned the same distinction: `otent count --kind
+fire` used to print `UNREADABLE` for a table whose absence was the most
+certain fact in the system. **3** now means asked-and-absent, **2** means
+could-not-ask.
+
+## The four feeds that run, and the one that does not
 
 `tick` exits **2** — not 0, not 1 — when a feed could not be read.
 
 ```
-otent tick 2026-08-26T02:09:05.038Z
-  committed 0  dry-run 3  nothing-new 0  refused 0  UNMEASURED 2  rows 0
-  DRY-RUN celestrak -> otent_satellite  would append 21 rows
-  DRY-RUN usgs      -> otent_quake      would append 33 rows
-  DRY-RUN opensky   -> otent_aircraft   would append 7233 rows
-  UNMEASURED firms      [no-credential] $FIRMS_MAP_KEY is not set
-  UNMEASURED aisstream  [needs-resident-collector] ...
-exit 2 -- 2 feed(s) were NOT READ. That is not an observation of nothing.
+otent tick 2026-08-27T09:07:44.950Z
+  committed 1  dry-run 0  nothing-new 0  refused 0  not-due 0  UNMEASURED 0  rows 27833
+  COMMITTED firms -> otent_fire  +27833 rows ( -> 27833)
+      note: table did not exist before this run; delta not checkable
 ```
 
-**Vessels and fires are unmeasured, not empty.** NASA FIRMS needs a free
-MAP_KEY; AISStream is a WebSocket subscription and the resident collector
-that holds the socket open is not in this repository — its message parser
-is implemented and tested, so that collector has nothing to invent, but
-until something runs it the vessel table does not exist. A scheduler that
-treated exit 2 as success would record a month of missing vessels as a
-month of empty oceans.
+**Vessels are unmeasured, not empty.** AISStream is a WebSocket
+subscription and the resident collector that holds the socket open is not
+in this repository — its message parser is implemented and tested, so that
+collector has nothing to invent, but until something runs it the vessel
+table does not exist. A scheduler that treated exit 2 as success would
+record a month of missing vessels as a month of empty oceans.
+
+Fires were in that paragraph until 2026-08-27, for a worse reason: the key
+is free, and nobody had asked for it. The exemption was honest about the
+cause and said `:clears-when "the key is entered on this machine"`, which
+is a sentence rather than a check — so it sat there being true. It is now
+`"the Keychain has firms.nasa/MAP_KEY"`, which the cycle evaluates on every
+run. **An exemption that cannot be falsified by the code that honours it
+will outlive the reason for it.**
 
 ## The whole active catalogue, and the 799 it refuses
 
@@ -97,6 +159,32 @@ moved, which is precisely the confusion this repository exists to prevent.
 `feeds/not-modified?` matches status **and** body, narrowly: a genuine 403,
 blocked or rate-limited, carries a different body and stays UNMEASURED,
 because that one really is a failure to observe.
+
+## The magnitude floor that was written into a URL
+
+The quake feed was `2.5_day.geojson` from the first day and never
+revisited. That is a coverage ceiling hiding in a hostname: every
+earthquake below M2.5 was not missing from the table, it was **outside
+what was ever asked for** — which reads, from the table, exactly like a
+world with no small earthquakes in it.
+
+Measured 2026-08-27 on the same minute:
+
+| feed | events in the past day | smallest |
+|---|---|---|
+| `2.5_day.geojson` | 29 | M2.5 |
+| `all_day.geojson` | **241** | **M-0.4** |
+
+Same GeoJSON, same parser, ~8x the rows at 170 KB a poll. `all_day` also
+carries quarry blasts, mining explosions and ice quakes; they are kept,
+with `event_type` on the row, because they are real observations of the
+ground moving and dropping them would be a second undeclared filter of
+exactly the kind this change removes.
+
+**The lesson is not about USGS.** A URL is a place a scope decision can be
+made once and then stop looking like a decision. `otent coverage` reads
+cadence back; nothing reads back the shape of what a feed was asked for,
+and that gap is open.
 
 ## The governor
 
@@ -323,6 +411,7 @@ src/otent/governor.cljc      pure admit/hold
 src/otent/receipt.cljc       pure: run report and exit code
 src/otent/feeds/core.cljc    the registry, including what cannot be read
 src/otent/feeds/parse.cljc   payload -> observations, per feed. Pure.
+src/otent/coverage.cljc      pure: declared cadence vs measured cadence
 bin/otent.cljs               the only namespace that touches the network
 scripts/iceberg_append.py     the only part nbb cannot do
 ```
@@ -426,9 +515,20 @@ a date, a reason and a clearing condition, and **a third feed going dark is a
 failure**: watched on 2026-08-26 by removing `aisstream` from the set, which
 exits 2 naming it.
 
-**Retention runs after ingest.** Deleting rows the tick just wrote is fine —
-they are past the horizon or they are not. Doing it first would delete rows
-whose replacement then failed to commit.
+**Retention runs after ingest, and on its own hourly interval.** After,
+because deleting rows whose replacement then failed to commit is the one
+ordering that loses an observation. Hourly, because running it every cycle
+is what stretched every feed's poll rate by half again: it takes ~3.4
+minutes, launchd will not start a job that is still running, and the
+horizons it enforces are a day at the shortest, so five-minutely was never
+what they needed. State in `~/.gftd/otent/retain.state.edn`;
+`$OTENT_RETAIN_INTERVAL_MS` overrides. A skipped run logs `retain NOT-DUE`
+and never `retain exit 0` — those are different claims.
+
+**The cycle times itself.** If it runs longer than the timer's period it
+says so, naming the consequence: launchd will skip fires and every feed's
+effective interval is longer than the registry declares. That warning is
+the thing whose absence made this invisible for a day.
 
 ### The tick ledger is not in the checkout
 
@@ -448,6 +548,8 @@ longer written to.
 
 `otent.cljs retain`, per kind, horizons in `scripts/iceberg_retain.py`:
 aircraft 1 day, vessel 1 week, fire and satellite 3 months, quake 1 year.
+Run hourly by the cycle rather than every five minutes — see the launchd
+section for what running it inline cost.
 Longer than the read window in every case, because the two answer different
 questions — the window is *what should be drawn now*, the horizon is *how
 much history is worth keeping queryable*. Anything older is still in the
@@ -470,7 +572,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 33 tests, 614 assertions, against **captured real payloads**
+`npm test` — 61 tests, 704 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

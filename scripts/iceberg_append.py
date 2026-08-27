@@ -112,8 +112,15 @@ def main() -> int:
         try:
             t = cat.load_table(ident)
         except NoSuchTableError:
+            # 3, not 2. Exit 2 above means the catalog could not be ASKED --
+            # no token, no reachable endpoint -- and this means it was asked
+            # and answered: the table is not there. Collapsing them was the
+            # local instance of the mistake this whole repository is about:
+            # `otent count --kind fire` printed UNREADABLE for a table that
+            # is definitely, knowably absent because nothing has ever been
+            # able to read that feed.
             print(f"no such table: {a.namespace}.{a.table}", file=sys.stderr)
-            return 2
+            return 3
         print(t.scan().to_arrow().num_rows)
         return 0
 
