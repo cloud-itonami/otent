@@ -654,8 +654,13 @@
   -- was invisible to every check in this repository: the tick was green,
   `due?` was honouring `:min-interval-ms` exactly, and the only symptom was
   a number nobody was computing."
-  [_args]
-  (let [entries (ledger-entries)]
+  [{:keys [opts]}]
+  (let [entries (ledger-entries)
+        window (cov/parse-window (:window opts))]
+    (when (and (:window opts) (nil? window))
+      (println "REFUSING: --window" (pr-str (:window opts))
+               "is not a duration. Use 3h, 45m, 90s or a number of milliseconds.")
+      (js/process.exit 2))
     (when (nil? entries)
       (println "REFUSING to report coverage: there is no ledger at" (ledger-file))
       (js/process.exit 2))
@@ -667,6 +672,7 @@
                            :entries entries
                            :now (js/Date.now)
                            :tables tables
+                           :window-ms window
                            :expected-unmeasured (set (keys feeds/expected-unmeasured))})]
       (doseq [l (cov/render rpt)] (println l))
       (js/process.exit (cov/exit-code rpt)))))
@@ -691,7 +697,7 @@
       "tick" (tick args)
       "retain" (retain args)
       "coverage" (coverage args)
-      (do (println "usage: otent.cljs <tick|retain|feeds|count|coverage> [--feed a,b] [--kind a,b] [--dry-run] [--create] [--force]")
+      (do (println "usage: otent.cljs <tick|retain|feeds|count|coverage> [--feed a,b] [--kind a,b] [--window 3h] [--dry-run] [--create] [--force]")
           (js/process.exit 2)))))
 
 (-main)

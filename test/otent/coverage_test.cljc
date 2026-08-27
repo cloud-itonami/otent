@@ -179,3 +179,47 @@
       (is (= 1 (cov/exit-code r)))
       (is (some #(re-find #"reachable 50%" %)
                 (map #(nth % 2) (:findings r)))))))
+
+(deftest a-window-lets-a-repair-be-seen-and-names-itself
+  (testing "a 30-hour median cannot show a cadence fixed an hour ago, so an
+            instrument without a window cannot show a schedule being repaired"
+    (let [old (for [i (range 100)]                        ; 30h of 450s ticks
+                {:tick/at (+ 1787700000000 (* i 450000))
+                 :tick/results [{:feed :usgs :status :committed}]})
+          new (for [i (range 20)]                         ; the last 1.6h, fixed
+                {:tick/at (+ 1787745000000 (* i 300000))
+                 :tick/results [{:feed :usgs :status :committed}]})
+          now (+ 1787745000000 (* 20 300000))
+          all (concat old new)
+          whole (cov/report {:registry registry :entries all :now now
+                             :tables {:quake 1 :aircraft 1 :fire 1}
+                             :expected-unmeasured #{"firms"}})
+          recent (cov/report {:registry registry :entries all :now now
+                              :window-ms 7200000
+                              :tables {:quake 1 :aircraft 1 :fire 1}
+                              :expected-unmeasured #{"firms"}})
+          f #(first (filter (fn [x] (= :usgs (:id x))) (:feeds %)))]
+      (is (= :drift (:status (f whole))) "the whole ledger still carries the old cadence")
+      (is (= :ok (:status (f recent))) "the window shows the repair")
+      (is (some #(re-find #"window=2.0h" %) (cov/render recent))
+          "and the window is named, so a reader can see which question was asked")
+      (is (some #(re-find #"window=the whole ledger" %) (cov/render whole))))))
+
+(deftest a-window-too-narrow-to-measure-refuses
+  (let [es (for [i (range 100)]
+             {:tick/at (+ 1787700000000 (* i 450000))
+              :tick/results [{:feed :usgs :status :committed}]})
+        now (+ 1787700000000 (* 100 450000))
+        r (cov/report {:registry registry :entries es :now now :window-ms 900000
+                       :tables {:quake 1 :aircraft 1 :fire 1}
+                       :expected-unmeasured #{"firms"}})]
+    (is (= :cannot-answer (:verdict r)))
+    (is (= 2 (cov/exit-code r)) "a window that holds three ticks answers nothing")))
+
+(deftest durations-that-are-not-durations-are-nil
+  (is (= 10800000 (cov/parse-window "3h")))
+  (is (= 2700000 (cov/parse-window "45m")))
+  (is (= 90000 (cov/parse-window "90s")))
+  (is (= 5000 (cov/parse-window "5000")))
+  (is (nil? (cov/parse-window "soon")))
+  (is (nil? (cov/parse-window ""))))
