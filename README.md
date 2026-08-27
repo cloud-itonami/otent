@@ -86,6 +86,14 @@ firms       fire           0     60.0m        --      --     0%  UNMEASURED
 aisstream   vessel         0        0s        --      --     0%  UNMEASURED
 ```
 
+`--window 3h` measures a recent slice instead of the whole ledger, because
+a 30-hour median cannot show a cadence that was repaired an hour ago — an
+instrument that cannot show the schedule being fixed is useless at the one
+moment it matters. The window is printed in the header: *what is the
+cadence now* and *which window makes this look fine* are different
+questions, and the reader can see which was asked. A window too narrow to
+hold twelve ticks refuses rather than dividing small numbers.
+
 Exit **0** clean · **1** a finding · **2** could not answer. The tolerance
 is 1.25x, and a test asserts it is below 1.49 — the drift it was written
 for — because a tolerance chosen after the fact to make the current state

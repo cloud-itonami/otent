@@ -21,7 +21,7 @@
 
 (def value-options
   "Options that consume the next argument."
-  #{"--feed" "--kind" "--params"})
+  #{"--feed" "--kind" "--params" "--window"})
 
 (defn parse-args
   "argv -> `{:cmd :flags :opts}`, or `{:error :cli/unknown-option ...}`."

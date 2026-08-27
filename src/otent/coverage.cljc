@@ -64,6 +64,29 @@
   turn a backoff or a missing credential into evidence of polling."
   #{:committed :nothing-new :refused :dry-run})
 
+(defn parse-window
+  "`3h` / `45m` / `90s` / a bare number of milliseconds -> ms, or nil.
+
+  Needed because the median this reports is over the WHOLE ledger, and a
+  fix to the cadence cannot show up in a 30-hour median for most of a day.
+  Without a window, an instrument that measures a schedule cannot show the
+  schedule being repaired -- which would make it useless at exactly the
+  moment it matters.
+
+  The window is named in the output. A window is a legitimate question
+  (`what is the cadence now`) and an illegitimate one (`which window makes
+  this look fine`), and the difference is whether the reader can see which
+  was asked."
+  [s]
+  (when (and (string? s) (seq s))
+    (let [n (js/parseFloat s)]
+      (when-not (js/isNaN n)
+        (condp #(str/ends-with? %2 %1) s
+          "h" (* n 3600000)
+          "m" (* n 60000)
+          "s" (* n 1000)
+          n)))))
+
 (defn- median [xs]
   (when (seq xs)
     (let [s (vec (sort xs))
@@ -168,11 +191,16 @@
   be asked. `nil` means tables were not measured at all, and that is
   reported as such rather than omitted."
   [{:keys [registry entries now tables expected-unmeasured tolerance min-ticks
-           min-reachability]
+           min-reachability window-ms]
     :or {tolerance default-tolerance min-ticks default-min-ticks
          min-reachability default-min-reachability
          expected-unmeasured #{}}}]
-  (let [ats (sort (map :tick/at entries))
+  (let [;; The window cuts by tick time, not by count: `the last three
+        ;; hours` and `the last thirty ticks` answer differently the moment
+        ;; the cadence is the thing in question, and it is.
+        cutoff (when (and window-ms now) (- now window-ms))
+        entries (if cutoff (filterv #(>= (:tick/at %) cutoff) entries) (vec entries))
+        ats (sort (map :tick/at entries))
         times (poll-times entries)
         reach (unmeasured-counts entries)
         feeds (mapv #(measure-feed % (get times (:id %) []) (get reach (:id %) {}) tolerance)
@@ -199,6 +227,7 @@
         measurable? (and (>= (count entries) min-ticks)
                          (some #(number? (:measured-ms %)) feeds))]
     {:ticks (count entries)
+     :window-ms window-ms
      :span-ms (when (> (count ats) 1) (- (last ats) (first ats)))
      :first-at (first ats)
      :last-at (last ats)
@@ -256,9 +285,12 @@
   "The report as lines. Every feed appears, including the ones that could
   not be measured -- a coverage report that lists only what worked is the
   shape this repository exists to avoid."
-  [{:keys [ticks span-ms feeds tables dark unexpected-dark findings verdict]}]
+  [{:keys [ticks span-ms feeds tables dark unexpected-dark findings verdict window-ms]}]
   (concat
-   [(str "otent coverage  ticks=" ticks "  history=" (ms->human span-ms))
+   [(str "otent coverage  ticks=" ticks "  history=" (ms->human span-ms)
+         (if window-ms
+           (str "  window=" (ms->human window-ms) " (the whole ledger is longer)")
+           "  window=the whole ledger"))
     ""
     (str (str/join "  " ["feed      " "kind     " "polls" "declared" "measured" "ratio " "reach"]))]
    (for [f feeds]
@@ -292,6 +324,7 @@
     (case verdict
       :ok "coverage OK"
       :cannot-answer (str "REFUSING to report coverage: " ticks
-                          " ledger entries is too few to measure a cadence from")
+                          " ledger entries is too few to measure a cadence from"
+                          (when window-ms " in this window"))
       :tables-unmeasured "REFUSING to report coverage: the tables were not read"
       (str "coverage " (str/upper-case (name verdict))))]))
