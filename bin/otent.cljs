@@ -401,7 +401,27 @@
   again after retention was moved off the critical path, and nothing in the
   receipt could say which feed was responsible. A cycle total tells you
   there is a problem; a per-feed number tells you where. Guessing from the
-  feed list is how you end up tuning the one that was already fast."
+  feed list is how you end up tuning the one that was already fast.
+
+  ## What this number is NOT
+
+  **It is not the cost this feed caused.** `tick` runs the feeds under
+  `js/Promise.all`, and the Iceberg commit is `cp/spawnSync`, which blocks
+  the entire Node event loop. So while one feed is committing, every other
+  feed's clock keeps running and none of them make progress.
+
+  Measured 2026-08-27: `opensky` reported 175 s on a poll whose fetch had
+  already given up at its 60-second deadline. The missing 115 s was not
+  OpenSky. It was this process, frozen inside a sibling's `python3`.
+
+  So the numbers are wall-clock-from-start, they do not add up to the
+  cycle, and the largest one names the feed that finished last rather than
+  the feed that cost most. That is still worth having -- it is how the
+  serialised-commit shape was found at all -- but reading it as an
+  attribution would send the next person to optimise the wrong feed.
+
+  Making it an attribution means not blocking the loop: an async spawn, or
+  one commit process the feeds hand batches to."
   [feed {:keys [flags opts] :as args} watermark]
   (let [dry? (contains? flags "dry-run")
         started (js/Date.now)
