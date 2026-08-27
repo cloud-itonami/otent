@@ -54,7 +54,8 @@
   be shaped like a clean one. `bin/otent.cljs` refuses to commit when the
   held fraction crosses a threshold, because at that point the parser is
   wrong, not the feed."
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [otent.observation :as obs]))
 
 (def ^{:doc "Field names that mark a person rather than a vehicle or event.
 
@@ -110,7 +111,7 @@
             fetched-at payload-sha256] :as row}
     now-ms future-slack-ms watermark-ms]
    (cond
-     (not (contains? #{:satellite :quake :aircraft :fire :vessel} kind))
+     (not (contains? obs/kinds kind))
      (hold row :unknown-kind (str "kind " (pr-str kind)))
 
      (str/blank? (str object-id))

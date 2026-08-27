@@ -52,6 +52,10 @@ BUCKET = "cloud-itonami-datalake"
 HORIZON_MS = {
     "otent_aircraft": 24 * 3600 * 1000,        # 1 day
     "otent_vessel": 7 * 24 * 3600 * 1000,      # 1 week
+    # Identity, not position. A ship keeps its name for years and its
+    # destination for a voyage, so a week would throw away the answer to
+    # "what was this called when we saw it" while keeping the sighting.
+    "otent_vessel_static": 365 * 24 * 3600 * 1000,   # 1 year
     "otent_fire": 90 * 24 * 3600 * 1000,       # 3 months
     "otent_quake": 365 * 24 * 3600 * 1000,     # 1 year -- events, not fixes
     "otent_satellite": 90 * 24 * 3600 * 1000,  # 3 months of element sets

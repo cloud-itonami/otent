@@ -6,7 +6,8 @@
   admitted, and a row broken in exactly the way the rule describes is held
   **with that rule's reason** -- not merely held."
   (:require [clojure.test :refer [deftest is testing]]
-            [otent.governor :as gov]))
+            [otent.governor :as gov]
+            [otent.observation :as obs]))
 
 (def now 1787700000000)                       ; 2026-08-25T18:00Z, ms
 
@@ -185,3 +186,21 @@
       (is (re-find #"9 of 12" (:detail v))
           (str "the detail still counts already-committed rows: " (:detail v)))
       (is (re-find #"further 42 were already committed" (:detail v))))))
+
+(deftest the-known-kinds-live-in-exactly-one-place
+  (testing "the governor held a second inline copy of this set, and the two
+            agreed only because nobody had added a kind since they were
+            written. Adding one meant editing both, and the governor was the
+            copy that fails SILENTLY -- every row of the new kind held as
+            :unknown-kind, which reads like a parser fault rather than a set
+            nobody updated."
+    (is (contains? obs/kinds :vessel-static))
+    (doseq [k obs/kinds]
+      (let [row (obs/observation {:kind k :object-id "x" :observed-at 1787800000000
+                                  :attrs {} :source "s"
+                                  :source-url "https://example.test"
+                                  :fetched-at 1787800000000
+                                  :payload-sha256 "abc"})
+            v (gov/check-row row 1787800001000)]
+        (is (not= :unknown-kind (:reason v))
+            (str "kind " k " is in obs/kinds and the governor rejects it"))))))

@@ -198,6 +198,7 @@
     :usgs (parse/usgs (js->clj (js/JSON.parse text)) feed url fetched-at sha)
     :opensky (parse/opensky (js->clj (js/JSON.parse text)) feed url fetched-at sha)
     :digitraffic (parse/digitraffic (js->clj (js/JSON.parse text)) feed url fetched-at sha)
+    :digitraffic-static (parse/digitraffic-static (js->clj (js/JSON.parse text)) feed url fetched-at sha)
     :firms (parse/firms text feed url fetched-at sha)
     {:ok [] :failed [{:error :feed/no-parser
                       :detail (str "no parser for " (:id feed))}]}))

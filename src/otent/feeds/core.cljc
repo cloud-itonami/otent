@@ -183,6 +183,33 @@
             answers 406 without it, which Node's fetch negotiates on its own
             and curl does not."}
 
+   {:id :digitraffic-static
+    :kind :vessel-static
+    :access :open
+    :label "Digitraffic AIS vessel identity (ShipStaticData)"
+    :url "https://meri.digitraffic.fi/api/ais/v1/vessels"
+    :default-params {}
+    :headers {"Digitraffic-User" "cloud-itonami/otent"}
+    :terms "https://www.digitraffic.fi/en/terms-of-service/"
+    ;; Identity changes on the order of voyages, not minutes. Hourly is
+    ;; already far faster than the thing being observed.
+    :min-interval-ms 3600000
+    :scope "Who the vessels in Finnish AIS coverage say they are: name,
+            callsign, IMO, ship type, destination, ETA, draught. Same
+            receiver network as the position feed and therefore the same
+            sea. Excludes vessels not currently in coverage. 384 of 1,168
+            records carry no IMO -- smaller vessels are not required to have
+            one, so that field is absent rather than zero. `destination` and
+            `eta` are typed by the crew and are routinely stale or
+            misspelled; they are kept verbatim, because a tidied version of
+            what someone typed is a different fact from what they typed."
+    :notes "Lands in `otent_vessel_static`, NOT in `otent_vessel`. The
+            position payload contains none of these fields, so merging them
+            into a position row would give it a `payload_sha256` that cannot
+            reproduce it -- and `the tables can be rebuilt from the archived
+            bytes` is the only reason retention is allowed to delete
+            anything. One payload, one sha, one row."}
+
    {:id :aisstream
     :kind :vessel
     :access :stream
