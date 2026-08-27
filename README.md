@@ -39,6 +39,7 @@ CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cl
 | `cloud_itonami.otent_vessel` | 1,282 | Digitraffic (Finnish AIS) — **the Baltic, not the world** |
 | `cloud_itonami.otent_vessel_static` | 1,168 | who those vessels say they are |
 | `cloud_itonami.otent_vessel_risk` | 23,173 | what the sanctions lists say about ships |
+| `cloud_itonami.otent_ownership_link` | 1,496 | which organization controls which hull |
 
 Bucket `cloud-itonami-datalake`, catalog
 `https://catalog.cloudflarestorage.com/<account>/cloud-itonami-datalake`.
@@ -252,6 +253,67 @@ Non-commercial is a real condition rather than a formality: anything that
 serves these rows onward inherits it. That is why this table is **not** in
 `app-otent`'s `kinds` map — publishing it is a licensing decision, and an
 ingest actor is not the place to make one.
+
+## Who is behind the hull
+
+`otent_ownership_link` holds OpenSanctions' FollowTheMoney ownership edges
+whose asset is a vessel — 1,496 of them — so the three planes join inside
+the catalog:
+
+```
+where it is (otent_vessel) x what it says it is (otent_vessel_static)
+                           x who controls it (otent_ownership_link)
+
+  SALUT       -> Prominent Shipmanagement Limited   hk  Property in the interest of
+  SOLARIS     -> JOINT STOCK COMPANY SOVCOMFLOT     ru  Property in the interest of
+  AVANGARD    -> HS Atlantica Limited               lr  Property in the interest of
+  AVANGARD    -> Hennesea Holdings Limited          ae  Property in the interest of
+```
+
+21 edges behind the vessels in Finnish AIS coverage. `AVANGARD` has two,
+which is why this is **one row per edge**: a hull can be owned and
+separately held in someone's interest, and folding to a `vessel -> owner`
+column would drop the second and make the fleet-size question unanswerable.
+SOVCOMFLOT is behind 4 hulls in the Gulf of Finland and **81 in the table**.
+
+### The prefix that made the join silently empty
+
+`imoNumber` is written `IMO9253325`; the bare digits are what an AIS
+transponder broadcasts. Joining without stripping it returned **zero rows**,
+which reads exactly like *no ship in these waters has a recorded owner* —
+and was the first answer this join gave. With the prefix off, twenty of
+twenty matched, every one with a named organization. The normalisation
+happens once, in the parser, and a test fails on a prefixed value.
+
+### The governor refused all 1,545 rows, and it was right
+
+The first version wrote `owner_name`, and every row was held:
+`:person-identifier`, because `owner` is on the governor's person-marker
+list. That list was protecting something real — **49 of 1,545 edges name a
+natural person** as the owner of a vessel.
+
+The answer is not to rename the field until the rule stops noticing. It is
+to drop those 49: this table carries organizations, and a hull held by a
+named individual is personal data with no business here. The fields are
+`org_*` because after the filter they cannot name a person — which is what
+the rule protects, enforced more strictly than the field name was managing.
+The dropped edges land in `:failed` under
+`:ownership/natural-person-owner`, counted and named rather than vanishing.
+
+### What is NOT in here
+
+**Corporate hierarchy.** Measured 2026-08-27: not one of the four operators
+behind the Finnish-coverage fleet has a parent, a director or a subsidiary
+recorded in this graph. OFAC records who owns an asset, not who owns the
+owner. GLEIF is the source for that and is partial too — it has
+`SOVCOMFLOT` (LEI 89450003E1QO0BQ8WF75, CC0) and does not have the Hong
+Kong manager.
+
+**Everyone but OFAC.** This is the US SDN export alone. `otent_vessel_risk`
+already measured what that costs: OFAC names 20 of the 60 sanctioned
+vessels in Finnish AIS coverage. This table under-reports ownership by
+about the same factor, and the wider 353 MB export is a cost decision
+written down rather than left to look like the whole answer.
 
 ## The whole active catalogue, and the 799 it refuses
 
@@ -833,7 +895,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 93 tests, 1,338 assertions, against **captured real payloads**
+`npm test` — 98 tests, 1,398 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

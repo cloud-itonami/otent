@@ -246,6 +246,43 @@
             actor is not the place to decide that a downstream use
             qualifies."}
 
+   {:id :opensanctions-ownership
+    :kind :ownership-link
+    :access :open
+    :label "OpenSanctions FollowTheMoney graph -- who owns which ship"
+    :url "https://data.opensanctions.org/datasets/latest/us_ofac_sdn/entities.ftm.json"
+    :default-params {}
+    :terms "https://www.opensanctions.org/licensing/"
+    :min-interval-ms 86400000
+    :scope "Ownership edges whose asset is a vessel, from the **US OFAC SDN
+            export only** -- 1,545 of them, against 1,537 vessels. NOT the
+            multi-jurisdiction picture: `otent_vessel_risk` already showed
+            that OFAC alone names 20 of the 60 sanctioned vessels in Finnish
+            AIS coverage, so this table under-reports ownership by roughly the
+            same factor. The wider `sanctions` collection carries the EU, UK,
+            Swiss and Canadian edges too and is 353 MB, which is why it is not
+            polled daily here; that is a cost decision, and it is written down
+            rather than left to look like the whole answer.
+
+            Corporate hierarchy is mostly ABSENT: measured 2026-08-27, none of
+            the four operators behind the Finnish-coverage fleet had a parent,
+            a director or an owned subsidiary recorded in this graph. OFAC
+            records who owns an asset, not who owns the owner. For that,
+            GLEIF is the source -- and it has SOVCOMFLOT and does not have the
+            Hong Kong manager, so that route is partial too."
+    :notes "NDJSON, one FollowTheMoney entity per line, ~53 MB. `imoNumber` is
+            written `IMO9253325`; the bare digits an AIS transponder
+            broadcasts are what everything else here joins on, so the prefix
+            is stripped in the parser. Joining without stripping it returns
+            ZERO rows, which reads exactly like `no ship here has a recorded
+            owner` -- the first answer this join actually gave.
+
+            One row per EDGE. A ship can be owned and separately controlled,
+            and one company sits behind many hulls (SOVCOMFLOT: 81).
+
+            **Data: OpenSanctions, CC-BY-NC 4.0.** Non-commercial is why this
+            is not on the CC0 wiki plane."}
+
    {:id :aisstream
     :kind :vessel
     :access :stream
