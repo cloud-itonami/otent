@@ -64,8 +64,30 @@
                  (and m (str/includes? (str/lower-case m) "timed out"))))))
 
 (defn describe
-  "The sentence that goes in the receipt when a call ran out of time."
+  "The sentence that goes in the receipt when a call ran out of time.
+
+  ## It must not blame the remote
+
+  The first version said `the feed did not answer within 60s`, which is a
+  claim about the far end. Measured 2026-08-27, it was false: `firms` timed
+  out on three consecutive cycles while the same request answered in 2.3
+  seconds from `curl` on the same machine, at the same minute.
+
+  `AbortSignal.timeout` is a wall-clock timer, and `tick` runs the feeds
+  concurrently while the Iceberg commit is `cp/spawnSync`, which blocks the
+  whole Node event loop. So the deadline keeps counting while this process
+  is frozen inside a sibling's `python3`, and fires against a server that
+  was never given the chance to reply.
+
+  From inside, the two are indistinguishable -- and a receipt that cannot
+  tell them apart must not pick one. It now says the elapsed time is ours
+  and names the check that settles it. Telling them apart for real means
+  not blocking the loop."
   [what ms]
-  (str what " did not answer within " (Math/round (/ ms 1000.0)) "s. "
-       "The call was abandoned, so this is UNMEASURED -- we do not know what "
-       "it would have said, which is not the same as it having said nothing."))
+  (str what " did not complete within " (Math/round (/ ms 1000.0)) "s of THIS "
+       "PROCESS's wall clock, and the call was abandoned. That is UNMEASURED: "
+       "we do not know what it would have said, which is not the same as it "
+       "having said nothing -- and it is not the same as the remote being slow. "
+       "This clock keeps running while a sibling feed's commit blocks the event "
+       "loop, so a healthy source times out here. Try the same request from the "
+       "shell before concluding anything about the far end."))

@@ -18,6 +18,21 @@
     (is (re-find #"not the same as it having said nothing" d)
         "the whole point of this repository is that the two are different")))
 
+(deftest the-sentence-does-not-blame-the-remote
+  (testing "the first version said `the feed did not answer within 60s` --
+            a claim about the far end, and measured false: firms timed out
+            on three consecutive cycles while the same request answered in
+            2.3s from curl on the same machine at the same minute. The
+            deadline is wall-clock and keeps counting while a sibling's
+            spawnSync freezes the event loop."
+    (let [d (dl/describe "the feed at https://example.test" 60000)]
+      (is (not (re-find #"did not answer" d))
+          "`did not answer` is a claim about the remote that we cannot make")
+      (is (re-find #"THIS PROCESS" d) "the clock is named as ours")
+      (is (re-find #"blocks the event loop" d) "and the mechanism is named")
+      (is (re-find #"from the shell" d)
+          "with the check that actually settles it"))))
+
 (deftest a-signal-is-produced-and-is-not-already-aborted
   (let [s (dl/signal 5000)]
     (is (some? s))
