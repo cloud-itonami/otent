@@ -52,7 +52,8 @@
             ["fs" :as fs]
             ["path" :as path]
             [clojure.string :as str]
-            [otent.feeds.core :as feeds]))
+            [otent.feeds.core :as feeds]
+            [otent.darkness :as dark]))
 
 (def expected-unmeasured
   "Declared once, in `otent.feeds.core`, because `otent coverage` checks the
@@ -109,21 +110,27 @@
                 (path/join (or (aget js/process.env "HOME") ".") ".gftd" "otent"))]
     (path/join dir "retain.state.edn")))
 
-(defn- last-retain-ms
-  "When retention last RAN -- nil if never, which admits.
+(defn- read-state
+  "The cycle's own small state: when retention last ran, and how many
+  consecutive cycles each feed has been unreadable.
 
-  Read from its own small file rather than from the tick ledger: the ledger
-  is the record of what was observed, and retention is not an observation."
+  Its own file rather than the tick ledger, because the ledger is the
+  record of what was OBSERVED and neither of these is an observation."
   []
   (let [f (state-file)]
-    (when (fs/existsSync f)
-      (let [m (try (js/JSON.parse (fs/readFileSync f "utf8")) (catch :default _ nil))]
-        (when m (some-> (aget m "last-at") js/parseInt))))))
+    (if-not (fs/existsSync f)
+      {}
+      (or (try (js->clj (js/JSON.parse (fs/readFileSync f "utf8")) :keywordize-keys false)
+               (catch :default _ nil))
+          {}))))
 
-(defn- record-retain! [at]
+(defn- write-state! [m]
   (let [f (state-file)]
     (fs/mkdirSync (path/dirname f) #js {:recursive true})
-    (fs/writeFileSync f (js/JSON.stringify #js {"last-at" at}))))
+    (fs/writeFileSync f (js/JSON.stringify (clj->js m)))))
+
+(defn- last-retain-ms [state]
+  (some-> (get state "last-at") js/parseInt))
 
 (defn- run [env & args]
   (let [r (cp/spawnSync "nbb"
@@ -166,18 +173,24 @@
            (str/join "," (sort (for [c credentials :when (supplied (:env c))] (:feed c))))
            "-- these feeds are no longer exempt from being unmeasured"))
 
-    (let [t (run env "tick")
+    (let [state (read-state)
+          t (run env "tick")
           unmeasured (unmeasured-feeds (:out t))
-          unexpected (remove (set expected) unmeasured)]
+          ;; Every feed the tick reported on, so a feed that ANSWERED has
+          ;; its streak reset rather than merely not incremented.
+          asked (set (keep #(second (re-find #"^\s+(?:COMMITTED|NOTHING-NEW|REFUSED|DRY-RUN|UNMEASURED)\s+(\S+)" %))
+                           (str/split-lines (:out t))))
+          streaks (merge (get state "dark" {})
+                         (dark/advance (get state "dark" {}) asked unmeasured))
+          v (dark/verdict {:streaks streaks :exempt (set expected)})]
       (print (:out t))
       (log "tick exit" (:code t)
            "| unmeasured:" (if (seq unmeasured) (str/join "," (sort unmeasured)) "none")
-           "| unexpected:" (if (seq unexpected) (str/join "," (sort unexpected)) "none"))
+           "| streaks:" (if-let [d (:detail v)] d "none"))
+      (write-state! (assoc state "dark" streaks))
 
-      (when (seq unexpected)
-        (log "REFUSED:" (str/join "," (sort unexpected))
-             "went unmeasured and is not in the declared set"
-             (str/join "," (sort expected)))
+      (when (:refuse? v)
+        (log "REFUSED:" (:detail v))
         (js/process.exit 2))
 
       ;; The tick's own exit 2 is expected here whenever the declared feeds
@@ -185,13 +198,13 @@
       ;; refusal or a commit that failed, and it must reach the caller.
       (let [tick-bad? (= 1 (:code t))
             now (js/Date.now)
-            last (last-retain-ms)
+            last (last-retain-ms state)
             since (when last (- now last))
             due? (or (nil? last) (>= since (retain-interval-ms)))
             r (when due? (run env "retain"))]
         (if due?
           (do (print (:out r))
-              (record-retain! now)
+              (write-state! (assoc (read-state) "last-at" now))
               (log "retain exit" (:code r)))
           ;; NOT "retain exit 0". Skipping retention is not a clean run of
           ;; it, and a line that reads the same either way would make this
