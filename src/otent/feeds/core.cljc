@@ -151,6 +151,38 @@
     :notes "CSV. A free MAP_KEY from firms.modaps.eosdis.nasa.gov is required;
             without it this feed reports :no-credential, not zero fires."}
 
+   {:id :digitraffic
+    :kind :vessel
+    :access :open
+    :label "Finnish Transport Infrastructure Agency AIS (Digitraffic)"
+    :url "https://meri.digitraffic.fi/api/ais/v1/locations"
+    :default-params {}
+    ;; Their terms ask callers to identify themselves in this header rather
+    ;; than only in the user-agent, so that a misbehaving client can be
+    ;; contacted instead of blocked.
+    :headers {"Digitraffic-User" "cloud-itonami/otent"}
+    :terms "https://www.digitraffic.fi/en/terms-of-service/"
+    ;; The response says `cache-control: max-age=60`, so sixty seconds is
+    ;; the source's own refresh rate. Ten minutes anyway, for the reason
+    ;; the aircraft feed learned: a poll COMMITS, and a commit moves the
+    ;; Iceberg snapshot that the read cache is keyed on, so polling at the
+    ;; source's rate makes somebody pay a cold scan every minute.
+    :min-interval-ms 600000
+    :scope "Finnish AIS coverage -- the Baltic, the Gulf of Finland and the
+            Gulf of Bothnia, roughly 1,300 vessels. NOT global: this is one
+            sea. It exists because the global source needs a resident
+            collector this repository does not run, and one sea measured is
+            not the same as the ocean assumed empty. Excludes vessels not
+            transmitting AIS, vessels outside the Finnish receiver network,
+            and anything the 24-hour default `from` window has dropped.
+            Carries no ship name -- `/api/ais/v1/vessels` has it and is not
+            joined."
+    :notes "GeoJSON, [lon lat]. `timestampExternal` is UNIX MILLISECONDS;
+            the sibling `timestamp` is the AIS second-of-minute field (0-59,
+            60-63 reserved) and is NOT a time. Requires gzip -- the endpoint
+            answers 406 without it, which Node's fetch negotiates on its own
+            and curl does not."}
+
    {:id :aisstream
     :kind :vessel
     :access :stream
@@ -158,8 +190,13 @@
     :label "AISStream vessel positions"
     :url "wss://stream.aisstream.io/v0/stream"
     :default-params {}
-        :scope "Whatever the subscription asks for -- and nothing does, because
-            the collector does not exist. Not a ceiling yet; an absence."
+        :scope "Global, and asking for nothing, because the collector that would
+            hold the socket open does not exist. The vessel table is now fed
+            by `digitraffic` instead -- one sea rather than every sea -- so
+            this feed's absence is no longer the difference between some
+            vessels and none. It is the difference between the Baltic and
+            the world, which is why it stays in the registry as an
+            exemption with a reason rather than being deleted."
     :terms "https://aisstream.io/terms"
     :min-interval-ms 0
     :notes "A WebSocket subscription, not a poll: positions arrive when
@@ -241,6 +278,9 @@
                 :clears-when "the Keychain has firms.nasa/MAP_KEY"}
    "aisstream" {:since "2026-08-26"
                 :why "AIS is a WebSocket subscription and the resident collector is not in this repository"
+                ;; Structural, not a missing key -- so unlike `firms` there
+                ;; is nothing this cycle can look up to clear it. It stays a
+                ;; sentence, and it stays true.
                 :clears-when "a collector runs somewhere and writes vessel rows"}})
 
 (defn open-feeds [] (filter #(= :open (:access %)) registry))

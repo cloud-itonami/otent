@@ -36,7 +36,7 @@ CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cl
 | `cloud_itonami.otent_satellite` | 21,085 | CelesTrak GP (`GROUP=active`) |
 | `cloud_itonami.otent_aircraft` | 882,554 | OpenSky anonymous state vectors |
 | `cloud_itonami.otent_fire` | 27,833 | NASA FIRMS VIIRS NOAA-20, global, past day |
-| `cloud_itonami.otent_vessel` | — | **UNMEASURED**, see below |
+| `cloud_itonami.otent_vessel` | 1,282 | Digitraffic (Finnish AIS) — **the Baltic, not the world** |
 
 Bucket `cloud-itonami-datalake`, catalog
 `https://catalog.cloudflarestorage.com/<account>/cloud-itonami-datalake`.
@@ -112,31 +112,36 @@ fire` used to print `UNREADABLE` for a table whose absence was the most
 certain fact in the system. **3** now means asked-and-absent, **2** means
 could-not-ask.
 
-## The four feeds that run, and the one that does not
+## Five kinds, and the one that is a sea rather than an ocean
 
-`tick` exits **2** — not 0, not 1 — when a feed could not be read.
+`tick` exits **2** — not 0, not 1 — when a feed could not be read. As of
+2026-08-27 every kind has rows, which is new: fires and vessels had never
+been observed at all.
 
-```
-otent tick 2026-08-27T09:07:44.950Z
-  committed 1  dry-run 0  nothing-new 0  refused 0  not-due 0  UNMEASURED 0  rows 27833
-  COMMITTED firms -> otent_fire  +27833 rows ( -> 27833)
-      note: table did not exist before this run; delta not checkable
-```
+**Vessels are the Baltic.** The global source, AISStream, is a WebSocket
+subscription and the resident collector that would hold the socket open is
+not in this repository. Rather than leave the kind at zero waiting for it,
+the vessel table is fed by **Digitraffic** — the Finnish Transport
+Infrastructure Agency's AIS, open, keyless, poll-shaped, and therefore a
+fit for the machinery that already exists. Roughly 1,300 vessels in the
+Gulf of Finland, the Gulf of Bothnia and the Baltic.
 
-**Vessels are unmeasured, not empty.** AISStream is a WebSocket
-subscription and the resident collector that holds the socket open is not
-in this repository — its message parser is implemented and tested, so that
-collector has nothing to invent, but until something runs it the vessel
-table does not exist. A scheduler that treated exit 2 as success would
-record a month of missing vessels as a month of empty oceans.
+That is one sea instead of every sea, and the `:scope` says so. **One sea
+measured is not the same as the ocean assumed empty**, and it is also not
+the same as the ocean measured — which is why `aisstream` stays in the
+registry as an exemption with a reason rather than being deleted. Its
+absence used to be the difference between some vessels and none; it is now
+the difference between the Baltic and the world.
 
-Fires were in that paragraph until 2026-08-27, for a worse reason: the key
-is free, and nobody had asked for it. The exemption was honest about the
-cause and said `:clears-when "the key is entered on this machine"`, which
-is a sentence rather than a check — so it sat there being true. It is now
-`"the Keychain has firms.nasa/MAP_KEY"`, which the cycle evaluates on every
-run. **An exemption that cannot be falsified by the code that honours it
-will outlive the reason for it.**
+Two traps the parser is tested against, both from the real payload:
+
+| | |
+|---|---|
+| `timestampExternal` is epoch ms; the sibling `timestamp` is the **AIS second-of-minute** field (0–59, 60–63 reserved as status) | reading the wrong one puts every vessel in January 1970 |
+| GeoJSON is `[lon lat]` | Finnish longitudes are 19–30 and latitudes 59–65, so a transposition **lands inside valid ranges for both** — the per-row rule cannot see it, and the test asserts that limitation rather than flattering the rule |
+
+The endpoint answers **406 without gzip**. Node's `fetch` negotiates it and
+`curl` does not, so a hand-check fails where the actor succeeds.
 
 ## The whole active catalogue, and the 799 it refuses
 
@@ -633,7 +638,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 72 tests, 747 assertions, against **captured real payloads**
+`npm test` — 77 tests, 917 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

@@ -30,7 +30,8 @@
 
 (deftest fixtures-are-present
   ;; Evidence floor. Every assertion below iterates a parse result.
-  (doseq [f ["celestrak-stations.tle" "usgs-2.5_day.geojson" "opensky-states.json"]]
+  (doseq [f ["celestrak-stations.tle" "usgs-2.5_day.geojson" "opensky-states.json"
+             "digitraffic-ais-locations.json"]]
     (is (< 1000 (count (fx/slurp-fixture f))) (str f " is missing or truncated"))))
 
 (deftest celestrak-carries-elements-and-no-position
@@ -133,3 +134,66 @@
         "the governor should admit a vessel row"))
   (testing "and refuses what it cannot place"
     (is (= :ais/no-mmsi (:error (apply p/aisstream-message {} (feeds/by-id :aisstream) prov))))))
+
+(deftest digitraffic-does-not-read-the-ais-second-as-a-time
+  (let [r (apply p/digitraffic (js->clj (js/JSON.parse
+                                         (fx/slurp-fixture "digitraffic-ais-locations.json")))
+                 (feeds/by-id :digitraffic) prov)
+        ok (vec (:ok r))]
+    (is (<= 20 (count ok)))
+    (is (empty? (:failed r)) (str "real feed had parse failures: " (pr-str (:failed r))))
+    (testing "`timestampExternal` is epoch milliseconds; the sibling
+              `timestamp` is the AIS second-of-minute field, 0-59 with 60-63
+              reserved as status. Reading the wrong one puts every vessel in
+              January 1970 -- and the governor WOULD catch that, which is
+              exactly why the test has to check the value and not only the
+              verdict"
+      (doseq [o ok]
+        (is (< 1700000000000 (:observed-at o) 1900000000000)
+            (str (:object-id o) " observed-at " (:observed-at o)
+                 " is not a plausible epoch-millisecond value"))
+        (let [sec (get-in o [:attrs :ais_second])]
+          (is (or (nil? sec) (<= 0 sec 63))
+              "the AIS second field is kept, in its own attribute"))))
+    (testing "GeoJSON is [lon lat], and these are Baltic coordinates"
+      (doseq [o ok]
+        (is (< 50 (:lat o) 70) (str "latitude " (:lat o) " is not Finnish AIS coverage"))
+        (is (< 15 (:lon o) 32) (str "longitude " (:lon o) " is not Finnish AIS coverage"))))
+    (testing "no altitude, and no invented ship name"
+      (doseq [o ok]
+        (is (nil? (:alt-km o)))
+        (is (nil? (get-in o [:attrs :ship_name]))
+            "this endpoint does not carry a name; absent beats invented")))
+    (testing "and the governor admits them"
+      (let [v (gov/admit ok (ingest-clock ok))]
+        (is (= (count ok) (count (:admitted v)))
+            (str "held: " (pr-str (:counts v))))))))
+
+(deftest digitraffic-transposed-coordinates-would-not-be-silent
+  (testing "the [lon lat] trap: Finnish AIS longitudes are 19-30 and
+            latitudes 59-65, so a transposition lands inside valid ranges
+            for BOTH -- the per-row range rule cannot see it. This asserts
+            the limitation rather than flattering the rule, the same way
+            the USGS test does."
+    (let [parsed (js->clj (js/JSON.parse (fx/slurp-fixture "digitraffic-ais-locations.json")))
+          swapped (update parsed "features"
+                          (fn [fs] (mapv #(update-in % ["geometry" "coordinates"] reverse) fs)))
+          r (apply p/digitraffic swapped (feeds/by-id :digitraffic) prov)
+          ok (vec (:ok r))
+          v (gov/admit ok (ingest-clock ok))]
+      (is (pos? (count ok)))
+      (is (= (count ok) (count (:admitted v)))
+          "every transposed row passes the range rule -- which is the point:
+           the coordinate check is a second line, not a first")
+      (is (every? #(< 15 (:lat %) 32) ok)
+          "and they are now sitting off the coast of Africa, silently"))))
+
+(deftest digitraffic-refuses-a-feature-it-cannot-place-or-time
+  (let [r (p/digitraffic {"features" [{"mmsi" 1 "geometry" {"coordinates" [21.5 60.1]}
+                                       "properties" {"mmsi" 1}}
+                                      {"mmsi" 2 "geometry" {"coordinates" [nil nil]}
+                                       "properties" {"mmsi" 2 "timestampExternal" 1787756229677}}]}
+                         (feeds/by-id :digitraffic) "https://example.test" now "sha")]
+    (is (empty? (:ok r)))
+    (is (= 2 (count (:failed r))))
+    (is (every? #(= :digitraffic/incomplete-feature (:error %)) (:failed r)))))

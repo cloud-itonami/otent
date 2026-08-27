@@ -88,8 +88,17 @@
   (let [url (url-with feed opts)]
     (-> (js/fetch url
                   #js {:signal (dl/signal)
-                       :headers #js {"user-agent"
-                                     "otent/0.1 (cloud-itonami; +https://github.com/cloud-itonami/otent)"}})
+                       ;; A feed's own headers, merged over the user-agent
+                       ;; rather than replacing it. Digitraffic's terms ask
+                       ;; callers to identify themselves in `Digitraffic-User`
+                       ;; so a misbehaving client can be contacted rather
+                       ;; than blocked, and a registry that could not carry
+                       ;; that would push the requirement into a special
+                       ;; case at the call site.
+                       :headers (js/Object.assign
+                                 #js {"user-agent"
+                                      "otent/0.1 (cloud-itonami; +https://github.com/cloud-itonami/otent)"}
+                                 (clj->js (or (:headers feed) {})))})
         (.then (fn [r]
                  (if-not (.-ok r)
                    ;; Some feeds answer "you already have this" with a
@@ -188,6 +197,7 @@
     :celestrak (parse/celestrak text feed url fetched-at sha)
     :usgs (parse/usgs (js->clj (js/JSON.parse text)) feed url fetched-at sha)
     :opensky (parse/opensky (js->clj (js/JSON.parse text)) feed url fetched-at sha)
+    :digitraffic (parse/digitraffic (js->clj (js/JSON.parse text)) feed url fetched-at sha)
     :firms (parse/firms text feed url fetched-at sha)
     {:ok [] :failed [{:error :feed/no-parser
                       :detail (str "no parser for " (:id feed))}]}))
