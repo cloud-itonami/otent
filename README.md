@@ -190,9 +190,18 @@ ground moving and dropping them would be a second undeclared filter of
 exactly the kind this change removes.
 
 **The lesson is not about USGS.** A URL is a place a scope decision can be
-made once and then stop looking like a decision. `otent coverage` reads
-cadence back; nothing reads back the shape of what a feed was asked for,
-and that gap is open.
+made once and then stop looking like a decision — a narrowed request and a
+quiet world produce the same rows.
+
+So every registry entry now declares **`:scope`**: what the request leaves
+out, and what could be asked for instead. A test refuses an entry without
+one. This does not verify a scope is *right* — nothing can, from here — it
+makes it impossible to narrow coverage without writing down that you did.
+
+`firms` is the example working as intended. It asks for VIIRS NOAA-20 and
+names the three other sensors available under the same key that it is
+**not** asking for, so roughly a doubling of detections sits in the
+registry as an arguable line rather than in a path segment as a fact.
 
 ## The governor
 
