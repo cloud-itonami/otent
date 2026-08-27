@@ -32,6 +32,7 @@
             ["fs" :as fs]
             ["path" :as path]
             [otent.catalog-test]
+            [otent.coverage-test]
     [otent.cli-test]
     [otent.feeds-due-test]
             [otent.governor-test]
@@ -40,6 +41,7 @@
 
 (def declared
   '[otent.catalog-test
+    otent.coverage-test
     otent.cli-test
     otent.feeds-due-test
     otent.governor-test

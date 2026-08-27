@@ -18,52 +18,114 @@
   running a tick that reports every feed UNMEASURED and looks like a quiet
   planet.
 
-  **UNMEASURED feeds are expected here.** `tick` exits 2 whenever a feed
-  could not be read, which is right for a human running it and wrong for a
-  timer: `fire` needs a FIRMS key nobody has entered and `vessel` needs a
-  resident collector this repository does not run, so an unwrapped tick
-  would exit 2 on every single run forever. A job that is permanently red is
-  one nobody can tell from a broken one. So the expected set is declared
-  here, by name, and only a feed going unmeasured OUTSIDE that set is a
-  failure. Widening the set is an edit with a date on it.
+  **UNMEASURED feeds are expected here -- but the set is not static.**
+  `tick` exits 2 whenever a feed could not be read, which is right for a
+  human and wrong for a timer: `vessel` needs a resident collector this
+  repository does not run, so an unwrapped tick would exit 2 forever, and a
+  job that is permanently red is one nobody can tell from a broken one.
 
-  **Retention runs after ingest, not beside it.** Deleting rows the tick has
-  just written is fine -- they are past the horizon or they are not -- but
-  doing it first would delete rows whose replacement then failed to commit.
+  The exemptions are declared by name in `otent.feeds.core`, each with a
+  `:clears-when`. For a feed gated on a credential, that condition is
+  something this cycle can check: it looks the key up in the Keychain, and
+  **a feed whose key it found is no longer exempt.** So entering the FIRMS
+  key does not require also remembering to edit the exemption -- the
+  exemption evaporates on its own terms, and a fire feed that then goes
+  quiet is a failure rather than a standing excuse. Widening the set for a
+  structural reason is still an edit with a date on it.
+
+  **Retention runs after ingest, and on its own interval.** After, because
+  deleting rows whose replacement then failed to commit is the one ordering
+  that loses an observation. On its own interval because of what running it
+  every cycle cost: retention takes ~3.4 minutes, launchd will not start a
+  job that is still running, and so a plist asking for a cycle every 300 s
+  produced one every 447 s. Every feed was then polled at ~1.5x its declared
+  `:min-interval-ms` -- aircraft every 15 minutes against a declared 10 --
+  and nothing was red, because `due?` was honouring the registry exactly and
+  the registry was being honoured late. Measured 2026-08-27 over 173 cycles.
+
+  The horizons retention enforces are a day at the shortest, so asking
+  hourly is not a weakening of it; asking every five minutes was simply
+  never what the horizons needed. `$OTENT_RETAIN_INTERVAL_MS` overrides.
 
   exit 0 the cycle ran · 1 something was refused · 2 could not answer"
   (:require ["child_process" :as cp]
+            ["fs" :as fs]
             ["path" :as path]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [otent.feeds.core :as feeds]))
 
 (def expected-unmeasured
-  "Feeds that cannot be read today, with the reason and what would clear it.
-
-  Declared, dated, and checked against what the tick actually reports -- so
-  a THIRD feed going dark is a failure rather than being absorbed into an
-  exemption written for two others."
-  {"firms"     {:since "2026-08-26"
-                :why "$FIRMS_MAP_KEY is not set; NASA FIRMS needs a free key"
-                :clears-when "the key is entered on this machine"}
-   "aisstream" {:since "2026-08-26"
-                :why "AIS is a WebSocket subscription and the resident collector is not in this repository"
-                :clears-when "a collector runs somewhere and writes vessel rows"}})
+  "Declared once, in `otent.feeds.core`, because `otent coverage` checks the
+  same set. A second copy here would drift from that one silently."
+  feeds/expected-unmeasured)
 
 (defn- log [& xs]
   (println (str (.toISOString (js/Date.)) " " (str/join " " xs))))
 
-(defn- keychain-token
-  "The one credential this needs, fetched by its exact identifiers.
+(defn- keychain
+  "One credential, fetched by its exact service and account.
 
   Never an enumeration of the store: a dump would expose unrelated
-  credentials' metadata and raise a prompt per item."
-  []
+  credentials' metadata and raise a prompt per item. Each call names the
+  one item it wants, and a miss is nil rather than a search."
+  [service account]
   (let [r (cp/spawnSync "security"
-                        #js ["find-generic-password" "-s" "gftd.cf" "-a" "API_TOKEN" "-w"]
+                        #js ["find-generic-password" "-s" service "-a" account "-w"]
                         #js {:encoding "utf8"})]
     (when (zero? (.-status r)) (str/trim (str (.-stdout r))))))
 
-(defn- run [token & args]
+(def credentials
+  "Which Keychain item backs which feed's environment variable.
+
+  The catalog token is not here: without it nothing can run at all, so it
+  is fetched separately and its absence stops the cycle. These are
+  per-feed, and a missing one costs exactly one feed."
+  [{:env "FIRMS_MAP_KEY" :service "firms.nasa" :account "MAP_KEY" :feed "firms"}])
+
+(def default-retain-interval-ms
+  "How often retention is worth running.
+
+  An hour, against horizons whose shortest is a day. Running it every cycle
+  was not stricter -- the horizons do not move -- it just held the timer
+  open long enough to slow every feed down."
+  3600000)
+
+(defn- retain-interval-ms []
+  (or (some-> (aget js/process.env "OTENT_RETAIN_INTERVAL_MS")
+              str/trim not-empty js/parseInt)
+      default-retain-interval-ms))
+
+(defn- timer-interval-ms
+  "What the plist asks launchd for. Read so the cycle can notice when it is
+  taking longer than its own period, which is the failure that started
+  this: nothing is red, and every declared interval is quietly stretched."
+  []
+  (or (some-> (aget js/process.env "OTENT_TIMER_INTERVAL_MS")
+              str/trim not-empty js/parseInt)
+      300000))
+
+(defn- state-file []
+  (let [dir (or (some-> (aget js/process.env "OTENT_LEDGER_DIR") str/trim not-empty)
+                (path/join (or (aget js/process.env "HOME") ".") ".gftd" "otent"))]
+    (path/join dir "retain.state.edn")))
+
+(defn- last-retain-ms
+  "When retention last RAN -- nil if never, which admits.
+
+  Read from its own small file rather than from the tick ledger: the ledger
+  is the record of what was observed, and retention is not an observation."
+  []
+  (let [f (state-file)]
+    (when (fs/existsSync f)
+      (let [m (try (js/JSON.parse (fs/readFileSync f "utf8")) (catch :default _ nil))]
+        (when m (some-> (aget m "last-at") js/parseInt))))))
+
+(defn- record-retain! [at]
+  (let [f (state-file)]
+    (fs/mkdirSync (path/dirname f) #js {:recursive true})
+    (fs/writeFileSync f (js/JSON.stringify #js {"last-at" at}))))
+
+(defn- run [env & args]
   (let [r (cp/spawnSync "nbb"
                         (clj->js (concat ["--classpath"
                                           (str "src:"
@@ -72,8 +134,7 @@
                                           (path/join "bin" "otent.cljs")]
                                          args))
                         #js {:encoding "utf8"
-                             :env (js/Object.assign #js {} js/process.env
-                                                    #js {"CF_CATALOG_TOKEN" token})})]
+                             :env (js/Object.assign #js {} js/process.env env)})]
     {:code (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r))}))
 
 (defn- unmeasured-feeds
@@ -82,15 +143,32 @@
   (set (keep #(second (re-find #"^\s+UNMEASURED (\S+)" %)) (str/split-lines out))))
 
 (defn -main []
-  (let [token (keychain-token)]
+  (let [now-start (js/Date.now)
+        token (keychain "gftd.cf" "API_TOKEN")
+        ;; Per-feed credentials, each fetched by name. A feed whose key is
+        ;; present is EXPECTED TO RUN: if it then reports unmeasured, that
+        ;; is a failure rather than the standing exemption, because the
+        ;; exemption's own `:clears-when` has been met.
+        supplied (into {} (keep (fn [c]
+                                  (when-let [v (keychain (:service c) (:account c))]
+                                    [(:env c) v]))
+                                credentials))
+        env (js/Object.assign #js {"CF_CATALOG_TOKEN" token} (clj->js supplied))
+        expected (remove (set (for [c credentials :when (supplied (:env c))] (:feed c)))
+                         (keys expected-unmeasured))]
     (when-not token
       (log "REFUSED: the Keychain has no gftd.cf/API_TOKEN. Nothing ran, which"
            "is not the same as running and finding nothing.")
       (js/process.exit 2))
 
-    (let [t (run token "tick")
+    (when (seq supplied)
+      (log "credentials supplied for:"
+           (str/join "," (sort (for [c credentials :when (supplied (:env c))] (:feed c))))
+           "-- these feeds are no longer exempt from being unmeasured"))
+
+    (let [t (run env "tick")
           unmeasured (unmeasured-feeds (:out t))
-          unexpected (remove (set (keys expected-unmeasured)) unmeasured)]
+          unexpected (remove (set expected) unmeasured)]
       (print (:out t))
       (log "tick exit" (:code t)
            "| unmeasured:" (if (seq unmeasured) (str/join "," (sort unmeasured)) "none")
@@ -99,18 +177,47 @@
       (when (seq unexpected)
         (log "REFUSED:" (str/join "," (sort unexpected))
              "went unmeasured and is not in the declared set"
-             (str/join "," (sort (keys expected-unmeasured))))
+             (str/join "," (sort expected)))
         (js/process.exit 2))
 
       ;; The tick's own exit 2 is expected here whenever the declared feeds
       ;; are the only unmeasured ones; 1 is not -- that is a governor
       ;; refusal or a commit that failed, and it must reach the caller.
       (let [tick-bad? (= 1 (:code t))
-            r (run token "retain")]
-        (print (:out r))
-        (log "retain exit" (:code r))
+            now (js/Date.now)
+            last (last-retain-ms)
+            since (when last (- now last))
+            due? (or (nil? last) (>= since (retain-interval-ms)))
+            r (when due? (run env "retain"))]
+        (if due?
+          (do (print (:out r))
+              (record-retain! now)
+              (log "retain exit" (:code r)))
+          ;; NOT "retain exit 0". Skipping retention is not a clean run of
+          ;; it, and a line that reads the same either way would make this
+          ;; change invisible the day the interval is set too long and rows
+          ;; start living past their horizon.
+          (log "retain NOT-DUE  last ran" (Math/round (/ since 1000)) "s ago;"
+               "interval is" (Math/round (/ (retain-interval-ms) 1000)) "s, so it is due in"
+               (Math/round (/ (- (retain-interval-ms) since) 1000)) "s."
+               "NOT run -- this is not a claim that nothing needed pruning."))
+
+        (let [elapsed (- (js/Date.now) now-start)]
+          (log "cycle took" (Math/round (/ elapsed 1000)) "s")
+          (when (> elapsed (timer-interval-ms))
+            ;; The whole reason this file changed. launchd will not start a
+            ;; job that is still running, so a cycle longer than the period
+            ;; silently divides every feed's real poll rate -- and the tick
+            ;; stays green throughout, because `due?` is answering honestly
+            ;; about a clock it is being asked on too rarely.
+            (log "WARNING: the cycle took longer than the timer's period of"
+                 (Math/round (/ (timer-interval-ms) 1000)) "s."
+                 "launchd will skip fires, so every feed's effective interval"
+                 "is longer than the registry declares. Run `otent coverage`"
+                 "to measure by how much.")))
+
         (js/process.exit
-         (cond (or (= 2 (:code r))) 2
+         (cond (= 2 (:code r)) 2
                (or tick-bad? (= 1 (:code r))) 1
                :else 0))))))
 

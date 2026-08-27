@@ -6,6 +6,7 @@
     nbb --classpath src bin/otent.cljs tick --feed usgs --dry-run
     nbb --classpath src bin/otent.cljs feeds
     nbb --classpath src bin/otent.cljs count --kind quake
+    nbb --classpath src bin/otent.cljs coverage
 
   ## Exit codes
 
@@ -40,6 +41,7 @@
             [otent.observation :as obs]
             [otent.r2 :as r2]
             [otent.cli :as cli]
+            [otent.coverage :as cov]
             [otent.kotobase :as kb]
             [otent.receipt :as receipt]))
 
@@ -196,14 +198,30 @@
     {:code (.-status r)
      :out (str/trim (str (.-stdout r)))}))
 
-(defn table-count
-  "Row count from the catalog. `nil` means the count could not be taken --
-  which is not zero, and callers must not treat it as zero."
+(defn table-status
+  "Ask the catalog about one table and keep the three answers apart.
+
+  `{:status :rows}` where status is `:rows` with a number, `:absent`
+  (asked, and the table is not there) or `:unreadable` (could not ask).
+  The counter used to return 2 for both of the last two, so
+  `otent count --kind fire` said UNREADABLE about a table whose absence is
+  the most certain fact in the system -- nothing has ever been able to read
+  that feed, so the table cannot exist. `could not look` and `looked, and
+  it is not there` are different claims and must not share an exit code."
   [table]
   (let [{:keys [code out]} (run-writer ["--account" ACCOUNT "--bucket" BUCKET
                                         "--namespace" NAMESPACE "--table" table
                                         "--count"])]
-    (when (zero? code) (js/parseInt out 10))))
+    (case code
+      0 {:status :rows :rows (js/parseInt out 10)}
+      3 {:status :absent}
+      {:status :unreadable})))
+
+(defn table-count
+  "Row count from the catalog. `nil` means the count could not be taken --
+  which is not zero, and callers must not treat it as zero."
+  [table]
+  (:rows (table-status table)))
 
 (defn commit!
   "Append the admitted rows and verify by reading back.
@@ -336,6 +354,18 @@
     (fs/mkdirSync (path/dirname f) #js {:recursive true})
     (fs/appendFileSync f (str (pr-str r) "\n"))
     f))
+
+(defn ledger-entries
+  "Every receipt in the ledger, oldest first. `nil` when there is no ledger
+  at all -- which is not an empty history."
+  []
+  (let [f (ledger-file)]
+    (when (fs/existsSync f)
+      (->> (str/split-lines (fs/readFileSync f "utf8"))
+           (remove str/blank?)
+           (map cljs.reader/read-string)
+           (sort-by :tick/at)
+           vec))))
 
 ;; ---------------------------------------------------------------- tick
 
@@ -612,6 +642,35 @@
       ;; `answered no` does.
       (js/process.exit (cond (seq unknown) 2 (seq refused) 1 :else 0)))))
 
+(defn coverage
+  "What the ingest actually covers, measured rather than declared.
+
+    otent coverage
+
+  Reads the tick ledger for cadence and the catalog for row counts, and
+  refuses to print a clean line when either could not be measured. It
+  exists because the drift it looks for -- every feed polled at ~1.5x its
+  declared interval, because the cycle ran longer than the timer's period
+  -- was invisible to every check in this repository: the tick was green,
+  `due?` was honouring `:min-interval-ms` exactly, and the only symptom was
+  a number nobody was computing."
+  [_args]
+  (let [entries (ledger-entries)]
+    (when (nil? entries)
+      (println "REFUSING to report coverage: there is no ledger at" (ledger-file))
+      (js/process.exit 2))
+    (let [tables (when (r2/token)
+                   (into {} (for [k (distinct (map :kind feeds/registry))]
+                              [k (let [{:keys [status rows]} (table-status (obs/table-name k))]
+                                   (if (= :rows status) rows status))])))
+          rpt (cov/report {:registry feeds/registry
+                           :entries entries
+                           :now (js/Date.now)
+                           :tables tables
+                           :expected-unmeasured (set (keys feeds/expected-unmeasured))})]
+      (doseq [l (cov/render rpt)] (println l))
+      (js/process.exit (cov/exit-code rpt)))))
+
 (defn -main [& _]
   (let [parsed (cli/parse-args (user-args))
         _ (when (:error parsed)
@@ -622,13 +681,17 @@
       "feeds" (doseq [l (feeds/describe)] (println l))
       "count" (let [k (keyword (or (:kind opts) "quake"))
                     t (obs/table-name k)
-                    n (table-count t)]
-                (if (nil? n)
-                  (do (println t "UNREADABLE -- not zero") (js/process.exit 2))
-                  (println t n)))
+                    {:keys [status rows]} (table-status t)]
+                (case status
+                  :rows (println t rows)
+                  :absent (do (println t "ABSENT -- the catalog was asked and does not have this table")
+                              (js/process.exit 3))
+                  (do (println t "UNREADABLE -- not zero, and not absent either")
+                      (js/process.exit 2))))
       "tick" (tick args)
       "retain" (retain args)
-      (do (println "usage: otent.cljs <tick|retain|feeds|count> [--feed a,b] [--kind a,b] [--dry-run] [--create] [--force]")
+      "coverage" (coverage args)
+      (do (println "usage: otent.cljs <tick|retain|feeds|count|coverage> [--feed a,b] [--kind a,b] [--dry-run] [--create] [--force]")
           (js/process.exit 2)))))
 
 (-main)

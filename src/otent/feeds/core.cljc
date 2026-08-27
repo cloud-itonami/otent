@@ -49,12 +49,27 @@
    {:id :usgs
     :kind :quake
     :access :open
-    :label "USGS earthquake summary feed"
-    :url "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
+    :label "USGS earthquake summary feed (all magnitudes, past day)"
+    ;; `all_day`, not `2.5_day`. The M2.5 feed was chosen on the first day
+    ;; and never revisited, and it is a coverage ceiling written into a URL:
+    ;; every quake below M2.5 was not missing from the table, it was outside
+    ;; what we ever asked for -- which reads, from the table, exactly like a
+    ;; world with no small earthquakes in it. Measured 2026-08-27 on the same
+    ;; minute: `2.5_day` 29 events, `all_day` 241, smallest M-0.4. Same
+    ;; GeoJSON shape, same parser, ~8x the rows at 170 KB a poll.
+    ;;
+    ;; `all_day` also carries non-tectonic events -- quarry blasts, mining
+    ;; explosions, ice quakes. They are kept, with `event_type` on the row,
+    ;; because they are real observations of the ground moving and dropping
+    ;; them would be a second undeclared filter of the same kind as the one
+    ;; this change removes.
+    :url "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
     :default-params {}
     :terms "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits"
     :min-interval-ms 300000
-    :notes "GeoJSON. Timestamps are UNIX MILLISECONDS -- unlike OpenSky's."}
+    :notes "GeoJSON. Timestamps are UNIX MILLISECONDS -- unlike OpenSky's.
+            `mag` can be null for some event types; the row carries the null
+            rather than inventing a magnitude."}
 
    {:id :opensky
     :kind :aircraft
@@ -157,6 +172,28 @@
   (if (nil? last-contact-ms)
     0
     (max 0 (- (or (:min-interval-ms feed) 0) (- now-ms last-contact-ms)))))
+
+(def expected-unmeasured
+  "Feeds that cannot be read today, with the reason and what would clear it.
+
+  Declared here rather than in the scheduler because two things now check
+  it -- the cycle wrapper, so a permanently red timer is not indistinct
+  from a broken one, and `otent coverage`, so a report cannot call a dark
+  feed expected on its own authority. Two copies of a declaration is how
+  one of them quietly stops matching the other.
+
+  A THIRD feed going dark is a failure: this is checked by name, never as
+  a count."
+  {"firms"     {:since "2026-08-26"
+                :why "$FIRMS_MAP_KEY is not set; NASA FIRMS needs a free key"
+                ;; Checkable, and checked: the cycle looks this item up in
+                ;; the Keychain and drops the exemption when it finds it.
+                ;; An exemption whose clearing condition is prose is one
+                ;; that outlives the reason for it.
+                :clears-when "the Keychain has firms.nasa/MAP_KEY"}
+   "aisstream" {:since "2026-08-26"
+                :why "AIS is a WebSocket subscription and the resident collector is not in this repository"
+                :clears-when "a collector runs somewhere and writes vessel rows"}})
 
 (defn open-feeds [] (filter #(= :open (:access %)) registry))
 
