@@ -250,19 +250,25 @@
     :kind :ownership-link
     :access :open
     :label "OpenSanctions FollowTheMoney graph -- who owns which ship"
-    :url "https://data.opensanctions.org/datasets/latest/us_ofac_sdn/entities.ftm.json"
+    :url "https://data.opensanctions.org/datasets/latest/sanctions/entities.ftm.json"
     :default-params {}
     :terms "https://www.opensanctions.org/licensing/"
     :min-interval-ms 86400000
-    :scope "Ownership edges whose asset is a vessel, from the **US OFAC SDN
-            export only** -- 1,545 of them, against 1,537 vessels. NOT the
-            multi-jurisdiction picture: `otent_vessel_risk` already showed
-            that OFAC alone names 20 of the 60 sanctioned vessels in Finnish
-            AIS coverage, so this table under-reports ownership by roughly the
-            same factor. The wider `sanctions` collection carries the EU, UK,
-            Swiss and Canadian edges too and is 353 MB, which is why it is not
-            polled daily here; that is a cost decision, and it is written down
-            rather than left to look like the whole answer.
+    :scope "Ownership edges whose asset is a vessel, from the
+            multi-jurisdiction `sanctions` collection -- OFAC, the EU, the UK,
+            Switzerland, Canada and Ukraine. 2,026 edges against 1,998
+            vessels.
+
+            It was the OFAC export alone until 2026-08-28 (1,545 edges), and
+            the switch was measured rather than assumed. Globally it is worth
+            +31%. **For the fleet this actor watches it is worth 3.2x**:
+            vessels in Finnish AIS coverage that appear at all went 20 -> 64,
+            those with a named controlling organization 20 -> 47, and edges
+            21 -> 57. The two numbers differ because EU and UK designations
+            target the Baltic shadow fleet specifically while OFAC's list is
+            weighted elsewhere -- so a global average would have understated
+            the gain by a factor of ten, and quoting it would have been the
+            wrong measurement honestly reported.
 
             Corporate hierarchy is mostly ABSENT: measured 2026-08-27, none of
             the four operators behind the Finnish-coverage fleet had a parent,
@@ -270,7 +276,9 @@
             records who owns an asset, not who owns the owner. For that,
             GLEIF is the source -- and it has SOVCOMFLOT and does not have the
             Hong Kong manager, so that route is partial too."
-    :notes "NDJSON, one FollowTheMoney entity per line, ~53 MB. `imoNumber` is
+    :notes "NDJSON, one FollowTheMoney entity per line, ~353 MB, 291,570
+            entities of which 160,413 are `Sanction` and are never read --
+            `ftm-index` drops them on the raw line before `js->clj`. `imoNumber` is
             written `IMO9253325`; the bare digits an AIS transponder
             broadcasts are what everything else here joins on, so the prefix
             is stripped in the parser. Joining without stripping it returns
@@ -287,7 +295,7 @@
     :kind :org-identity
     :access :open
     :label "The organizations that control vessels, and what identifies them"
-    :url "https://data.opensanctions.org/datasets/latest/us_ofac_sdn/entities.ftm.json"
+    :url "https://data.opensanctions.org/datasets/latest/sanctions/entities.ftm.json"
     :default-params {}
     :terms "https://www.opensanctions.org/licensing/"
     :min-interval-ms 86400000
@@ -307,9 +315,11 @@
             which `has_identifier` records rather than leaving as a blank
             that reads like a gap in the ingest.
 
-            Same OFAC-only ceiling as the ownership table, and the same
-            reason: `otent_vessel_risk` measured OFAC at 20 of 60."
-    :notes "Same 53 MB payload as `opensanctions-ownership`, fetched twice a
+            From the multi-jurisdiction `sanctions` collection since
+            2026-08-28, not OFAC alone. The identifier counts above were
+            measured on the OFAC population of 555 and are restated on each
+            ingest rather than pinned here."
+    :notes "Same ~353 MB payload as `opensanctions-ownership`, fetched twice a
             day because a feed maps to one kind and one table. The archive is
             content-addressed so it is stored once; the fetch is not. That is
             a real cost and it is written down rather than hidden.

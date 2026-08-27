@@ -442,6 +442,43 @@
 (defn- ftm-prop [e k]
   (get-in e ["properties" k]))
 
+(def ftm-relevant-schemas
+  "The only entity kinds these two parsers reach for.
+
+  The multi-jurisdiction export is 353 MB and 291,570 entities, of which
+  160,413 are `Sanction` and 24,113 are `Address` -- neither is read here.
+  Converting all of them into ClojureScript maps costs memory this process
+  does not need to spend, so the filter happens on the raw line before
+  `js->clj` ever sees it."
+  #{"Vessel" "Ownership" "Organization" "Company" "LegalEntity" "Person"})
+
+(defn- ftm-index
+  "NDJSON -> id->entity, keeping only the schemas above.
+
+  The prefilter runs on the RAW STRING, because `js->clj` on a 291,570-entity
+  file is the expensive step and 75% of those entities are never read. It
+  tests only for the quoted schema NAME, not for `\"schema\":\"Vessel\"`,
+  because the exact spacing around the colon is the source's business and not
+  a contract: the first version of this matched `\"schema\": \"` with a space,
+  the export emits none, and it would have rejected every line in production
+  while passing against a fixture written by `json.dumps`. A prefilter that
+  is wrong returns an empty index, and an empty index looks exactly like a
+  sanctions list with nobody on it.
+
+  So the prefilter is deliberately loose -- a `Sanction` row mentioning the
+  word Organization gets parsed and then dropped -- and the authoritative
+  check is the one after `js->clj`."
+  [text]
+  (reduce (fn [m l]
+            (if-not (some #(str/includes? l (str "\"" % "\"")) ftm-relevant-schemas)
+              m
+              (let [e (js->clj (js/JSON.parse l))]
+                (if (contains? ftm-relevant-schemas (get e "schema"))
+                  (assoc m (get e "id") e)
+                  m))))
+          {}
+          (remove str/blank? (str/split-lines text))))
+
 (defn opensanctions-ownership
   "OpenSanctions' FollowTheMoney entity graph -> who owns which ship.
 
@@ -490,11 +527,7 @@
   non-commercial condition is why this table is not on the CC0 wiki plane."
   [text feed url fetched-at sha]
   (let [p (prov feed url fetched-at sha)
-        lines (remove str/blank? (str/split-lines text))
-        ents (reduce (fn [m l]
-                       (let [e (js->clj (js/JSON.parse l))]
-                         (assoc m (get e "id") e)))
-                     {} lines)
+        ents (ftm-index text)
         vessel? (fn [id] (= "Vessel" (get-in ents [id "schema"])))]
     (reduce
      (fn [acc [id e]]
@@ -594,9 +627,7 @@
   Data: OpenSanctions, CC-BY-NC 4.0."
   [text feed url fetched-at sha]
   (let [p (prov feed url fetched-at sha)
-        lines (remove str/blank? (str/split-lines text))
-        ents (reduce (fn [m l] (let [e (js->clj (js/JSON.parse l))] (assoc m (get e "id") e)))
-                     {} lines)
+        ents (ftm-index text)
         ;; Only organizations that actually control a vessel in this graph.
         ;; The export holds 9,819 organizations; the ones this table is about
         ;; are the ones on the far end of a vessel-ownership edge.

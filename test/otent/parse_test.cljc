@@ -445,3 +445,24 @@
       (is (= 1 (count (:ok r))))
       (is (= "false" (get-in (first (:ok r)) [:attrs :has_identifier]))
           "present and false, not absent"))))
+
+(deftest the-ftm-prefilter-does-not-depend-on-the-source-s-spacing
+  (testing "the first version matched `\"schema\": \"` with a space. The export
+            emits none, so it would have rejected every line in production
+            while passing against a fixture written by `json.dumps`. An empty
+            index looks exactly like a sanctions list with nobody on it."
+    (doseq [[label nd]
+            [["compact, as the export emits"
+              (str "{\"id\":\"v1\",\"schema\":\"Vessel\",\"properties\":{\"name\":[\"S\"],\"imoNumber\":[\"IMO9253325\"]}}\n"
+                   "{\"id\":\"c1\",\"schema\":\"Organization\",\"properties\":{\"name\":[\"A Co\"]}}\n"
+                   "{\"id\":\"o1\",\"schema\":\"Ownership\",\"properties\":{\"asset\":[\"v1\"],\"owner\":[\"c1\"]}}\n")]
+             ["spaced, as a pretty-printer emits"
+              (str "{\"id\": \"v1\", \"schema\": \"Vessel\", \"properties\": {\"name\": [\"S\"], \"imoNumber\": [\"IMO9253325\"]}}\n"
+                   "{\"id\": \"c1\", \"schema\": \"Organization\", \"properties\": {\"name\": [\"A Co\"]}}\n"
+                   "{\"id\": \"o1\", \"schema\": \"Ownership\", \"properties\": {\"asset\": [\"v1\"], \"owner\": [\"c1\"]}}\n")]]]
+      (testing label
+        (let [r (p/opensanctions-ownership nd (feeds/by-id :opensanctions-ownership)
+                                           "https://example.test" now "sha")]
+          (is (= 1 (count (:ok r)))
+              "the prefilter dropped every line for a formatting reason")
+          (is (= "9253325" (get-in (first (:ok r)) [:attrs :asset_imo]))))))))

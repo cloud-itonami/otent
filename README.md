@@ -39,8 +39,8 @@ CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cl
 | `cloud_itonami.otent_vessel` | 1,282 | Digitraffic (Finnish AIS) — **the Baltic, not the world** |
 | `cloud_itonami.otent_vessel_static` | 1,168 | who those vessels say they are |
 | `cloud_itonami.otent_vessel_risk` | 23,173 | what the sanctions lists say about ships |
-| `cloud_itonami.otent_ownership_link` | 1,496 | which organization controls which hull |
-| `cloud_itonami.otent_org_identity` | 555 | what identifies those organizations |
+| `cloud_itonami.otent_ownership_link` | 3,473 | which organization controls which hull |
+| `cloud_itonami.otent_org_identity` | 1,449 | what identifies those organizations |
 
 Bucket `cloud-itonami-datalake`, catalog
 `https://catalog.cloudflarestorage.com/<account>/cloud-itonami-datalake`.
@@ -343,11 +343,44 @@ owner. GLEIF is the source for that and is partial too — it has
 `SOVCOMFLOT` (LEI 89450003E1QO0BQ8WF75, CC0) and does not have the Hong
 Kong manager.
 
-**Everyone but OFAC.** This is the US SDN export alone. `otent_vessel_risk`
-already measured what that costs: OFAC names 20 of the 60 sanctioned
-vessels in Finnish AIS coverage. This table under-reports ownership by
-about the same factor, and the wider 353 MB export is a cost decision
-written down rather than left to look like the whole answer.
+### The OFAC ceiling came off, and the global number was the wrong one
+
+Until 2026-08-28 both tables came from the US SDN export alone. They now
+come from the multi-jurisdiction `sanctions` collection — OFAC, EU, UK,
+Switzerland, Canada, Ukraine.
+
+Globally that is worth **+31%** (1,545 → 2,026 vessel-ownership edges),
+which is the number I would have quoted. For the fleet this actor actually
+watches it is worth **3.2x**:
+
+| | OFAC only | multi-jurisdiction |
+|---|---|---|
+| Finnish-AIS vessels appearing at all | 20 | **64** |
+| …with a named controlling organization | 20 | **47** |
+| ownership edges behind them | 21 | **57** |
+| distinct controlling organizations (all) | 555 | **894** |
+
+The two figures differ because EU and UK designations target the Baltic
+shadow fleet specifically while OFAC's list is weighted elsewhere. **A
+global average would have understated the gain by a factor of ten** — the
+wrong measurement, honestly reported, which is its own failure mode.
+
+What arrived with it is the shape you would expect: Turkish managers
+(`Sand Gemi Isletmeciligi`, `Tokyo Gemi Isletmeciligi`), Vietnamese
+(`Hung Phat`), Chinese (`WU HU SHIPMANAGEMENT`, `She Shan`), and a long
+tail of jurisdiction-less shells — `Blossom Bridge Corp`,
+`Seafaring Savants LLC`, `Voyage Craft Inc`, `Oasis Bloom Corp`.
+
+Cost, measured: 353 MB, 291,570 entities, **37 s and 1.88 GB peak RSS** per
+parse. `ftm-index` drops the 160,413 `Sanction` and 24,113 `Address` rows on
+the raw line before `js->clj` ever sees them, which is what makes it fit.
+
+⚠ The prefilter tests for the quoted schema **name**, not for
+`"schema":"Vessel"`. The first version matched `"schema": "` with a space;
+the export emits none, so it would have rejected every line in production
+while passing against a fixture written by `json.dumps`. **An empty index
+looks exactly like a sanctions list with nobody on it.** A test now runs
+both spacings.
 
 ## The whole active catalogue, and the 799 it refuses
 
@@ -929,7 +962,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 102 tests, 1,428 assertions, against **captured real payloads**
+`npm test` — 103 tests, 1,432 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
