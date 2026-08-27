@@ -15,7 +15,27 @@
 
   A feed that cannot be read is `UNMEASURED`. It is not zero rows, and a
   run that skipped four of five feeds must not exit like a run that read
-  all five. `bin/otent.cljs` exits 2 for that -- not 0, not 1."
+  all five. `bin/otent.cljs` exits 2 for that -- not 0, not 1.
+
+  ## `:scope` is required, and says what the request LEAVES OUT
+
+  The quake feed was `2.5_day.geojson` from the first day. Nothing about
+  the table, the receipt, the governor or `otent coverage` could show that
+  every earthquake below M2.5 was outside what was ever asked for -- a
+  world with no small earthquakes in it and a request that excludes them
+  produce the same rows. **A scope decision made once inside a URL stops
+  looking like a decision.**
+
+  So every entry declares `:scope`, in prose, saying what the request
+  excludes and what could be asked for instead. A test refuses a registry
+  entry without one.
+
+  This does not verify the scope is *right* -- nothing can, from here.
+  It makes it impossible to narrow coverage without writing down that you
+  did. `:firms` is the current example working as intended: it names three
+  other sensors available under the same key that are not being asked for,
+  so the ceiling is in the registry where it can be argued with, rather
+  than in a path segment where it cannot."
   (:require [clojure.string :as str]))
 
 (def registry
@@ -25,6 +45,11 @@
     :label "CelesTrak GP element sets"
     :url "https://celestrak.org/NORAD/elements/gp.php"
     :default-params {"GROUP" "active" "FORMAT" "tle"}
+        :scope "GROUP=active: objects CelesTrak still tracks as active. Excludes
+            decayed and inactive objects, and analyst-only element sets. Of
+            what arrives, deep-space element sets (period past 225 min) are
+            admitted but cannot be propagated -- SDP4 is not implemented in
+            kotoba-lang/sgp4, so they are named rather than drawn wrongly."
     :terms "https://celestrak.org/publications/"
     ;; Element sets are re-fitted on the order of once a day. Polling faster
     ;; adds rows that are byte-identical to the last ones and are then held
@@ -65,6 +90,11 @@
     ;; this change removes.
     :url "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
     :default-params {}
+        :scope "all_day: every magnitude USGS publishes, past 24 hours. No
+            magnitude floor -- `2.5_day` was the URL until 2026-08-27 and
+            that floor was invisible from the table. Excludes events older
+            than a day, which retention would drop anyway, and events USGS
+            has not yet reviewed into the summary feed."
     :terms "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits"
     :min-interval-ms 300000
     :notes "GeoJSON. Timestamps are UNIX MILLISECONDS -- unlike OpenSky's.
@@ -77,6 +107,13 @@
     :label "OpenSky Network state vectors (anonymous)"
     :url "https://opensky-network.org/api/states/all"
     :default-params {}
+        :scope "/states/all on the anonymous tier: global in principle, and in
+            practice bounded by OpenSky's volunteer ADS-B receiver network
+            -- dense over Europe and North America, thin over oceans,
+            Africa and central Asia. Aircraft not transmitting ADS-B are
+            absent. The anonymous tier is also rate-limited, which is what
+            the 10-minute interval is for. This is the one feed whose
+            coverage cannot be widened by asking differently."
     :terms "https://opensky-network.org/about/terms-of-use"
     ;; The anonymous tier is rate-limited and the underlying data updates
     ;; every 10 s. 60 s is inside the limit and above the update period.
@@ -100,6 +137,15 @@
     :label "NASA FIRMS active fire detections"
     :url "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
     :default-params {"source" "VIIRS_NOAA20_NRT" "area" "world" "day_range" "1"}
+        :scope "VIIRS NOAA-20 near-real-time, world, past 1 day. ONE sensor of
+            several FIRMS serves: VIIRS_SNPP_NRT, VIIRS_NOAA21_NRT and
+            MODIS_NRT are also available under the same key and are NOT
+            being asked for. That is a live, named ceiling -- roughly a
+            doubling of detections is one parameter away -- and it is
+            written here rather than left in the URL, which is the mistake
+            `2.5_day` was. Excludes: anything the satellite did not pass
+            over, anything under cloud, and fires below the sensor's
+            detection threshold."
     :terms "https://firms.modaps.eosdis.nasa.gov/usage/"
     :min-interval-ms 3600000
     :notes "CSV. A free MAP_KEY from firms.modaps.eosdis.nasa.gov is required;
@@ -112,6 +158,8 @@
     :label "AISStream vessel positions"
     :url "wss://stream.aisstream.io/v0/stream"
     :default-params {}
+        :scope "Whatever the subscription asks for -- and nothing does, because
+            the collector does not exist. Not a ceiling yet; an absence."
     :terms "https://aisstream.io/terms"
     :min-interval-ms 0
     :notes "A WebSocket subscription, not a poll: positions arrive when

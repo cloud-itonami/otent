@@ -83,3 +83,19 @@
             `you already have this`"
     (is (nil? (:not-modified (feeds/by-id :usgs))))
     (is (false? (feeds/not-modified? (feeds/by-id :usgs) 403 celestrak-not-modified)))))
+
+(deftest every-feed-declares-what-it-leaves-out
+  (testing "the `2.5_day` ceiling was invisible because a narrowed request
+            and a quiet world produce the same rows. A scope that is not
+            written down is one nobody can argue with."
+    (doseq [f feeds/registry]
+      (is (string? (:scope f)) (str (name (:id f)) " declares no :scope"))
+      (is (< 80 (count (str (:scope f))))
+          (str (name (:id f)) " :scope is too short to say what is excluded")))))
+
+(deftest the-scope-of-the-feed-that-was-narrowed-names-the-narrowing
+  (let [usgs (feeds/by-id :usgs)]
+    (is (re-find #"all_day" (:url usgs)))
+    (is (re-find #"2.5_day" (:scope usgs))
+        "the scope has to carry the history of the ceiling that was removed,
+         or the next person re-narrows it")))
