@@ -238,6 +238,59 @@
 
 ;; ------------------------------------------------------------ AISStream
 
+(defn digitraffic
+  "Finnish Transport Infrastructure Agency AIS GeoJSON -> vessel
+  observations.
+
+  A POLL, where the other vessel source is a subscription. That is the
+  whole reason this exists: `aisstream` is global and needs a process that
+  holds a socket open, which this repository does not run, so the vessel
+  table did not exist at all. Digitraffic is one sea instead of every sea,
+  and one sea measured is not the same as the ocean assumed empty.
+
+  GeoJSON coordinates are `[lon lat]` -- longitude first, same trap as
+  USGS.
+
+  `timestampExternal` is UNIX MILLISECONDS. The sibling field `timestamp`
+  is NOT a time: it is the AIS second-of-minute field, 0-59 with 60-63
+  reserved as status codes, and reading it as an epoch would put every
+  vessel in January 1970. It is carried as `ais_second` rather than
+  dropped, because it is what the transponder actually said."
+  [parsed feed url fetched-at sha]
+  (let [p (prov feed url fetched-at sha)
+        features (get parsed "features")]
+    (reduce
+     (fn [acc f]
+       (let [props (get f "properties")
+             [lon lat] (get-in f ["geometry" "coordinates"])
+             mmsi (or (get f "mmsi") (get props "mmsi"))
+             t (get props "timestampExternal")]
+         (if (or (nil? mmsi) (nil? t) (nil? lat) (nil? lon))
+           (update acc :failed conj
+                   {:error :digitraffic/incomplete-feature
+                    :detail (str "mmsi=" (pr-str mmsi) " t=" (pr-str t)
+                                 " lat=" (pr-str lat) " lon=" (pr-str lon))})
+           (update acc :ok conj
+                   (obs/observation
+                    (merge p
+                           {:kind :vessel
+                            :object-id (str mmsi)
+                            :observed-at t
+                            :lat lat :lon lon :alt-km nil
+                            ;; No ship name: this endpoint does not carry one.
+                            ;; `/api/ais/v1/vessels` does, and joining it would
+                            ;; be a second request per poll for a field nothing
+                            ;; draws yet. Absent rather than invented.
+                            :attrs {:ship_name nil
+                                    :sog_knots (get props "sog")
+                                    :cog_deg (get props "cog")
+                                    :true_heading (get props "heading")
+                                    :nav_status (get props "navStat")
+                                    :ais_second (get props "timestamp")
+                                    :position_accurate (get props "posAcc")}}))))))
+     {:ok [] :failed []}
+     features)))
+
 (defn aisstream-message
   "One AISStream JSON message -> a vessel observation, or a failure.
 
