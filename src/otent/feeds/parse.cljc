@@ -552,6 +552,110 @@
      {:ok [] :failed []}
      ents)))
 
+(defn- ftm-join [e k]
+  (some-> (seq (ftm-prop e k)) (->> (str/join ";")) not-empty))
+
+(defn opensanctions-organizations
+  "The organizations behind the hulls, with the identifiers that make them
+  joinable to something other than their own name.
+
+  ## Why identifiers and not names
+
+  The obvious way to enrich these companies is to look their names up in
+  GLEIF and take the LEI. Measured 2026-08-27 on a sample of 40 of the 555
+  controlling organizations: **four exact-name hits, and only ONE of those
+  agreed on jurisdiction.** The other three were different companies wearing
+  the same name -- GLEIF placed `Odyssey Marine Inc.` in Nevada and
+  `Patriot Inc.` in Delaware where the sanctions record says Marshall
+  Islands, and `EVER SHINING LIMITED` in Hong Kong against China.
+
+  Recording those as identity would have asserted that a Nevada company owns
+  a sanctioned tanker. The error direction on that is defamatory, which is
+  why this parser records **only identifiers the source itself published**
+  and does no matching at all.
+
+  ## What the population actually carries
+
+  Measured over the same 555: `leiCode` on **2**. The shadow fleet does not
+  hold LEIs, so the GLEIF hierarchy route -- the obvious way to reach a
+  parent company -- reaches almost none of it.
+
+  What it does carry is `imoNumber` on **478**, the IMO Company Number, which
+  is the identifier this industry actually uses and which joins to port state
+  control and registry sources. Plus `registrationNumber` on 316 and
+  `taxNumber`. Fifteen carry nothing at all, and that is recorded rather than
+  quietly dropped: an organization with no identifier is one nobody can
+  follow, which is a finding about it.
+
+  `alias` (146) and `previousName` are kept whole and separated by `;`. A
+  company that has traded under several names is the shape this table exists
+  to make visible.
+
+  Data: OpenSanctions, CC-BY-NC 4.0."
+  [text feed url fetched-at sha]
+  (let [p (prov feed url fetched-at sha)
+        lines (remove str/blank? (str/split-lines text))
+        ents (reduce (fn [m l] (let [e (js->clj (js/JSON.parse l))] (assoc m (get e "id") e)))
+                     {} lines)
+        ;; Only organizations that actually control a vessel in this graph.
+        ;; The export holds 9,819 organizations; the ones this table is about
+        ;; are the ones on the far end of a vessel-ownership edge.
+        controlling (reduce (fn [acc [_ e]]
+                              (if-not (= "Ownership" (get e "schema"))
+                                acc
+                                (if (some #(= "Vessel" (get-in ents [% "schema"]))
+                                          (ftm-prop e "asset"))
+                                  (into acc (ftm-prop e "owner"))
+                                  acc)))
+                            #{} ents)]
+    (reduce
+     (fn [acc id]
+       (let [e (get ents id)]
+         (cond
+           (nil? e) acc
+           ;; A natural person controlling a vessel is personal data, held
+           ;; out for the same reason it is held out of the ownership table.
+           (= "Person" (get e "schema"))
+           (update acc :failed conj
+                   {:error :org/natural-person
+                    :detail "a controlling party that is a named individual"})
+           :else
+           (update acc :ok conj
+                   (obs/observation
+                    (merge p
+                           {:kind :org-identity
+                            :object-id id
+                            :observed-at fetched-at
+                            :lat nil :lon nil :alt-km nil
+                            :attrs {:org_name (some-> (first (ftm-prop e "name")) str/trim not-empty)
+                                    :org_schema (get e "schema")
+                                    :jurisdiction (some-> (or (first (ftm-prop e "jurisdiction"))
+                                                              (first (ftm-prop e "country")))
+                                                          str/trim not-empty)
+                                    ;; The IMO Company Number -- 478 of 555
+                                    ;; carry one, against 2 with an LEI.
+                                    :imo_company_no (some-> (first (ftm-prop e "imoNumber")) str/trim not-empty)
+                                    :lei_code (some-> (first (ftm-prop e "leiCode")) str/trim not-empty)
+                                    :registration_no (some-> (first (ftm-prop e "registrationNumber")) str/trim not-empty)
+                                    :tax_no (some-> (first (ftm-prop e "taxNumber")) str/trim not-empty)
+                                    :incorporation_date (some-> (first (ftm-prop e "incorporationDate")) str/trim not-empty)
+                                    :sector (some-> (first (ftm-prop e "sector")) str/trim not-empty)
+                                    :legal_form (some-> (first (ftm-prop e "legalForm")) str/trim not-empty)
+                                    :aliases (ftm-join e "alias")
+                                    :previous_names (ftm-join e "previousName")
+                                    :websites (ftm-join e "website")
+                                    :topics (ftm-join e "topics")
+                                    :programs (ftm-join e "programId")
+                                    ;; Present and empty are different: an
+                                    ;; org nobody can follow is a finding
+                                    ;; about it, not a gap in this row.
+                                    :has_identifier (str (boolean (or (seq (ftm-prop e "imoNumber"))
+                                                                      (seq (ftm-prop e "leiCode"))
+                                                                      (seq (ftm-prop e "registrationNumber")))))
+                                    :attribution "OpenSanctions, CC-BY-NC 4.0"}}))))))
+     {:ok [] :failed []}
+     (sort controlling))))
+
 (defn aisstream-message
   "One AISStream JSON message -> a vessel observation, or a failure.
 

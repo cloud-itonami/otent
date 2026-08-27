@@ -40,6 +40,7 @@ CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cl
 | `cloud_itonami.otent_vessel_static` | 1,168 | who those vessels say they are |
 | `cloud_itonami.otent_vessel_risk` | 23,173 | what the sanctions lists say about ships |
 | `cloud_itonami.otent_ownership_link` | 1,496 | which organization controls which hull |
+| `cloud_itonami.otent_org_identity` | 555 | what identifies those organizations |
 
 Bucket `cloud-itonami-datalake`, catalog
 `https://catalog.cloudflarestorage.com/<account>/cloud-itonami-datalake`.
@@ -299,6 +300,39 @@ named individual is personal data with no business here. The fields are
 the rule protects, enforced more strictly than the field name was managing.
 The dropped edges land in `:failed` under
 `:ownership/natural-person-owner`, counted and named rather than vanishing.
+
+### The obvious enrichment, measured and refused
+
+The next step after `who controls this hull` is `who controls them`, and the
+obvious route is to look the company name up in GLEIF and take the LEI and
+its parent. That route was measured before it was taken, on a sample of 40 of
+the 555 controlling organizations:
+
+| | |
+|---|---|
+| exact legal-name hit in GLEIF | **4 of 40** |
+| of those, jurisdiction also agrees | **1** |
+
+The other three are different companies wearing the same name. GLEIF places
+`Odyssey Marine Inc.` in Nevada and `Patriot Inc.` in Delaware where the
+sanctions record says Marshall Islands; `EVER SHINING LIMITED` is Hong Kong
+against China. **Recording those as identity would assert that a Nevada
+company owns a sanctioned tanker**, and the error direction on that one is
+defamatory. So `otent_org_identity` records only identifiers the source
+itself published and matches nothing by name.
+
+What the population actually carries, measured across all 555:
+
+| identifier | count | |
+|---|---|---|
+| `leiCode` | **2** | the shadow fleet does not hold LEIs, so the GLEIF hierarchy route reaches almost none of it |
+| `imoNumber` (IMO Company Number) | **478** | the identifier this industry actually uses |
+| `registrationNumber` | 316 | |
+| none at all | **15** | recorded as `has_identifier=false`, because a blank reads like a gap in the ingest and this is a fact about the firm |
+
+That inverts the plan. The route to a parent company is not GLEIF for this
+population; it is the IMO Company Number, which joins to port state control
+and registry sources rather than to a securities identifier.
 
 ### What is NOT in here
 
@@ -895,7 +929,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 98 tests, 1,398 assertions, against **captured real payloads**
+`npm test` — 102 tests, 1,428 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

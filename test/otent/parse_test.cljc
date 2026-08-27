@@ -383,3 +383,65 @@
   (let [r (apply p/opensanctions-ownership (fx/slurp-fixture "opensanctions-ownership.ndjson")
                  (feeds/by-id :opensanctions-ownership) prov)]
     (doseq [o (:ok r)] (is (nil? (:lat o))) (is (nil? (:lon o))))))
+
+(deftest organizations-record-identifiers-and-match-nothing-by-name
+  (testing "exact-name lookup in GLEIF hit 4 of a 40-organization sample and
+            only 1 agreed on jurisdiction -- the others were different
+            companies wearing the same name. This parser therefore takes
+            identifiers AS PUBLISHED and does no matching at all."
+    (let [r (apply p/opensanctions-organizations (fx/slurp-fixture "opensanctions-ownership.ndjson")
+                   (feeds/by-id :opensanctions-organizations) prov)
+          ok (vec (:ok r))]
+      (is (pos? (count ok)) "an empty result would pass every check below")
+      (doseq [o ok]
+        (is (some? (get-in o [:attrs :org_name])))
+        (is (not= "Person" (get-in o [:attrs :org_schema]))
+            "a controlling party who is a named individual is personal data")
+        (is (contains? #{"true" "false"} (get-in o [:attrs :has_identifier]))
+            "present-and-false and absent are different states")))))
+
+(deftest organizations-are-only-those-that-control-a-vessel
+  (testing "the export holds 9,819 organizations; this table is about the
+            ones on the far end of a vessel-ownership edge"
+    (let [r (apply p/opensanctions-organizations (fx/slurp-fixture "opensanctions-ownership.ndjson")
+                   (feeds/by-id :opensanctions-organizations) prov)
+          own (apply p/opensanctions-ownership (fx/slurp-fixture "opensanctions-ownership.ndjson")
+                     (feeds/by-id :opensanctions-ownership) prov)
+          org-ids (set (map :object-id (:ok r)))
+          owners (set (map #(get-in % [:attrs :org_id]) (:ok own)))]
+      (is (= owners org-ids)
+          "the organizations recorded and the organizations that own a vessel
+           in the same payload must be the same set"))))
+
+(deftest organizations-hold-out-a-controlling-natural-person
+  (testing "the fixture contains no person-owned vessel, so the assertion in
+            the test above can never fire against it -- watched NOT
+            discriminating when the filter was removed. This supplies the
+            case, because a check that cannot see its own subject is not a
+            check."
+    (let [nd (str "{\"id\":\"p1\",\"schema\":\"Person\",\"properties\":{\"name\":[\"A Person\"]}}\n"
+                  "{\"id\":\"c1\",\"schema\":\"Organization\",\"properties\":{\"name\":[\"A Co\"],\"imoNumber\":[\"1234567\"]}}\n"
+                  "{\"id\":\"v1\",\"schema\":\"Vessel\",\"properties\":{\"name\":[\"SHIP\"],\"imoNumber\":[\"IMO9253325\"]}}\n"
+                  "{\"id\":\"v2\",\"schema\":\"Vessel\",\"properties\":{\"name\":[\"SHIP2\"],\"imoNumber\":[\"IMO9546722\"]}}\n"
+                  "{\"id\":\"o1\",\"schema\":\"Ownership\",\"properties\":{\"asset\":[\"v1\"],\"owner\":[\"p1\"]}}\n"
+                  "{\"id\":\"o2\",\"schema\":\"Ownership\",\"properties\":{\"asset\":[\"v2\"],\"owner\":[\"c1\"]}}\n")
+          r (p/opensanctions-organizations nd (feeds/by-id :opensanctions-organizations)
+                                           "https://example.test" now "sha")]
+      (is (= 1 (count (:ok r))) "only the company")
+      (is (= "A Co" (get-in (first (:ok r)) [:attrs :org_name])))
+      (is (= "true" (get-in (first (:ok r)) [:attrs :has_identifier]))
+          "it carries an IMO company number")
+      (is (= [:org/natural-person] (map :error (:failed r)))
+          "the person is dropped, counted and named"))))
+
+(deftest an-organization-with-no-identifier-says-so
+  (testing "fifteen of the 555 carry nothing. A blank there reads like a gap
+            in the ingest; `has_identifier` says it is a fact about the firm."
+    (let [nd (str "{\"id\":\"c9\",\"schema\":\"Organization\",\"properties\":{\"name\":[\"Anon Co\"]}}\n"
+                  "{\"id\":\"v9\",\"schema\":\"Vessel\",\"properties\":{\"name\":[\"S\"],\"imoNumber\":[\"IMO9253325\"]}}\n"
+                  "{\"id\":\"o9\",\"schema\":\"Ownership\",\"properties\":{\"asset\":[\"v9\"],\"owner\":[\"c9\"]}}\n")
+          r (p/opensanctions-organizations nd (feeds/by-id :opensanctions-organizations)
+                                           "https://example.test" now "sha")]
+      (is (= 1 (count (:ok r))))
+      (is (= "false" (get-in (first (:ok r)) [:attrs :has_identifier]))
+          "present and false, not absent"))))

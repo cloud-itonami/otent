@@ -46,7 +46,7 @@
 
   `:vessel-static` is identity, not position: who a ship says it is, on the
   same footing as a satellite's element set. It lands in its own table."
-  #{:satellite :quake :aircraft :fire :vessel :vessel-static :vessel-risk :ownership-link})
+  #{:satellite :quake :aircraft :fire :vessel :vessel-static :vessel-risk :ownership-link :org-identity})
 
 (defn observation
   "Build a row. Present but unknown values stay nil -- a feed that does not
