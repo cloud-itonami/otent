@@ -392,8 +392,18 @@
 
 ;; ---------------------------------------------------------------- tick
 
-(defn tick-feed [feed {:keys [flags opts] :as args} watermark]
-  (let [dry? (contains? flags "dry-run")]
+(defn tick-feed
+  "One feed, start to finish, with the wall time it took.
+
+  The elapsed number is here because the cycle went over the timer's period
+  again after retention was moved off the critical path, and nothing in the
+  receipt could say which feed was responsible. A cycle total tells you
+  there is a problem; a per-feed number tells you where. Guessing from the
+  feed list is how you end up tuning the one that was already fast."
+  [feed {:keys [flags opts] :as args} watermark]
+  (let [dry? (contains? flags "dry-run")
+        started (js/Date.now)
+        stamp (fn [r] (assoc r :elapsed-ms (- (js/Date.now) started)))]
     (-> (fetch-text feed opts)
         (.then
          (fn [f]
@@ -484,7 +494,8 @@
                                       :note (:note c)}
                                      {:status :refused :error (:error c) :detail (:detail c)})))))))))))))
         (.catch (fn [e] {:feed (:id feed) :status :unmeasured
-                         :error :tick/threw :detail (str (.-message e))})))))
+                         :error :tick/threw :detail (str (.-message e))}))
+        (.then stamp))))
 
 (defn selected-feeds [opts]
   (if-let [only (:feed opts)]

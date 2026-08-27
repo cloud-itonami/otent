@@ -340,15 +340,42 @@ nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljs areas
 nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljs ingest --area tokyo
 ```
 
-Measured 2026-08-26: **19,016 buildings across 100 tiles, four metro
-areas, 0 failed.**
+**Eighteen metro areas, 450 z14 tiles.** The first four were Tokyo,
+Manhattan, London and Singapore — a reasonable place to start and an
+unreasonable place to stop, because a globe with buildings in exactly those
+four is making a claim about whose cities are worth drawing. The additions
+are chosen for spread across continents and hemispheres rather than for
+size: Osaka, Seoul, San Francisco, Mexico City, São Paulo, Paris, Berlin,
+Istanbul, Cairo, Lagos, Nairobi, Mumbai, Jakarta, Sydney.
 
-| | tiles | buildings | fetched | stored |
-|---|---|---|---|---|
-| Tokyo | 25 | 2,199 | 15.2 MB | 2.8 MB |
-| New York (Manhattan) | 25 | 10,129 | 8.8 MB | 6.4 MB |
-| London | 25 | 3,895 | 10.1 MB | 3.6 MB |
-| Singapore | 25 | 2,793 | 6.1 MB | 3.1 MB |
+**The counts measure OpenStreetMap, not the city.** Lagos and Cairo return
+far fewer buildings than Manhattan, and that is a true measurement of what
+OSM contributors have mapped rather than a failure of the ingest. The
+manifest records the count per area, so the difference stays visible
+instead of being averaged into a total.
+
+### A one-area run used to erase the other seventeen
+
+`write-manifest!` rebuilt the whole manifest from the areas the current run
+touched, so `ingest --area osaka` wrote a manifest in which the other
+seventeen had **no building count at all** — not zero, not stale, absent.
+Every one of them still held tiles in the bucket. The result was
+indistinguishable from a fleet of areas nobody had ever ingested.
+
+It now reads the previous manifest and carries forward what this run did
+not measure, with the `measured-at` it was measured at. Watched working: an
+Osaka-only run left Tokyo, Manhattan, London and Singapore holding
+yesterday's counts and yesterday's timestamps.
+
+**A listed range is a promise that the tiles behind it exist.**
+`globe/scene.cljc` walks every range in `areas` and asks for the tiles
+inside it, so an area that is declared but not ingested has to be kept out
+of that list or the manifest stops being a coverage map and becomes a 404
+generator — the exact failure the "named ranges, not everywhere" design
+exists to prevent. Declared-and-not-ingested areas go in
+`declared-not-ingested` instead: named, so the gap is visible; without a
+range, so nothing can ask for them. Every entry lands in exactly one of the
+two lists, which is what stops a third, silent state from existing.
 
 **The MVT is decoded here, once.** A z14 tile is 730 KB of protobuf
 carrying sixteen layers, of which this wants four; shipping it to the
@@ -581,6 +608,14 @@ a date, a reason and a clearing condition, and **a third feed going dark is a
 failure**: watched on 2026-08-26 by removing `aisstream` from the set, which
 exits 2 naming it.
 
+**Each feed carries the wall time it took.** The cycle went over the
+timer's period again once five feeds were committing, and nothing in the
+receipt could say which one was responsible — a cycle total says there is a
+problem, a per-feed number says where, and guessing from the feed list is
+how you tune the one that was already fast. Printed for every status: a
+feed that spent ninety seconds discovering it had nothing new is as much of
+a finding as one that spent it committing.
+
 **Retention runs after ingest, and on its own hourly interval.** After,
 because deleting rows whose replacement then failed to commit is the one
 ordering that loses an observation. Hourly, because running it every cycle
@@ -638,7 +673,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 77 tests, 917 assertions, against **captured real payloads**
+`npm test` — 79 tests, 921 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
