@@ -37,6 +37,7 @@ CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cl
 | `cloud_itonami.otent_aircraft` | 882,554 | OpenSky anonymous state vectors |
 | `cloud_itonami.otent_fire` | 27,833 | NASA FIRMS VIIRS NOAA-20, global, past day |
 | `cloud_itonami.otent_vessel` | 1,282 | Digitraffic (Finnish AIS) — **the Baltic, not the world** |
+| `cloud_itonami.otent_vessel_static` | 1,168 | who those vessels say they are |
 
 Bucket `cloud-itonami-datalake`, catalog
 `https://catalog.cloudflarestorage.com/<account>/cloud-itonami-datalake`.
@@ -133,7 +134,44 @@ registry as an exemption with a reason rather than being deleted. Its
 absence used to be the difference between some vessels and none; it is now
 the difference between the Baltic and the world.
 
-Two traps the parser is tested against, both from the real payload:
+**What global AIS is actually blocked on, measured 2026-08-27.** Every
+other open vessel source was probed and none answered: BarentsWatch returns
+401, `web.ais.dk` does not resolve, VT Explorer and MarineTraffic want a
+paid key. AISStream is free and global, and its account is
+**GitHub-OAuth-only** — `/api/login/github` is the sole login route in its
+bundle, there is no email signup. So the blocker is not a collector and not
+a protocol; it is one authorization decision that belongs to a person, not
+to this actor.
+
+The transport was verified as far as it can be without a key: the socket
+opens, the subscription frame is accepted, and the server closes with 1006
+and no message. **A silent drop after a successful subscribe is what a bad
+key looks like** — worth writing down, because a collector that treated
+that as a network fault would retry forever against a wall.
+
+### Where a ship is, and who it says it is
+
+Two tables, because the position payload contains none of the identity
+fields. A ship's name, callsign, IMO, type, destination and draught are AIS
+message type 5 — `ShipStaticData` — and they *change*: vessels are renamed,
+re-registered, and report a new destination every voyage. A mutable side
+table would answer *what is this vessel called* and destroy *what was it
+called when we saw it there*, so identity lands as observations too:
+object, instant, **no position**, on exactly the footing a satellite's
+element set does.
+
+Merging them into one row was the obvious thing and is wrong. The position
+payload cannot reproduce the name, so the row's `payload_sha256` would
+point at bytes it did not come from — and *the tables can be rebuilt from
+the archived payloads* is the only reason retention is allowed to delete
+anything at all. **One payload, one sha, one row.**
+
+| | |
+|---|---|
+| 384 of 1,168 records carry **no IMO** | smaller vessels are not required to have one, so the field is absent rather than zero |
+| `destination` and `eta` are typed by the crew | routinely stale, misspelled, or a port code nobody outside the bridge uses — kept verbatim, because a tidied version of what someone typed is a different fact from what they typed |
+
+Two traps the position parser is tested against, both from the real payload:
 
 | | |
 |---|---|
@@ -673,7 +711,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 79 tests, 921 assertions, against **captured real payloads**
+`npm test` — 83 tests, 1,132 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

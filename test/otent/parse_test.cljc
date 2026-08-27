@@ -31,7 +31,7 @@
 (deftest fixtures-are-present
   ;; Evidence floor. Every assertion below iterates a parse result.
   (doseq [f ["celestrak-stations.tle" "usgs-2.5_day.geojson" "opensky-states.json"
-             "digitraffic-ais-locations.json"]]
+             "digitraffic-ais-locations.json" "digitraffic-ais-vessels.json"]]
     (is (< 1000 (count (fx/slurp-fixture f))) (str f " is missing or truncated"))))
 
 (deftest celestrak-carries-elements-and-no-position
@@ -197,3 +197,53 @@
     (is (empty? (:ok r)))
     (is (= 2 (count (:failed r))))
     (is (every? #(= :digitraffic/incomplete-feature (:error %)) (:failed r)))))
+
+(deftest digitraffic-static-is-identity-and-carries-no-position
+  (let [r (apply p/digitraffic-static (js->clj (js/JSON.parse
+                                                (fx/slurp-fixture "digitraffic-ais-vessels.json")))
+                 (feeds/by-id :digitraffic-static) prov)
+        ok (vec (:ok r))]
+    (is (<= 20 (count ok)))
+    (is (empty? (:failed r)) (str "real feed had parse failures: " (pr-str (:failed r))))
+    (testing "identity has no position, for the reason element sets do not:
+              putting one here would freeze an instant into a row whose
+              whole value is that it is not about one"
+      (doseq [o ok]
+        (is (nil? (:lat o))) (is (nil? (:lon o))) (is (nil? (:alt-km o)))))
+    (testing "every row can say who it is and when"
+      (doseq [o ok]
+        (is (string? (:object-id o)))
+        (is (< 1700000000000 (:observed-at o) 1900000000000))
+        (is (string? (get-in o [:attrs :ship_name])))))
+    (testing "a missing IMO is absent, not zero -- 384 of 1,168 real records
+              have none, and smaller vessels are not required to carry one"
+      (doseq [o ok]
+        (let [imo (get-in o [:attrs :imo])]
+          (is (or (nil? imo) (pos? imo))
+              (str (:object-id o) " has imo " (pr-str imo))))))
+    (testing "and the governor admits them"
+      (let [v (gov/admit ok (ingest-clock ok))]
+        (is (= (count ok) (count (:admitted v))) (str "held: " (pr-str (:counts v))))))))
+
+(deftest digitraffic-static-does-not-tidy-what-the-crew-typed
+  (testing "`destination` is a free-text field a human types on the bridge.
+            A cleaned-up version of what someone typed is a different fact
+            from what they typed."
+    (let [raw (js->clj (js/JSON.parse (fx/slurp-fixture "digitraffic-ais-vessels.json")))
+          r (apply p/digitraffic-static raw (feeds/by-id :digitraffic-static) prov)
+          by-mmsi (into {} (for [o (:ok r)] [(:object-id o) o]))]
+      (doseq [v raw
+              :let [o (get by-mmsi (str (get v "mmsi")))
+                    d (some-> (get v "destination") clojure.string/trim not-empty)]
+              :when (and o d)]
+        (is (= d (get-in o [:attrs :destination]))
+            (str "destination for " (:object-id o) " was rewritten"))))))
+
+(deftest digitraffic-static-refuses-a-record-with-no-identity-or-no-time
+  (let [r (p/digitraffic-static [{"name" "GHOST"}
+                                 {"mmsi" 123456789 "name" "NO TIME"}]
+                                (feeds/by-id :digitraffic-static)
+                                "https://example.test" now "sha")]
+    (is (empty? (:ok r)))
+    (is (= 2 (count (:failed r))))
+    (is (every? #(= :digitraffic/incomplete-vessel (:error %)) (:failed r)))))

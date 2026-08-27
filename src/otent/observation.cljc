@@ -33,7 +33,20 @@
   unrecorded guess into the only copy of the data."
   (:require [clojure.string :as str]))
 
-(def kinds #{:satellite :quake :aircraft :fire :vessel})
+(def kinds
+  "Every kind that may be written. The ONE copy.
+
+  `otent.governor` used to hold a second literal of this set, inline in its
+  admission check, and the two agreed only because nobody had added a kind
+  since they were written. Adding `:vessel-static` on 2026-08-27 required
+  editing both, and the governor was the one that would have failed
+  silently -- it would have held every row of a new kind as
+  `:unknown-kind`, which reads like a parser fault rather than a set nobody
+  updated. It caught the omission this time because a test asked it to.
+
+  `:vessel-static` is identity, not position: who a ship says it is, on the
+  same footing as a satellite's element set. It lands in its own table."
+  #{:satellite :quake :aircraft :fire :vessel :vessel-static})
 
 (defn observation
   "Build a row. Present but unknown values stay nil -- a feed that does not

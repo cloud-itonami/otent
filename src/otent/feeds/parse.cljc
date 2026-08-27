@@ -291,6 +291,70 @@
      {:ok [] :failed []}
      features)))
 
+(defn digitraffic-static
+  "Digitraffic AIS vessel records -> vessel IDENTITY observations.
+
+  ## Why this is an observation and not a lookup table
+
+  A ship's name, callsign, IMO number, type, destination and draught are
+  what the transponder broadcasts in AIS message type 5 -- `ShipStaticData`
+  -- and they change: a vessel is renamed, re-registered, reports a new
+  destination on every voyage. Storing them as a mutable side table would
+  answer `what is this vessel called` and destroy `what was it called when
+  we saw it there`.
+
+  So they land the same way satellite element sets do: an object, an
+  instant, no position, and the attributes that were true at that instant.
+  `otent_vessel` holds where a ship was; this holds who it said it was.
+
+  ## Why not merged into the position rows
+
+  Because the position payload does not contain any of it. Joining a second
+  payload into the same row would put a `payload_sha256` on it that cannot
+  reproduce it, and the claim that the tables can be rebuilt from the
+  archived bytes is the reason retention is allowed to delete anything at
+  all. One payload, one sha, one row.
+
+  **`destination` and `eta` are what the crew typed.** They are routinely
+  stale, misspelled, or a port code nobody outside the bridge uses. Kept
+  verbatim, because a cleaned-up version of what someone typed is a
+  different fact from what they typed."
+  [parsed feed url fetched-at sha]
+  (let [p (prov feed url fetched-at sha)]
+    (reduce
+     (fn [acc v]
+       (let [mmsi (get v "mmsi")
+             t (get v "timestamp")]
+         (if (or (nil? mmsi) (nil? t))
+           (update acc :failed conj
+                   {:error :digitraffic/incomplete-vessel
+                    :detail (str "mmsi=" (pr-str mmsi) " timestamp=" (pr-str t))})
+           (update acc :ok conj
+                   (obs/observation
+                    (merge p
+                           {:kind :vessel-static
+                            :object-id (str mmsi)
+                            :observed-at t
+                            ;; Identity has no position. The same rule the
+                            ;; satellite rows follow, for the same reason:
+                            ;; putting one here would freeze an instant into
+                            ;; a row whose value is that it is not about one.
+                            :lat nil :lon nil :alt-km nil
+                            :attrs {:ship_name (some-> (get v "name") str/trim not-empty)
+                                    :call_sign (some-> (get v "callSign") str/trim not-empty)
+                                    ;; 384 of 1,168 records carry no IMO --
+                                    ;; smaller vessels are not required to
+                                    ;; have one. Absent, not zero.
+                                    :imo (let [i (get v "imo")] (when (and i (pos? i)) i))
+                                    :ship_type (let [x (get v "shipType")]
+                                                 (when (and x (pos? x)) x))
+                                    :destination (some-> (get v "destination") str/trim not-empty)
+                                    :eta (get v "eta")
+                                    ;; Decimetres in AIS, and left in them.
+                                    :draught_dm (get v "draught")}}))))))
+     {:ok [] :failed []}
+     parsed)))
+
 (defn aisstream-message
   "One AISStream JSON message -> a vessel observation, or a failure.
 
