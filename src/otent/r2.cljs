@@ -10,7 +10,8 @@
   different retry rule."
   (:require ["crypto" :as crypto]
             ["zlib" :as zlib]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [otent.deadline :as dl]))
 
 (def account "4da88288dc30d9ee257f319d3c33ecf0")
 (def bucket "cloud-itonami-datalake")
@@ -38,6 +39,7 @@
     (-> (js/fetch (str "https://api.cloudflare.com/client/v4/accounts/" account
                        "/r2/buckets/" bucket "/objects/" key)
                   #js {:method "PUT"
+                       :signal (dl/signal dl/upload-ms)
                        :headers #js {"Authorization" (str "Bearer " t)
                                      "Content-Type" content-type}
                        :body body})
@@ -63,6 +65,7 @@
     (-> (js/fetch (str "https://api.cloudflare.com/client/v4/accounts/" account
                        "/r2/buckets/" bucket "/objects/" key)
                   #js {:method "GET"
+                       :signal (dl/signal)
                        :headers #js {"Authorization" (str "Bearer " t)
                                      "Range" "bytes=0-0"}})
         (.then (fn [r] {:ok? true :present? (or (.-ok r) (= 206 (.-status r)))}))

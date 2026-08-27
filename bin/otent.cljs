@@ -42,6 +42,7 @@
             [otent.r2 :as r2]
             [otent.cli :as cli]
             [otent.coverage :as cov]
+            [otent.deadline :as dl]
             [otent.kotobase :as kb]
             [otent.receipt :as receipt]))
 
@@ -86,7 +87,8 @@
   [feed opts]
   (let [url (url-with feed opts)]
     (-> (js/fetch url
-                  #js {:headers #js {"user-agent"
+                  #js {:signal (dl/signal)
+                       :headers #js {"user-agent"
                                      "otent/0.1 (cloud-itonami; +https://github.com/cloud-itonami/otent)"}})
         (.then (fn [r]
                  (if-not (.-ok r)
@@ -122,9 +124,20 @@
                               {:ok? true :text t :url url
                                :sha (sha256 t)
                                :fetched-at (js/Date.now)}))))))
-        (.catch (fn [e] {:ok? false :error :feed/unreachable
-                         :detail (str (.-message e) " (" url ")")
-                         :url url})))))
+        (.catch (fn [e]
+                  ;; A deadline and a refused connection are different
+                  ;; facts. `unreachable` says the feed answered nothing;
+                  ;; `timeout` says we stopped waiting, and we do not know
+                  ;; what it would have said. Both are UNMEASURED, and the
+                  ;; receipt has to say which, or the next reader debugs
+                  ;; the wrong end of the wire.
+                  (if (dl/timeout-error? e)
+                    {:ok? false :error :feed/timeout
+                     :detail (dl/describe (str "the feed at " url) dl/default-ms)
+                     :url url}
+                    {:ok? false :error :feed/unreachable
+                     :detail (str (.-message e) " (" url ")")
+                     :url url}))))))
 
 (defn archive-payload!
   "Put the fetched bytes in the bucket, keyed by their own sha256.

@@ -14,6 +14,7 @@
             [cljs.reader :as reader]
             [clojure.string :as str]
             [kotobase.client :as client]
+            [otent.deadline :as dl]
             [otent.catalog :as cat]))
 
 (def endpoint "https://kotobase.net")
@@ -43,10 +44,29 @@
                         #js {:mode 0600})
         seed))))
 
-(defn client-for [seed]
+(defn client-for
+  "The client, with a deadline on its transport.
+
+  `make-client` takes `:fetch-fn`, so the deadline goes in here rather than
+  in the library: this actor's tolerance for a slow kotobase is its own
+  business, and a library that picked one would be picking it for every
+  caller.
+
+  It matters because publishing happens INSIDE the cycle. Measured
+  2026-08-27: a cycle sat for eighteen minutes holding two established
+  connections to Cloudflare at 0% CPU, and launchd will not start the next
+  job while one is running -- so a slow publish does not delay a receipt,
+  it stops ingest. The receipt is already on disk by then, which makes it
+  worse: the work was done and the schedule was blocked anyway."
+  [seed]
   (client/make-client {:endpoint endpoint
                        :operator-did operator-did
-                       :secret-key seed}))
+                       :secret-key seed
+                       :fetch-fn (fn [url opts]
+                                   (js/fetch url
+                                             (js/Object.assign
+                                              #js {} (or opts #js {})
+                                              #js {:signal (dl/signal dl/upload-ms)})))}))
 
 (defn publish-tick!
   "Publish one tick receipt's catalog. Resolves a result map, never throws.
