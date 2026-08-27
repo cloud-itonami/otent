@@ -203,6 +203,49 @@ names the three other sensors available under the same key that it is
 **not** asking for, so roughly a doubling of detections sits in the
 registry as an arguable line rather than in a path segment as a fact.
 
+## Nothing had a timeout, and launchd will not overlap
+
+Measured 2026-08-27, on the first cycle after the retention change: a tick
+sat for **eighteen minutes at 0% CPU**, holding a dead OpenSky socket in
+`CLOSE_WAIT` and then two established connections to Cloudflare. Node's
+`fetch` has no default timeout and nothing here set one.
+
+That is worse than a slow poll. **launchd will not start a job while the
+previous one is running**, so one stalled remote does not delay one feed —
+it stops ingest entirely, for as long as the socket stays open. And a cycle
+that never finishes writes no receipt, so the ledger shows nothing at all,
+which is exactly what a quiet period looks like. The failure is invisible in
+the one place built to make failures visible.
+
+`otent.deadline` puts a deadline on every network call — 60 s for reads,
+180 s for writes, on the feed fetch, the R2 archive and the kotobase
+publish (through `make-client`'s `:fetch-fn`, so the tolerance stays this
+actor's choice rather than the library's). A call that runs out is
+`UNMEASURED` with **`[timeout]`, not `[unreachable]`**: one says the feed
+answered nothing, the other says we stopped waiting and do not know what it
+would have said. Watched firing by setting the deadline to 1 ms against the
+live USGS feed.
+
+### The suite was green over a file that did not parse
+
+Fixing the above, a one-paren edit left `bin/otent.cljs` unparseable and
+`npm test` reported **70 tests, 740 assertions, 0 failures**. Every
+namespace the tests require was fine. `bin/otent.cljs` is required by
+nothing — it is the entry point, it ends in `(-main)`, and requiring it
+from a test would run a tick against the live feeds. So the one file that
+touches the network, holds the commit logic and is what launchd executes
+was the one file no test could see.
+
+`parses_test.cljc` runs each CLI with no arguments. That path prints usage
+and exits 2 without opening a socket, but it is a real load: every
+`require` resolves and every top-level form evaluates. Reading the files
+with `cljs.reader` was tried first and is wrong — the reader has no `#js`,
+no `#?` and no regex literal, so it calls healthy ClojureScript
+unreadable, and a checker that is wrong about good files is worse than
+none. **`bin/scheduled.cljs` is still not covered**, because a bare
+invocation of it reads the Keychain and runs a cycle; that gap is named in
+the namespace docstring rather than left to be assumed away.
+
 ## The governor
 
 Rows are proposed by the fetch/parse side and admitted by
@@ -429,6 +472,7 @@ src/otent/receipt.cljc       pure: run report and exit code
 src/otent/feeds/core.cljc    the registry, including what cannot be read
 src/otent/feeds/parse.cljc   payload -> observations, per feed. Pure.
 src/otent/coverage.cljc      pure: declared cadence vs measured cadence
+src/otent/deadline.cljc      every network call gets one, and names it
 bin/otent.cljs               the only namespace that touches the network
 scripts/iceberg_append.py     the only part nbb cannot do
 ```
@@ -589,7 +633,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 61 tests, 704 assertions, against **captured real payloads**
+`npm test` — 72 tests, 747 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
