@@ -10,6 +10,7 @@
   `sgp4.tle/parse-catalog` does: a feed with four unparsable records must
   not be shaped like a clean one."
   (:require [clojure.string :as str]
+            [csv.core :as csv]
             [otent.observation :as obs]
             [sgp4.tle :as tle]))
 
@@ -354,6 +355,89 @@
                                     :draught_dm (get v "draught")}}))))))
      {:ok [] :failed []}
      parsed)))
+
+(defn opensanctions-maritime
+  "OpenSanctions' maritime CSV -> what the sanctions lists SAY, as
+  observations.
+
+  ## Why the list is recorded rather than the matches
+
+  The obvious thing is to join this against `otent_vessel_static` and store
+  the vessels that matched. That is wrong here for the reason the vessel
+  name was wrong yesterday: a matched row is a fact about TWO payloads, and
+  it would carry a `payload_sha256` that cannot reproduce it.
+
+  So the list lands as its own kind, from its own payload, and **the
+  intersection is a query** -- which is the entire point of putting both in
+  one catalog. `who in the Gulf of Finland is under sanction` is then a
+  join anyone can write and re-run against any day's data, rather than a
+  number somebody computed once.
+
+  ## Why a daily snapshot series and not a diff
+
+  Every poll commits the whole list again, and that is deliberate.
+  **Delisting is invisible without history**: a vessel removed from a
+  designation simply stops appearing, and a table holding only the current
+  list cannot tell `never listed` from `listed and released`. The cost is
+  ~23,000 rows a day; the byte-identical payload rule means a re-poll
+  within the same publication commits nothing.
+
+  ## The row identity is OpenSanctions', not the vessel's
+
+  `object-id` is the OpenSanctions entity id, because 754 of 23,191 records
+  carry neither IMO nor MMSI and keying on a vessel identifier would drop
+  them -- an undeclared filter on exactly the entries whose identity is
+  most obscured. IMO and MMSI ride as attributes, which is what the join
+  uses.
+
+  Data: OpenSanctions, CC-BY-NC 4.0. Attribution is on every row."
+  [text feed url fetched-at sha]
+  (let [p (prov feed url fetched-at sha)
+        rows (csv/read-maps text)]
+    (reduce
+     (fn [acc r]
+       (let [id (some-> (get r "id") str/trim not-empty)]
+         (if (nil? id)
+           (update acc :failed conj
+                   {:error :opensanctions/no-entity-id
+                    :detail (str "caption=" (pr-str (get r "caption")))})
+           (update acc :ok conj
+                   (obs/observation
+                    (merge p
+                           {:kind :vessel-risk
+                            :object-id id
+                            ;; The fetch time, and it has to be: the CSV
+                            ;; carries no per-row date, and the export
+                            ;; timestamp lives in a different file. Using
+                            ;; the fetch time means a re-poll of the SAME
+                            ;; publication would look new -- which the
+                            ;; byte-identical payload rule catches before
+                            ;; the watermark is ever consulted.
+                            :observed-at fetched-at
+                            :lat nil :lon nil :alt-km nil
+                            :attrs {:entity_type (some-> (get r "type") str/trim not-empty)
+                                    :ship_name (some-> (get r "caption") str/trim not-empty)
+                                    ;; The column is `IMO9427366`; the bare
+                                    ;; digits are what joins against an AIS
+                                    ;; broadcast.
+                                    :imo (some-> (get r "imo") str/trim
+                                                 (str/replace #"^IMO" "") not-empty)
+                                    :mmsi (some-> (get r "mmsi") str/trim not-empty)
+                                    :flag (some-> (get r "flag") str/trim not-empty)
+                                    :countries (some-> (get r "countries") str/trim not-empty)
+                                    ;; Semicolon-separated in the source and
+                                    ;; left that way: `mare.shadow` is the
+                                    ;; shadow-fleet tag, `sanction` a
+                                    ;; designation, `mare.detained` a port
+                                    ;; state control detention. Three
+                                    ;; different claims that must not be
+                                    ;; flattened into one.
+                                    :risk (some-> (get r "risk") str/trim not-empty)
+                                    :lists (some-> (get r "datasets") str/trim not-empty)
+                                    :url (some-> (get r "url") str/trim not-empty)
+                                    :attribution "OpenSanctions, CC-BY-NC 4.0"}}))))))
+     {:ok [] :failed []}
+     rows)))
 
 (defn aisstream-message
   "One AISStream JSON message -> a vessel observation, or a failure.

@@ -135,9 +135,16 @@
 (defn- run [env & args]
   (let [r (cp/spawnSync "nbb"
                         (clj->js (concat ["--classpath"
+                                          ;; Every library `bin/otent.cljs`
+                                          ;; can reach for. A parser added
+                                          ;; without its dependency here
+                                          ;; loads fine by hand and fails
+                                          ;; only under launchd, in a log
+                                          ;; nobody reads.
                                           (str "src:"
                                                (path/join ".." ".." "kotoba-lang" "sgp4" "src") ":"
-                                               (path/join ".." ".." "kotoba-lang" "kotobase-client" "src"))
+                                               (path/join ".." ".." "kotoba-lang" "kotobase-client" "src") ":"
+                                               (path/join ".." ".." "kotoba-lang" "org-ietf-csv" "src"))
                                           (path/join "bin" "otent.cljs")]
                                          args))
                         #js {:encoding "utf8"

@@ -210,6 +210,42 @@
             bytes` is the only reason retention is allowed to delete
             anything. One payload, one sha, one row."}
 
+   {:id :opensanctions-maritime
+    :kind :vessel-risk
+    :access :open
+    :label "OpenSanctions maritime -- sanctions, shadow-fleet and detention records"
+    :url "https://data.opensanctions.org/datasets/latest/maritime/maritime.csv"
+    :default-params {}
+    :terms "https://www.opensanctions.org/licensing/"
+    ;; The source publishes daily. Polling faster gets the same bytes and
+    ;; is caught by the payload hash, so this is politeness rather than
+    ;; correctness -- but it is also 5 MB a poll.
+    :min-interval-ms 86400000
+    :scope "What the maritime sanctions lists SAY -- not who is currently
+            sailing. 23,191 records from OFAC, the EU official journal and
+            sanctions map, UK FCDO, Swiss SECO, Canada, Ukraine's NSDC and
+            war-sanctions register, UN 1718, and the Paris/Tokyo/Abuja/Black
+            Sea MOU detention registers. Excludes any jurisdiction not in
+            that set, and anything OpenSanctions has not yet ingested.
+            **Recording the list is not recording the vessels**: the
+            intersection with `otent_vessel_static` is a join, and lives in
+            whatever query asks for it. 754 of 23,191 records carry neither
+            IMO nor MMSI and are kept anyway, keyed by OpenSanctions entity
+            id -- dropping them would be an undeclared filter on exactly the
+            entries whose identity is most obscured."
+    :notes "CSV, RFC 4180, read by `kotoba-lang/org-ietf-csv`. `risk` is
+            semicolon-separated and its values are DIFFERENT CLAIMS:
+            `mare.shadow` is a shadow-fleet assessment, `sanction` a
+            designation by a named authority, `mare.detained` a port state
+            control detention. Flattening them into `flagged` would lose
+            the distinction that matters.
+
+            **Data: OpenSanctions, CC-BY-NC 4.0.** Attribution rides on
+            every row. Non-commercial is a real condition, not a formality:
+            anything that serves these rows onward inherits it, and this
+            actor is not the place to decide that a downstream use
+            qualifies."}
+
    {:id :aisstream
     :kind :vessel
     :access :stream
