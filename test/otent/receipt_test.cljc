@@ -63,3 +63,29 @@
     (is (re-find #"NOT-DUE celestrak" rep))
     (is (not (re-find #"NOTHING-NEW" rep))
         "a feed that was never asked must not be rendered as one that was")))
+
+(deftest a-feed-carries-the-time-it-took
+  (testing "the cycle overran the timer's period and the receipt could not
+            say which feed did it. A cycle total says there is a problem; a
+            per-feed number says where."
+    (let [rep (r/build [{:feed :opensky :status :committed :table "otent_aircraft"
+                            :appended 7000 :elapsed-ms 91000}
+                           {:feed :usgs :status :nothing-new :table "otent_quake"
+                            :detail "nothing new" :elapsed-ms 1400}] 1787824000000)
+          out (r/render rep "2026-08-27T10:00:00Z")]
+      (is (re-find #"\[91s\]" out))
+      (is (re-find #"\[1s\]" out)
+          "printed for every status -- a feed that spent ninety seconds
+           discovering it had nothing new is as much of a finding as one
+           that spent it committing"))))
+
+(deftest a-receipt-without-timings-still-renders
+  (testing "every ledger entry written before 2026-08-27 has no
+            :elapsed-ms, and reading one back must not produce the string
+            `[NaNs]` where a number would be"
+    (let [out (r/render (r/build [{:feed :usgs :status :committed
+                                   :table "otent_quake" :appended 3}]
+                                 1787824000000)
+                        "2026-08-27T10:00:00Z")]
+      (is (not (re-find #"\[" out)))
+      (is (re-find #"COMMITTED usgs" out)))))

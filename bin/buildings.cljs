@@ -66,11 +66,43 @@
 
 (def areas
   "The metro areas to cover. `radius` is in tiles either side of the
-  centre, so 2 means a 5x5 block -- about 12 km across at z14."
+  centre, so 2 means a 5x5 block -- about 12 km across at z14.
+
+  ## The list is a coverage claim, and it was making one nobody chose
+
+  The first four were Tokyo, Manhattan, London and Singapore -- which is a
+  reasonable place to start and an unreasonable place to stop, because a
+  globe with buildings in exactly those four says something about whose
+  cities are worth drawing. The additions are picked for spread across
+  continents and hemispheres rather than for size.
+
+  **Building counts here measure OpenStreetMap, not the city.** Lagos and
+  Cairo will come back with far fewer buildings than Manhattan, and that is
+  a true measurement of what OSM contributors have mapped rather than a
+  failure of the ingest. The manifest records the count per area so the
+  difference is visible instead of averaged away.
+
+  Every entry costs 25 tiles at z14 and the planet is 268 million of them,
+  so this list is a rounding error either way. It is on the list because
+  somebody put it there, and that is the only reason anything is."
   [{:id "tokyo" :label "Tokyo" :lat 35.6812 :lon 139.7671 :radius 2}
+   {:id "osaka" :label "Osaka" :lat 34.6937 :lon 135.5023 :radius 2}
+   {:id "seoul" :label "Seoul" :lat 37.5665 :lon 126.9780 :radius 2}
    {:id "manhattan" :label "New York (Manhattan)" :lat 40.7580 :lon -73.9855 :radius 2}
+   {:id "sanfrancisco" :label "San Francisco" :lat 37.7749 :lon -122.4194 :radius 2}
+   {:id "mexicocity" :label "Mexico City" :lat 19.4326 :lon -99.1332 :radius 2}
+   {:id "saopaulo" :label "Sao Paulo" :lat -23.5505 :lon -46.6333 :radius 2}
    {:id "london" :label "London" :lat 51.5074 :lon -0.1278 :radius 2}
-   {:id "singapore" :label "Singapore" :lat 1.2897 :lon 103.8501 :radius 2}])
+   {:id "paris" :label "Paris" :lat 48.8566 :lon 2.3522 :radius 2}
+   {:id "berlin" :label "Berlin" :lat 52.5200 :lon 13.4050 :radius 2}
+   {:id "istanbul" :label "Istanbul" :lat 41.0082 :lon 28.9784 :radius 2}
+   {:id "cairo" :label "Cairo" :lat 30.0444 :lon 31.2357 :radius 2}
+   {:id "lagos" :label "Lagos" :lat 6.5244 :lon 3.3792 :radius 2}
+   {:id "nairobi" :label "Nairobi" :lat -1.2864 :lon 36.8172 :radius 2}
+   {:id "mumbai" :label "Mumbai" :lat 19.0760 :lon 72.8777 :radius 2}
+   {:id "jakarta" :label "Jakarta" :lat -6.2088 :lon 106.8456 :radius 2}
+   {:id "singapore" :label "Singapore" :lat 1.2897 :lon 103.8501 :radius 2}
+   {:id "sydney" :label "Sydney" :lat -33.8688 :lon 151.2093 :radius 2}])
 
 (def by-id (into {} (map (juxt :id identity)) areas))
 
@@ -122,6 +154,16 @@
                        (.then (.text r) (fn [t] {:ok? false :error :r2/put-failed
                                                  :detail (str (.-status r) " " (subs t 0 200))})))))
       (.catch (fn [e] {:ok? false :error :r2/unreachable :detail (str (.-message e))}))))
+
+(defn r2-get-json
+  "Read one JSON object back, or nil. `nil` means could-not-read, which the
+  caller has to keep separate from empty."
+  [key]
+  (-> (js/fetch (str "https://api.cloudflare.com/client/v4/accounts/" ACCOUNT
+                     "/r2/buckets/" BUCKET "/objects/" key)
+                #js {:headers #js {"Authorization" (str "Bearer " (token))}})
+      (.then (fn [r] (if (.-ok r) (.json r) nil)))
+      (.catch (fn [_] nil))))
 
 (defn- tilejson-url []
   (-> (js/fetch (:tilejson source))
@@ -264,22 +306,85 @@
      :y0 (apply min (map :y ts)) :y1 (apply max (map :y ts))
      :tiles (count ts)}))
 
-(defn write-manifest! [covered]
-  (let [m {:version 1
-           :written-at (js/Date.now)
-           :source (dissoc source :tilejson)
-           :zoom (:zoom source)
-           :prefix PREFIX
-           ;; Named ranges, not "everywhere". The renderer asks only where
-           ;; something exists, so a globe with buildings in four cities
-           ;; does not also produce a 404 storm over the other 99.99%.
-           :areas (mapv (fn [{:keys [id label lat lon] :as a}]
-                          (merge {:id id :label label :lat lat :lon lon}
-                                 (tile-ranges a)
-                                 (select-keys (get covered id) [:buildings :written])))
-                        areas)}]
-    (-> (r2-put! (str PREFIX "/manifest.json") (js/JSON.stringify (clj->js m)) "application/json")
-        (.then #(assoc % :manifest m)))))
+(defn write-manifest!
+  "Write the coverage manifest, carrying forward what this run did not
+  measure.
+
+  ## Why carrying forward, rather than writing what we have
+
+  `ingest --area tokyo` used to write a manifest in which the other
+  seventeen areas had no `buildings` count at all -- not zero, not stale,
+  absent. Every one of them held tiles in the bucket. A one-area run
+  therefore erased the record of everything else, and the result looked
+  exactly like a fleet of areas nobody had ever ingested.
+
+  So the previous manifest is read first, and an area this run did not
+  touch keeps its counts with the `measured-at` it was measured at. Fresh
+  counts carry this run's timestamp. A reader can tell the two apart, which
+  is the whole point -- `measured an hour ago` and `measured last week` are
+  both fine, and `not measured, and we quietly dropped what we knew` is
+  not.
+
+  If the previous manifest cannot be read, an untouched area is written
+  with `measured false` rather than with a silent gap: could-not-carry and
+  never-had are different facts."
+  [covered]
+  (-> (r2-get-json (str PREFIX "/manifest.json"))
+      (.then
+       (fn [prev]
+         (let [now (js/Date.now)
+               prev-areas (into {} (for [a (some-> prev (aget "areas") js->clj)]
+                                     [(get a "id") a]))
+               m {:version 1
+                  :written-at now
+                  :source (dissoc source :tilejson)
+                  :zoom (:zoom source)
+                  :prefix PREFIX
+                  ;; Named ranges, not "everywhere". The renderer asks only
+                  ;; where something exists, so a globe with buildings in a
+                  ;; few cities does not also produce a 404 storm over the
+                  ;; other 99.99%.
+                  ;; ONLY areas that actually hold tiles. A tile range in
+                  ;; this list is a promise that the objects behind it
+                  ;; exist: `globe/scene.cljc` walks every range and asks
+                  ;; for the tiles inside it, so listing an area nobody has
+                  ;; ingested turns the manifest from a coverage map into a
+                  ;; 404 generator -- which is the exact failure the
+                  ;; "named ranges, not everywhere" design was for.
+                  :areas (vec (keep (fn [{:keys [id label lat lon] :as a}]
+                                      (let [fresh (get covered id)
+                                            old (get prev-areas id)]
+                                        (cond
+                                          fresh
+                                          (merge {:id id :label label :lat lat :lon lon}
+                                                 (tile-ranges a)
+                                                 (select-keys fresh [:buildings :written])
+                                                 {:measured-at now})
+
+                                          (and old (get old "buildings"))
+                                          (merge {:id id :label label :lat lat :lon lon}
+                                                 (tile-ranges a)
+                                                 {:buildings (get old "buildings")
+                                                  :written (get old "written")
+                                                  :measured-at (or (get old "measured-at")
+                                                                   (some-> prev (aget "written-at")))})
+
+                                          :else nil)))
+                                    areas))
+                  ;; Declared and not ingested. Named, with no range, so a
+                  ;; reader can see the gap and the renderer cannot ask for
+                  ;; it. An area missing from BOTH lists would be the
+                  ;; silent case, and there isn't one: every entry in
+                  ;; `areas` lands in exactly one of these.
+                  :declared-not-ingested
+                  (vec (keep (fn [{:keys [id label lat lon]}]
+                               (when-not (or (get covered id)
+                                             (some-> (get prev-areas id) (get "buildings")))
+                                 {:id id :label label :lat lat :lon lon}))
+                             areas))}]
+           (-> (r2-put! (str PREFIX "/manifest.json")
+                        (js/JSON.stringify (clj->js m)) "application/json")
+               (.then #(assoc % :manifest m))))))))
 
 ;; ---------------------------------------------------------------- main
 

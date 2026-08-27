@@ -84,7 +84,12 @@
            ;; matters: the payload hash is exact, the timestamp watermark
            ;; is not. A reader must be able to tell them apart.
            (when (and (nil? (:error x)) (:detail x)) (str "  " (:detail x)))
-           (when (:note x) (str "  note: " (:note x)))))
+           (when (:note x) (str "  note: " (:note x)))
+           ;; Wall time for this feed. A cycle total says there is a
+           ;; problem; this says where. Printed for every status, because
+           ;; a feed that spent ninety seconds discovering it had nothing
+           ;; new is as much of a finding as one that spent it committing.
+           (when (:elapsed-ms x) (str "  [" (Math/round (/ (:elapsed-ms x) 1000.0)) "s]"))))
     [(str "exit " (exit-code r)
           (when (pos? (:tick/unmeasured r))
             (str " -- " (:tick/unmeasured r)
