@@ -41,7 +41,8 @@
             [otent.lock-test]
             [otent.parse-test]
             [otent.parses-test]
-            [otent.receipt-test]))
+            [otent.receipt-test]
+            [otent.sanctions-test]))
 
 (def declared
   '[otent.catalog-test
@@ -54,7 +55,8 @@
     otent.lock-test
     otent.parse-test
     otent.parses-test
-    otent.receipt-test])
+    otent.receipt-test
+    otent.sanctions-test])
 
 (def min-tests 20)
 

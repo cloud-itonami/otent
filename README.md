@@ -255,6 +255,55 @@ serves these rows onward inherits it. That is why this table is **not** in
 `app-otent`'s `kinds` map — publishing it is a licensing decision, and an
 ingest actor is not the place to make one.
 
+## `otent sanctions`
+
+    otent sanctions
+
+Four tables, one join, inside the catalog:
+
+```
+otent sanctions  1,375 vessels in coverage
+  checked        897   (broadcast an IMO number)
+  unchecked      478   (no IMO -- NOT the same as not listed)
+  on a list      101
+    shadow fleet 45
+    sanctioned   66
+    with a named controlling organization 49
+
+  ZODIAK        IMO 9513139  mare.shadow,poi,sanction
+      -> Prominent Shipmanagement Ltd (hk) Property in the interest of;
+         Glory Shipping HK Limited (hk)
+
+fleets behind these vessels (hulls in this coverage):
+  JOINT STOCK COMPANY SOVCOMFLOT                 4
+  Prominent Shipmanagement Limited               2
+  Sand Gemi Isletmeciligi AS                     2
+```
+
+**This was an ad-hoc script run by hand six times over two days**, and two of
+those runs were wrong in ways nobody could see afterwards: one joined OFAC
+alone (20 of 60 vessels), and one left the `IMO` prefix on and got zero rows,
+which reads exactly like a clean fleet. Both mistakes are now structural
+rather than remembered, and there is a test named after each.
+
+Three things it refuses to do:
+
+| | |
+|---|---|
+| conflate the two IMO registries | a vessel joins on its Ship Number; the organization's Company Number is never a key. On the live data `IMO9036387` is both a Chinese vessel and a North Korean firm |
+| call an unchecked vessel clean | **478 of 1,375 broadcast no IMO** and cannot be looked up at all. They are `unchecked`, never folded into `not listed` |
+| report on tables it could not read | any input missing is exit **2**, not a clean run with small numbers |
+
+**Finding sanctioned vessels is exit 0.** That is the expected output of a
+working instrument; an exit code that treated it as a fault would make the
+normal state look like a failure, which is how an exit code stops being read.
+Exit **1** is reserved for an inconsistency *between* the tables — an
+ownership edge whose organization is missing, when both came from one payload.
+
+`scripts/iceberg_read.py` had to exist first: the actor could count a table
+and not read one, which is why every hand run went through a scratch script.
+Its exit codes match the writer's — 2 could-not-ask, 3 asked-and-absent.
+
 ## Who is behind the hull
 
 `otent_ownership_link` holds OpenSanctions' FollowTheMoney ownership edges
@@ -1028,7 +1077,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 108 tests, 1,445 assertions, against **captured real payloads**
+`npm test` — 117 tests, 1,481 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

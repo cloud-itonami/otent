@@ -44,6 +44,7 @@
             [otent.coverage :as cov]
             [otent.deadline :as dl]
             [otent.lock :as lock]
+            [otent.sanctions :as sanc]
             [otent.kotobase :as kb]
             [otent.receipt :as receipt]))
 
@@ -775,6 +776,91 @@
                ;; conclude more than `answered no` does.
                (js/process.exit (cond (seq unknown) 2 (seq refused) 1 :else 0)))))))))
 
+(defn- run-reader!
+  "Read one table as NDJSON. Resolves `{:code :rows}`; `:rows` is nil when
+  the table could not be read, which is not an empty table."
+  [table columns]
+  (js/Promise.
+   (fn [resolve _]
+     (let [proc (cp/spawn "python3"
+                          (clj->js [(path/join (js/process.cwd) "scripts" "iceberg_read.py")
+                                    "--account" ACCOUNT "--bucket" BUCKET
+                                    "--namespace" NAMESPACE "--table" table
+                                    "--columns" (str/join "," columns)])
+                          #js {:stdio #js ["ignore" "pipe" "inherit"]
+                               :env js/process.env})
+           buf (atom "")]
+       (.on (.-stdout proc) "data" (fn [d] (swap! buf str (.toString d))))
+       (.on proc "close"
+            (fn [code]
+              (resolve {:code (or code -1)
+                        :rows (when (zero? (or code -1))
+                                (mapv #(js->clj (js/JSON.parse %))
+                                      (remove str/blank? (str/split-lines @buf))))})))
+       (.on proc "error" (fn [_] (resolve {:code -1 :rows nil})))))))
+
+(defn- attrs-of [row]
+  (js->clj (js/JSON.parse (or (get row "attrs_json") "{}"))))
+
+(defn- latest-per-object
+  "One row per object, newest `observed_at`. The identity tables are snapshot
+  SERIES -- a vessel appears once per poll -- so joining without this counts
+  the same ship as many times as it has been seen."
+  [rows]
+  (vals (reduce (fn [acc r]
+                  (let [k (get r "object_id")
+                        prev (get acc k)]
+                    (if (or (nil? prev)
+                            (> (js/parseInt (get r "observed_at") 10)
+                               (js/parseInt (get prev "observed_at") 10)))
+                      (assoc acc k r) acc)))
+                {} rows)))
+
+(defn sanctions
+  "Who, of the ships currently in coverage, is on a list -- and who is behind
+  them.
+
+    otent sanctions
+
+  Four tables, one join, inside the catalog. This existed as an ad-hoc script
+  run by hand six times before it was a command, and two of those runs were
+  wrong in ways nobody could see afterwards: one joined OFAC alone (20 of 60
+  vessels) and one left the `IMO` prefix on and got zero rows, which reads
+  exactly like a clean fleet."
+  [_args]
+  (-> (js/Promise.all
+       (clj->js [(run-reader! "otent_vessel_static" ["object_id" "observed_at" "attrs_json"])
+                 (run-reader! "otent_vessel_risk" ["attrs_json"])
+                 (run-reader! "otent_ownership_link" ["attrs_json"])
+                 (run-reader! "otent_org_identity" ["object_id" "attrs_json"])]))
+      (.then
+       (fn [[vs rk ow og]]
+         (let [vessels (some->> (:rows vs) latest-per-object
+                                (mapv (fn [r]
+                                        (let [a (attrs-of r)]
+                                          {:name (get a "ship_name")
+                                           :imo (some-> (get a "imo") str)
+                                           :mmsi (get r "object_id")}))))
+               risk (some->> (:rows rk)
+                             (mapv (fn [r] (let [a (attrs-of r)]
+                                             {:imo (get a "imo") :mmsi (get a "mmsi")
+                                              :risk (get a "risk")}))))
+               own (some->> (:rows ow)
+                            (mapv (fn [r] (let [a (attrs-of r)]
+                                            {:asset-imo (get a "asset_imo")
+                                             :org-id (get a "org_id")
+                                             :org-name (get a "org_name")
+                                             :org-jurisdiction (get a "org_jurisdiction")
+                                             :role (get a "role")}))))
+               orgs (some->> (:rows og)
+                             (mapv (fn [r] (let [a (attrs-of r)]
+                                             {:id (get r "object_id")
+                                              :org-name (get a "org_name")
+                                              :imo-company-no (get a "imo_company_no")}))))
+               rpt (sanc/report {:vessels vessels :risk risk :ownership own :orgs orgs})]
+           (doseq [l (sanc/render rpt)] (println l))
+           (js/process.exit (sanc/exit-code rpt)))))))
+
 (defn coverage
   "What the ingest actually covers, measured rather than declared.
 
@@ -831,7 +917,8 @@
       "tick" (tick args)
       "retain" (retain args)
       "coverage" (coverage args)
-      (do (println "usage: otent.cljs <tick|retain|feeds|count|coverage> [--feed a,b] [--kind a,b] [--window 3h] [--dry-run] [--create] [--force]")
+      "sanctions" (sanctions args)
+      (do (println "usage: otent.cljs <tick|retain|feeds|count|coverage|sanctions> [--feed a,b] [--kind a,b] [--window 3h] [--dry-run] [--create] [--force]")
           (js/process.exit 2)))))
 
 (-main)
