@@ -38,6 +38,7 @@
     [otent.cli-test]
     [otent.feeds-due-test]
             [otent.governor-test]
+            [otent.lock-test]
             [otent.parse-test]
             [otent.parses-test]
             [otent.receipt-test]))
@@ -50,6 +51,7 @@
     otent.cli-test
     otent.feeds-due-test
     otent.governor-test
+    otent.lock-test
     otent.parse-test
     otent.parses-test
     otent.receipt-test])

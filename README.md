@@ -513,6 +513,40 @@ readable and whether committed rows are past their horizon are unrelated
 questions, and letting the first answer the second is how one fault
 becomes two.
 
+### Fixed 2026-08-28: the commit no longer blocks the loop
+
+`run-writer!` uses `cp/spawn` and resolves. One change, and all three of
+the symptoms above stop being symptoms:
+
+| before | after |
+|---|---|
+| `firms` reported `did not answer within 60s` while curl got 2.3 s | the deadline measures the remote again |
+| `opensky` reported 175 s on a poll that gave up at 60 s | per-feed timings are the feed's own work |
+| cycles outran the 300 s timer and launchd skipped fires | commits overlap fetches |
+
+Measured on the verifying run: `usgs` finished **NOTHING-NEW in 1 s while a
+sibling was 26 s into a commit**. Under `spawnSync` its clock ran through
+every sibling's python. Three feeds, 82 s of per-feed work, **49.6 s of wall
+clock** — the difference is the overlap.
+
+⚠ **`spawnSync` was also serialising every commit, by accident.** An
+accident holding an invariant still has to be replaced by something that
+holds it deliberately: `otent.lock` gives each TABLE its own promise chain,
+so two feeds sharing a kind (`digitraffic` and `aisstream` both write
+`otent_vessel`) cannot each read a `before` count that already contains the
+other's rows. Different tables still overlap, which is the point. A rejected
+write does not wedge the chain — without that, one refusal turns a table
+dead and looks from outside like the feed going quiet.
+
+⚠ **And the refactor shipped a bug the suite could not see.**
+`(.then p :rows)` reads correctly and is wrong: a ClojureScript keyword is a
+function to Clojure and an opaque object to `Promise.prototype.then`, so it
+handed back the whole status map, the delta computed `NaN`, and two commits
+that had **actually landed** were reported `count-mismatch`. Nothing in the
+suite exercises `commit!` against a live catalog, so it took a real tick to
+find. The failure was in the safe direction; that it was safe is luck, not
+design.
+
 `otent.deadline` puts a deadline on every network call — 60 s for reads,
 180 s for writes, on the feed fetch, the R2 archive and the kotobase
 publish (through `make-client`'s `:fetch-fn`, so the tolerance stays this
@@ -994,7 +1028,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 105 tests, 1,439 assertions, against **captured real payloads**
+`npm test` — 108 tests, 1,445 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
