@@ -36,7 +36,7 @@ CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cl
 | `cloud_itonami.otent_satellite` | 21,085 | CelesTrak GP (`GROUP=active`) |
 | `cloud_itonami.otent_aircraft` | 882,554 | OpenSky anonymous state vectors |
 | `cloud_itonami.otent_fire` | 27,833 | NASA FIRMS VIIRS NOAA-20, global, past day |
-| `cloud_itonami.otent_vessel` | 1,282 | Digitraffic (Finnish AIS) — **the Baltic, not the world** |
+| `cloud_itonami.otent_vessel` | 68,378 | Digitraffic (the Baltic) **+ global AIS, filtered to listed vessels** |
 | `cloud_itonami.otent_vessel_static` | 1,168 | who those vessels say they are |
 | `cloud_itonami.otent_vessel_risk` | 23,173 | what the sanctions lists say about ships |
 | `cloud_itonami.otent_ownership_link` | 3,473 | which organization controls which hull |
@@ -151,6 +151,72 @@ opens, the subscription frame is accepted, and the server closes with 1006
 and no message. **A silent drop after a successful subscribe is what a bad
 key looks like** — worth writing down, because a collector that treated
 that as a network fault would retry forever against a wall.
+
+### Global AIS, and the 124:1 that makes it affordable
+
+`bin/collector.cljs` is the only resident process here — everything else is
+a timer that runs and exits. It holds a WebSocket to AISStream, subscribes
+to the whole planet, and keeps only vessels on a maritime risk list.
+
+The filter is not a compromise, it is the measurement. Unfiltered, live on
+2026-08-28:
+
+| | |
+|---|---|
+| messages/second | 71 |
+| distinct vessels in 90 s | 5,710 |
+| dedup ratio | **1.12 messages per vessel** |
+| implied volume | ~4.3 M rows/day |
+
+A dedup ratio of 1.12 means keeping one fix per vessel per flush removes
+almost nothing — nearly every message is a different ship. Against a vessel
+table that held 56,000 rows in total and a read path that already fails at
+21,000, the firehose is not a default anybody could serve.
+
+Filtered: **4,212 messages seen in the first minute, 34 kept. 124:1.**
+
+**This is the feed that answers the Black Sea and the Mediterranean.** The
+question that started this — whether the attacked shadow-fleet tankers were
+in the data — was answered *no*, because every attack was outside the
+Finnish receiver network. `digitraffic` is one sea; this is every sea, for
+the hulls somebody has designated. `--all` removes the filter for anyone
+with somewhere to put 4.3 M rows a day.
+
+What it gives up is the vessel that was not on a list when it sailed past.
+That is a real loss, and it is why the scope is one flag rather than a
+hard-coded set.
+
+### Four failure modes it is built around, all measured
+
+| | |
+|---|---|
+| **a bad key is a silent close** | the server accepts the connection, accepts the subscription, then drops it with code 1006 and no message. A close with no `SubscriptionConfirmation` exits 2 rather than retrying against a wall forever |
+| **three seconds to subscribe** | the frame goes out in `onopen`, before any await |
+| **read continuously or they drop messages** | nothing in the message path does I/O; the flush is on a timer and the commit is async |
+| **uncompressed connections are bandwidth-capped from September 2026** | `CompressionEnabled` is checked and logged, and a connection without it says so |
+
+The collector does not commit. It writes a batch and hands it to
+`otent tick --ais-batch`, because the governor, the payload archive and the
+receipt ledger all live on that path — a second writer that skipped them
+would put rows in the table that no receipt explains.
+
+`aisstream` stays in `expected-unmeasured`, and that is now correct rather
+than stale: **the tick does not hold the socket.** It sees this feed only
+when the collector hands it a flush.
+
+### Two processes, one table
+
+The collector and `digitraffic` both write `otent_vessel`, from separate
+processes, and `otent.lock` only orders writers inside one. So `commit!`
+now records **which check answered**: a delta that matches exactly is
+`:verification :delta`; a table that grew by *more* than this commit wrote
+means another writer appended between the two counts, and the result is
+`:presence-only` with a note. Growth by *less* is still a refusal — rows are
+missing however you count them.
+
+Refusing on the middle case would report two commits that both succeeded as
+a fault. Silently accepting it would let a weaker check wear the strong
+one's name.
 
 ### Where a ship is, and who it says it is
 
@@ -1077,7 +1143,7 @@ the archive existed, which is a failure rather than history.
 
 ## Tests
 
-`npm test` — 117 tests, 1,481 assertions, against **captured real payloads**
+`npm test` — 121 tests, 1,493 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

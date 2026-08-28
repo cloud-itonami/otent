@@ -723,3 +723,23 @@
                        :cog_deg (get pos "Cog")
                        :true_heading (get pos "TrueHeading")
                        :nav_status (get pos "NavigationalStatus")}})))))
+
+(defn aisstream-batch
+  "A file of AISStream messages, one JSON object per line, from the resident
+  collector -> vessel observations.
+
+  The collector already deduplicated by MMSI inside its flush window, so a
+  line here is one vessel's latest fix. The per-message parser below is
+  unchanged and still the thing that reads a message; this only walks the
+  batch and keeps the failures rather than dropping them, so a shape change
+  upstream shows as unparsable rows instead of a quietly smaller flush."
+  [text feed url fetched-at sha]
+  (reduce
+   (fn [acc line]
+     (let [r (aisstream-message (js->clj (js/JSON.parse line)) feed url fetched-at sha)]
+       (if (:error r)
+         (update acc :failed conj r)
+         (update acc :ok conj r))))
+   {:ok [] :failed []}
+   (remove str/blank? (str/split-lines text))))
+

@@ -87,6 +87,17 @@
   a refusal that names the status -- never an empty string that a parser
   would turn into zero rows."
   [feed opts]
+  (if-let [batch (and (= :aisstream (:id feed)) (:ais-batch opts))]
+    ;; The resident collector already read the socket. The batch file IS the
+    ;; payload -- it is archived by its own sha256 and every row points at
+    ;; it, exactly as a fetched payload would be. A stream and a poll differ
+    ;; in how the bytes arrive, not in what has to be true of them.
+    (js/Promise.resolve
+     (let [text (fs/readFileSync batch "utf8")]
+       {:ok? true :text text
+        :sha (-> (crypto/createHash "sha256") (.update text) (.digest "hex"))
+        :fetched-at (js/Date.now)
+        :url (str "file://" batch)}))
   (let [url (url-with feed opts)]
     (-> (js/fetch url
                   #js {:signal (dl/signal)
@@ -148,7 +159,7 @@
                      :url url}
                     {:ok? false :error :feed/unreachable
                      :detail (str (.-message e) " (" url ")")
-                     :url url}))))))
+                     :url url})))))))
 
 (defn archive-payload!
   "Put the fetched bytes in the bucket, keyed by their own sha256.
@@ -204,6 +215,7 @@
     :opensanctions-maritime (parse/opensanctions-maritime text feed url fetched-at sha)
     :opensanctions-ownership (parse/opensanctions-ownership text feed url fetched-at sha)
     :opensanctions-organizations (parse/opensanctions-organizations text feed url fetched-at sha)
+    :aisstream (parse/aisstream-batch text feed url fetched-at sha)
     :firms (parse/firms text feed url fetched-at sha)
     {:ok [] :failed [{:error :feed/no-parser
                       :detail (str "no parser for " (:id feed))}]}))
@@ -342,15 +354,38 @@
                               :note (str "table did not exist before this run; delta not checkable, "
                                          "count after = " after)}
 
-                             (not= (- after before) (count rows))
+                             ;; The table grew by LESS than we wrote. Rows
+                             ;; are missing however you count it.
+                             (< (- after before) (count rows))
                              {:ok? false :error :commit/count-mismatch
                               :detail (str "wrote " (count rows) " rows but the table grew by "
                                            (- after before) " (" before " -> " after
-                                           "). Another writer may be appending concurrently, or "
-                                           "the commit was partial.")}
+                                           "). The commit was partial.")}
+
+                             ;; The table grew by MORE. Another writer
+                             ;; appended between our two counts -- which is
+                             ;; now possible on purpose: the AIS collector
+                             ;; and the `digitraffic` feed both write
+                             ;; `otent_vessel` from separate PROCESSES, and
+                             ;; `otent.lock` only orders writers inside one.
+                             ;;
+                             ;; Refusing here would report two commits that
+                             ;; both succeeded as a fault. But the delta no
+                             ;; longer proves OUR rows landed, so the result
+                             ;; says which check answered rather than
+                             ;; quietly weakening the strong one.
+                             (> (- after before) (count rows))
+                             {:ok? true :appended (count rows)
+                              :before before :after after
+                              :verification :presence-only
+                              :note (str "the table grew by " (- after before)
+                                         " while this commit wrote " (count rows)
+                                         " -- another writer appended concurrently, so this"
+                                         " is verified by growth rather than by delta")}
 
                              :else {:ok? true :appended (count rows)
-                                    :before before :after after})))))))))))))))
+                                    :before before :after after
+                                    :verification :delta})))))))))))))))
 
 (defn ledger-file
   "Where the tick ledger lives.
@@ -595,9 +630,17 @@
     feeds/registry))
 
 (defn runnable?
-  "Can this feed be read at all right now? Returns nil if yes, or the reason."
-  [feed]
-  (case (:access feed)
+  "Can this feed be read at all right now? Returns nil if yes, or the reason.
+
+  A `:stream` feed is unrunnable UNLESS a batch file is supplied: the
+  resident collector holds the socket and hands its flush here, so from this
+  process's point of view the stream became a payload. Without one the
+  answer is still `needs-resident-collector`, which is the honest state on
+  any machine where the collector is not running."
+  [feed opts]
+  (if (and (= :stream (:access feed)) (:ais-batch opts))
+    nil
+    (case (:access feed)
     :open nil
     :free-key (when-not (some-> (aget js/process.env (:credential-env feed))
                                 str/trim not-empty)
@@ -608,16 +651,16 @@
              :detail (str (:label feed) " is a WebSocket subscription. The message "
                           "parser is implemented and tested; the resident "
                           "collector is not part of this repository. UNMEASURED.")}
-    {:error :feed/unknown-access :detail (pr-str (:access feed))}))
+    {:error :feed/unknown-access :detail (pr-str (:access feed))})))
 
 (defn tick [args]
   (let [fs* (selected-feeds (:opts args))
         _ (when (empty? fs*)
             (log "no feed matched --feed" (:feed (:opts args)))
             (js/process.exit 2))
-        skipped (for [f fs* :let [r (runnable? f)] :when r]
+        skipped (for [f fs* :let [r (runnable? f (:opts args))] :when r]
                   (merge {:feed (:id f) :status :unmeasured} r))
-        reachable (remove #(runnable? %) fs*)
+        reachable (remove #(runnable? % (:opts args)) fs*)
         force? (contains? (:flags args) "force")
         now0 (js/Date.now)
         contacts (last-contacts)
