@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  cloud.itonami.otent-collector -- the resident AIS collector.
+
+  This is the ONLY resident process in this repository. Everything else is a
+  timer that runs and exits; this holds a WebSocket open, because AISStream
+  is a subscription and a poll cannot see it.
+
+  KeepAlive rather than StartInterval: the job is supposed to be running at
+  all times, and a socket that closes is a reconnect rather than a new run.
+  The collector reconnects internally with jitter, so launchd only sees a
+  restart when the process itself dies.
+
+  It exits 2 -- deliberately not restarting into a wall -- when:
+    the AISStream key is missing from the Keychain, or
+    the server closes before confirming a subscription, which is what a bad
+    or disabled key looks like and is NOT a network fault, or
+    the risk table cannot be read, so there is no watchlist and running
+    would record nothing while looking afterwards like an empty ocean.
+
+  `ThrottleInterval` keeps a failing key from reconnecting in a hot loop.
+  AISStream allows 3 connections per account and 3 per IP; this is one.
+
+  install:
+    cp ops/cloud.itonami.otent-collector.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/cloud.itonami.otent-collector.plist
+  watch:
+    tail -40 /tmp/otent-collector.log
+  stop:
+    launchctl bootout gui/$(id -u)/cloud.itonami.otent-collector
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>cloud.itonami.otent-collector</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /Users/junkawasaki/github/com-junkawasaki/orgs/cloud-itonami/otent &amp;&amp; export CF_CATALOG_TOKEN="$(security find-generic-password -s gftd.cf -a API_TOKEN -w)" &amp;&amp; exec /opt/homebrew/bin/nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src:../../kotoba-lang/org-ietf-csv/src bin/collector.cljs</string>
+  </array>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- A bad key exits 2 immediately. Without this, launchd would reconnect
+       in a tight loop against a server that has already refused. -->
+  <key>ThrottleInterval</key>
+  <integer>120</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/otent-collector.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/otent-collector.err</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+</dict>
+</plist>

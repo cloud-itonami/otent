@@ -333,13 +333,25 @@
     :label "AISStream vessel positions"
     :url "wss://stream.aisstream.io/v0/stream"
     :default-params {}
-        :scope "Global, and asking for nothing, because the collector that would
-            hold the socket open does not exist. The vessel table is now fed
-            by `digitraffic` instead -- one sea rather than every sea -- so
-            this feed's absence is no longer the difference between some
-            vessels and none. It is the difference between the Baltic and
-            the world, which is why it stays in the registry as an
-            exemption with a reason rather than being deleted."
+        :scope "Global AIS, filtered to vessels on a maritime risk list.
+            `bin/collector.cljs` holds the socket, subscribes to the whole
+            planet, keeps only watched MMSIs and hands the tick a batch.
+
+            Measured 2026-08-28 on the live stream: 4,212 messages seen in
+            the first minute and 34 kept -- a 124:1 reduction. Unfiltered it
+            is 71 messages/second and 5,710 DISTINCT vessels in 90 seconds,
+            a dedup ratio of 1.12, which would be roughly 4.3 million rows a
+            day against a read path that already fails at 21,000. The filter
+            is the reason this is affordable and `otent.watchlist` carries
+            the arithmetic.
+
+            What it gives up: a vessel that was not on a list when it sailed
+            past. `--all` removes the filter for anyone with somewhere to
+            put the firehose.
+
+            This is the feed that answers the Black Sea and the
+            Mediterranean. `digitraffic` is one sea; this is every sea, for
+            the hulls somebody has designated."
     :terms "https://aisstream.io/terms"
     :min-interval-ms 0
     :notes "A WebSocket subscription, not a poll: positions arrive when
@@ -420,11 +432,17 @@
                 ;; that outlives the reason for it.
                 :clears-when "the Keychain has firms.nasa/MAP_KEY"}
    "aisstream" {:since "2026-08-26"
-                :why "AIS is a WebSocket subscription and the resident collector is not in this repository"
+                ;; Updated 2026-08-28. The collector EXISTS now
+                ;; (`bin/collector.cljs`) and runs as its own launchd agent.
+                ;; The tick still reports this feed unmeasured, and that is
+                ;; correct rather than stale: the tick does not hold the
+                ;; socket. It sees `aisstream` only when the collector hands
+                ;; it a flush via `--ais-batch`.
+                :why "AIS is a WebSocket subscription; the tick does not hold the socket. bin/collector.cljs does, and hands it batches"
                 ;; Structural, not a missing key -- so unlike `firms` there
                 ;; is nothing this cycle can look up to clear it. It stays a
                 ;; sentence, and it stays true.
-                :clears-when "a collector runs somewhere and writes vessel rows"}})
+                :clears-when "the tick itself starts holding a socket, which it will not"}})
 
 (defn open-feeds [] (filter #(= :open (:access %)) registry))
 
