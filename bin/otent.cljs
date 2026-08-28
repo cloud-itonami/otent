@@ -43,6 +43,7 @@
             [otent.cli :as cli]
             [otent.coverage :as cov]
             [otent.deadline :as dl]
+            [otent.lock :as lock]
             [otent.kotobase :as kb]
             [otent.receipt :as receipt]))
 
@@ -216,14 +217,43 @@
      f (str (str/join "\n" (map #(js/JSON.stringify (clj->js (obs/->row %))) rows)) "\n"))
     f))
 
-(defn- run-writer [args]
-  (let [r (cp/spawnSync "python3"
-                        (clj->js (concat [(path/join (js/process.cwd) "scripts" "iceberg_append.py")]
-                                         args))
-                        #js {:stdio #js ["ignore" "pipe" "inherit"]
-                             :env js/process.env})]
-    {:code (.-status r)
-     :out (str/trim (str (.-stdout r)))}))
+(defn- run-writer!
+  "Run the Iceberg writer and RESOLVE, rather than blocking until it exits.
+
+  This was `cp/spawnSync` until 2026-08-28, and that single call produced
+  three separate symptoms that each looked like their own bug:
+
+  1. **Healthy feeds timed out.** `tick` runs the feeds under
+     `js/Promise.all` and `AbortSignal.timeout` is a wall clock, so while one
+     feed sat inside `python3` every other feed's deadline kept counting
+     against a server that was never asked. `firms` reported
+     `did not answer within 60s` on three consecutive cycles while the same
+     request answered in 2.3 s from the shell.
+  2. **The per-feed timings could not attribute cost.** `opensky` reported
+     175 s on a poll whose fetch had already given up at 60 s. The missing
+     115 s was this process, frozen in a sibling's commit.
+  3. **The cycle overran the timer.** launchd will not start a job that is
+     still running, so every commit that blocked the loop stretched the whole
+     schedule and every feed's effective interval with it.
+
+  One cause, three bug reports. The commits still SERIALISE -- python is
+  still one process at a time -- but the event loop stays free, so a fetch
+  elsewhere can make progress and a deadline measures the remote again."
+  [args]
+  (js/Promise.
+   (fn [resolve _reject]
+     (let [proc (cp/spawn "python3"
+                          (clj->js (concat [(path/join (js/process.cwd) "scripts" "iceberg_append.py")]
+                                           args))
+                          #js {:stdio #js ["ignore" "pipe" "inherit"]
+                               :env js/process.env})
+           out (atom "")]
+       (.on (.-stdout proc) "data" (fn [d] (swap! out str (.toString d))))
+       ;; A process killed by a signal exits with `code` nil. `-1` keeps it
+       ;; out of the `zero?` and `= 2` branches rather than letting nil be
+       ;; compared and quietly fall through to the success path.
+       (.on proc "close" (fn [code] (resolve {:code (or code -1) :out (str/trim @out)})))
+       (.on proc "error" (fn [e] (resolve {:code -1 :out (str (.-message e))})))))))
 
 (defn table-status
   "Ask the catalog about one table and keep the three answers apart.
@@ -236,59 +266,90 @@
   that feed, so the table cannot exist. `could not look` and `looked, and
   it is not there` are different claims and must not share an exit code."
   [table]
-  (let [{:keys [code out]} (run-writer ["--account" ACCOUNT "--bucket" BUCKET
-                                        "--namespace" NAMESPACE "--table" table
-                                        "--count"])]
-    (case code
-      0 {:status :rows :rows (js/parseInt out 10)}
-      3 {:status :absent}
-      {:status :unreadable})))
+  (-> (run-writer! ["--account" ACCOUNT "--bucket" BUCKET
+                    "--namespace" NAMESPACE "--table" table
+                    "--count"])
+      (.then (fn [{:keys [code out]}]
+               (case code
+                 0 {:status :rows :rows (js/parseInt out 10)}
+                 3 {:status :absent}
+                 {:status :unreadable})))))
 
 (defn table-count
   "Row count from the catalog. `nil` means the count could not be taken --
   which is not zero, and callers must not treat it as zero."
   [table]
-  (:rows (table-status table)))
+  ;; `(.then p :rows)` looks right and is not. A ClojureScript keyword is a
+  ;; function to Clojure and an opaque object to `Promise.prototype.then`,
+  ;; which handed back the whole status map. The delta check then computed
+  ;; `NaN` and REFUSED two commits that had actually landed -- caught only by
+  ;; running it against the live catalog, because nothing in the suite
+  ;; exercises `commit!` against a real table.
+  (.then (table-status table) (fn [m] (:rows m))))
+
+(def ^:private table-locks
+  "One chain per table. See `otent.lock` for why the accident that
+  `spawnSync` was holding had to be replaced deliberately."
+  (lock/make))
 
 (defn commit!
-  "Append the admitted rows and verify by reading back.
+  "Append the admitted rows and verify by reading back. Resolves a result map.
 
   The readback is a separate catalog call from the write, and the check is
   on the DELTA: a table's absolute count says nothing about whether this
-  batch landed."
+  batch landed.
+
+  Promise-returning since 2026-08-28. The three calls inside still happen in
+  order -- count, write, count -- because each needs the one before it. What
+  changed is that the event loop is free between them, so a sibling feed's
+  fetch is not frozen for the duration and its deadline still measures the
+  remote rather than this process."
   [table rows create?]
-  (let [before (table-count table)
-        f (write-ndjson! rows)
-        {:keys [code]} (run-writer (cond-> ["--account" ACCOUNT "--bucket" BUCKET
-                                            "--namespace" NAMESPACE "--table" table
-                                            "--ndjson" f]
-                                     create? (conj "--create")))]
-    (cond
-      (= 2 code) {:ok? false :error :commit/could-not-answer
-                  :detail "the writer could not reach the catalog"}
-      (not (zero? code)) {:ok? false :error :commit/refused
-                          :detail (str "iceberg_append.py exited " code)}
-      :else
-      (let [after (table-count table)]
-        (cond
-          (nil? after)
-          {:ok? false :error :commit/readback-unavailable
-           :detail (str "appended, but " table " could not be read back -- "
-                        "UNVERIFIED, not verified")}
+  (lock/with-lock table-locks table
+    (fn []
+      (-> (table-count table)
+      (.then
+       (fn [before]
+         (let [f (write-ndjson! rows)]
+           (-> (run-writer! (cond-> ["--account" ACCOUNT "--bucket" BUCKET
+                                     "--namespace" NAMESPACE "--table" table
+                                     "--ndjson" f]
+                              create? (conj "--create")))
+               (.then
+                (fn [{:keys [code]}]
+                  (cond
+                    (= 2 code)
+                    {:ok? false :error :commit/could-not-answer
+                     :detail "the writer could not reach the catalog"}
 
-          (nil? before)
-          {:ok? true :appended (count rows) :after after
-           :note (str "table did not exist before this run; delta not checkable, "
-                      "count after = " after)}
+                    (not (zero? code))
+                    {:ok? false :error :commit/refused
+                     :detail (str "iceberg_append.py exited " code)}
 
-          (not= (- after before) (count rows))
-          {:ok? false :error :commit/count-mismatch
-           :detail (str "wrote " (count rows) " rows but the table grew by "
-                        (- after before) " (" before " -> " after
-                        "). Another writer may be appending concurrently, or "
-                        "the commit was partial.")}
+                    :else
+                    (-> (table-count table)
+                        (.then
+                         (fn [after]
+                           (cond
+                             (nil? after)
+                             {:ok? false :error :commit/readback-unavailable
+                              :detail (str "appended, but " table " could not be read back -- "
+                                           "UNVERIFIED, not verified")}
 
-          :else {:ok? true :appended (count rows) :before before :after after})))))
+                             (nil? before)
+                             {:ok? true :appended (count rows) :after after
+                              :note (str "table did not exist before this run; delta not checkable, "
+                                         "count after = " after)}
+
+                             (not= (- after before) (count rows))
+                             {:ok? false :error :commit/count-mismatch
+                              :detail (str "wrote " (count rows) " rows but the table grew by "
+                                           (- after before) " (" before " -> " after
+                                           "). Another writer may be appending concurrently, or "
+                                           "the commit was partial.")}
+
+                             :else {:ok? true :appended (count rows)
+                                    :before before :after after})))))))))))))))
 
 (defn ledger-file
   "Where the tick ledger lives.
@@ -502,21 +563,26 @@
                            :detail (str "the payload was not stored (" (name (:error a))
                                         ": " (:detail a) "), so these " (count (:admitted result))
                                         " rows would have been unrebuildable. Nothing was appended.")}
-                          (let [c (commit! table (:admitted result)
-                                           (contains? flags "create"))]
-                            (merge {:feed (:id feed) :table table
-                                    :counts (:counts result)
-                                    :parse-failures (count failed)}
-                                   (if (:ok? c)
-                                     {:status :committed :appended (:appended c)
-                                      :rows-before (:before c) :rows-after (:after c)
-                                      ;; The watermark the NEXT tick will read.
-                                      :max-observed-at (reduce max 0 (map :observed-at (:admitted result)))
-                                      :payload-sha256 (:sha f)
-                                      :payload-key (:key a)
-                                      :payload-already-stored (boolean (:already? a))
-                                      :note (:note c)}
-                                     {:status :refused :error (:error c) :detail (:detail c)})))))))))))))
+                          ;; `commit!` resolves rather than blocking, so the
+                          ;; result is threaded rather than bound. Returning a
+                          ;; promise from inside a `.then` chains it.
+                          (-> (commit! table (:admitted result)
+                                       (contains? flags "create"))
+                              (.then
+                               (fn [c]
+                                 (merge {:feed (:id feed) :table table
+                                         :counts (:counts result)
+                                         :parse-failures (count failed)}
+                                        (if (:ok? c)
+                                          {:status :committed :appended (:appended c)
+                                           :rows-before (:before c) :rows-after (:after c)
+                                           ;; The watermark the NEXT tick will read.
+                                           :max-observed-at (reduce max 0 (map :observed-at (:admitted result)))
+                                           :payload-sha256 (:sha f)
+                                           :payload-key (:key a)
+                                           :payload-already-stored (boolean (:already? a))
+                                           :note (:note c)}
+                                          {:status :refused :error (:error c) :detail (:detail c)})))))))))))))))
         (.catch (fn [e] {:feed (:id feed) :status :unmeasured
                          :error :tick/threw :detail (str (.-message e))}))
         (.then stamp))))
@@ -662,11 +728,20 @@
         ;; are UNMEASURED by design (no key, no resident collector), and a
         ;; job that exits 2 on every run for a known reason is one a
         ;; scheduler cannot tell from a broken one.
-        readable (into {} (map (juxt identity table-count)) all-tables)
-        tables (filterv #(some? (readable %)) all-tables)
-        skipped (remove #(some? (readable %)) all-tables)
-        results
-        (doall
+        ;; `table-count` resolves now, so the readability probe is one
+        ;; `Promise.all` instead of a map comprehension. Retention runs alone
+        ;; after the tick, so blocking here never cost anything -- but the
+        ;; function it calls is shared, and a shared function that is async
+        ;; for one caller is async for all of them.
+        _ nil]
+    (-> (js/Promise.all (clj->js (map table-count all-tables)))
+        (.then
+         (fn [counts]
+           (let [readable (zipmap all-tables (js->clj counts))
+                 tables (filterv #(some? (readable %)) all-tables)
+                 skipped (remove #(some? (readable %)) all-tables)
+                 results
+                 (doall
          (for [t tables]
            (let [r (cp/spawnSync
                     "python3"
@@ -676,29 +751,29 @@
                                       "--pre-archive-ms" (str archive-began-ms)]
                                dry? (conj "--dry-run")))
                     #js {:stdio #js ["ignore" "pipe" "inherit"] :env js/process.env})]
-             {:table t :code (.-status r) :out (str/trim (str (.-stdout r)))})))]
-    (doseq [t skipped]
-      (println (str "SKIPPED " t "  not readable: the tick reports this feed "
-                    "UNMEASURED, so there is nothing to retain -- which is "
-                    "not the same as having retained nothing")))
-    (doseq [{:keys [table code out]} results]
-      (println (str (case code 0 "OK      " 1 "REFUSED " "UNKNOWN ") table "  " out)))
-    (let [refused (filter #(= 1 (:code %)) results)
-          unknown (remove #(#{0 1} (:code %)) results)]
-      (println (str "retain: " (count results) " table(s) examined, "
-                    (count skipped) " skipped as unreadable, "
-                    (count refused) " refused, " (count unknown) " could not answer"))
-      ;; The evidence floor. Skipping a known-absent table is fine; skipping
-      ;; EVERY table is what a catalog outage looks like, and it must not
-      ;; exit like a clean run.
-      (when (empty? tables)
-        (println "REFUSING to report a pass: no table was readable at all, "
-                 "which is what an outage looks like from here")
-        (js/process.exit 2))
-      ;; 2 wins over 1 for the same reason it does in the tick receipt:
-      ;; `could not answer` changes what a reader should conclude more than
-      ;; `answered no` does.
-      (js/process.exit (cond (seq unknown) 2 (seq refused) 1 :else 0)))))
+                      {:table t :code (.-status r) :out (str/trim (str (.-stdout r)))})))]
+             (doseq [t skipped]
+               (println (str "SKIPPED " t "  not readable: the tick reports this feed "
+                             "UNMEASURED, so there is nothing to retain -- which is "
+                             "not the same as having retained nothing")))
+             (doseq [{:keys [table code out]} results]
+               (println (str (case code 0 "OK      " 1 "REFUSED " "UNKNOWN ") table "  " out)))
+             (let [refused (filter #(= 1 (:code %)) results)
+                   unknown (remove #(#{0 1} (:code %)) results)]
+               (println (str "retain: " (count results) " table(s) examined, "
+                             (count skipped) " skipped as unreadable, "
+                             (count refused) " refused, " (count unknown) " could not answer"))
+               ;; The evidence floor. Skipping a known-absent table is fine;
+               ;; skipping EVERY table is what a catalog outage looks like,
+               ;; and it must not exit like a clean run.
+               (when (empty? tables)
+                 (println "REFUSING to report a pass: no table was readable at all, "
+                          "which is what an outage looks like from here")
+                 (js/process.exit 2))
+               ;; 2 wins over 1 for the same reason it does in the tick
+               ;; receipt: `could not answer` changes what a reader should
+               ;; conclude more than `answered no` does.
+               (js/process.exit (cond (seq unknown) 2 (seq refused) 1 :else 0)))))))))
 
 (defn coverage
   "What the ingest actually covers, measured rather than declared.
@@ -744,14 +819,15 @@
     (case cmd
       "feeds" (doseq [l (feeds/describe)] (println l))
       "count" (let [k (keyword (or (:kind opts) "quake"))
-                    t (obs/table-name k)
-                    {:keys [status rows]} (table-status t)]
-                (case status
-                  :rows (println t rows)
-                  :absent (do (println t "ABSENT -- the catalog was asked and does not have this table")
-                              (js/process.exit 3))
-                  (do (println t "UNREADABLE -- not zero, and not absent either")
-                      (js/process.exit 2))))
+                    t (obs/table-name k)]
+                (-> (table-status t)
+                    (.then (fn [{:keys [status rows]}]
+                             (case status
+                               :rows (println t rows)
+                               :absent (do (println t "ABSENT -- the catalog was asked and does not have this table")
+                                           (js/process.exit 3))
+                               (do (println t "UNREADABLE -- not zero, and not absent either")
+                                   (js/process.exit 2)))))))
       "tick" (tick args)
       "retain" (retain args)
       "coverage" (coverage args)
