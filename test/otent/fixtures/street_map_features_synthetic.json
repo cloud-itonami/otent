@@ -1,0 +1,39 @@
+{
+  "_fixture": "SYNTHETIC fixture in the shape of a Mapillary Graph API v4 /map_features response. NOT real provider data and never published as such. It exists so the analysis is deterministic and the readback tests run without a credential.",
+  "data": [
+    {
+      "id": "100000000000001",
+      "object_value": "object--support--utility-pole",
+      "geometry": {"type": "Point", "coordinates": [139.69171, 35.68946]},
+      "first_seen_at": "2025-04-01T00:00:00.000Z",
+      "last_seen_at": "2026-08-01T00:00:00.000Z"
+    },
+    {
+      "id": "100000000000002",
+      "object_value": "object--sign--advertisement",
+      "geometry": {"type": "Point", "coordinates": [139.69205, 35.68952]},
+      "first_seen_at": "2025-06-11T00:00:00.000Z",
+      "last_seen_at": "2026-07-19T00:00:00.000Z"
+    },
+    {
+      "id": "100000000000003",
+      "object_value": "object--not-in-registered-taxonomy",
+      "geometry": {"type": "Point", "coordinates": [139.69200, 35.68950]},
+      "first_seen_at": "2025-06-11T00:00:00.000Z",
+      "last_seen_at": "2026-07-19T00:00:00.000Z"
+    },
+    {
+      "id": "100000000000004",
+      "object_value": "object--synthetic--face",
+      "geometry": {"type": "Point", "coordinates": [139.69200, 35.68950]},
+      "first_seen_at": "2025-06-11T00:00:00.000Z"
+    },
+    {
+      "id": "100000000000005",
+      "object_value": "object--support--utility-pole",
+      "geometry": {"type": "Point", "coordinates": [35.68960, 139.69200]},
+      "first_seen_at": "2025-06-11T00:00:00.000Z",
+      "last_seen_at": "2026-07-19T00:00:00.000Z"
+    }
+  ]
+}
