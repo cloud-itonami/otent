@@ -148,8 +148,43 @@
                                           (path/join "bin" "otent.cljs")]
                                          args))
                         #js {:encoding "utf8"
-                             :env (js/Object.assign #js {} js/process.env env)})]
-    {:code (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r))}))
+                             :env (js/Object.assign #js {} js/process.env env)
+                             ;; `otent.deadline` bounds every fetch INSIDE the
+                             ;; tick. Nothing bounded the tick itself, and the
+                             ;; process does not have to be inside a fetch to
+                             ;; stop: measured 2026-08-30, this child sat for
+                             ;; 2h11m at 0.0% CPU with ZERO open sockets, its
+                             ;; main thread parked in `uv__io_poll` — an event
+                             ;; loop waiting on something that never arrives.
+                             ;; A per-fetch deadline cannot see that.
+                             ;;
+                             ;; launchd will not start this job while the
+                             ;; previous run is alive, so an unbounded child
+                             ;; does not delay one poll — it stops ingest
+                             ;; entirely. The 300s interval had been overrun
+                             ;; 62x when this was measured, while
+                             ;; `launchctl list` still showed last_exit=0,
+                             ;; because launchd only records an exit when a
+                             ;; process actually exits. Wedged and healthy
+                             ;; print the same thing.
+                             ;;
+                             ;; 240s, under the 300s cadence: a run that
+                             ;; cannot finish inside its own period must die
+                             ;; so the next one starts, and SIGKILL because a
+                             ;; loop that ignores its own handles will ignore
+                             ;; SIGTERM too.
+                             :timeout 240000
+                             :killSignal "SIGKILL"})]
+    ;; A killed child reports .signal, and its .status is nil — which reads as
+    ;; falsey exactly where a zero exit does. Name it instead: an unbounded
+    ;; wait that got cut off is not a tick that found nothing.
+    (if-let [sig (.-signal r)]
+      {:code 2
+       :out (str (.-stdout r))
+       :err (str "otent tick exceeded its 240s bound and was killed (" sig
+                 "). NOT a measurement: this cycle read nothing and claims "
+                 "nothing.\n" (str (.-stderr r)))}
+      {:code (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r))})))
 
 (defn- unmeasured-feeds
   "Which feeds the tick reported UNMEASURED, from its own output."
