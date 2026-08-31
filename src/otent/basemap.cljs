@@ -52,6 +52,25 @@
     ;; The service goes to level 9, but the whole planet at z9 is 349,525
     ;; tiles a day. The ingest is BOUND to z4 -- 341 tiles per date -- and
     ;; the manifest records the bound as the coverage, not the service's.
+    :max-ingest-zoom 4}
+
+   {:id "viirs-noaa20-truecolor"
+    :label "NASA GIBS VIIRS NOAA-20 CorrectedReflectance TrueColor (daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / VIIRS NOAA-20"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/"
+                       "{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg")
+    :time-mode :daily
+    :format "jpeg"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "VIIRS (NOAA-20)"
+    :bands "bands M5, M4, M3 as RGB true colour"
+    :native-gsd "375 m"
+    ;; Same service, same shape as the MODIS layer: served to level 9,
+    ;; bound to z4 -- 341 tiles per capture date.
+    :max-source-zoom 9
     :max-ingest-zoom 4}])
 
 (def vector-sources
