@@ -38,6 +38,7 @@
     [otent.cli-test]
     [otent.feeds-due-test]
             [otent.governor-test]
+            [otent.kartaview-test]
             [otent.lock-test]
             [otent.parse-test]
             [otent.parses-test]
@@ -53,6 +54,7 @@
     otent.cli-test
     otent.feeds-due-test
     otent.governor-test
+    otent.kartaview-test
     otent.lock-test
     otent.parse-test
     otent.parses-test

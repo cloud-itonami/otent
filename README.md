@@ -863,6 +863,46 @@ HEAD**: Cloudflare's REST object API answers HEAD with a non-2xx, so a
 HEAD probe reported every object as absent and concluded there was no
 basemap at all in a bucket holding 1,365 tiles.
 
+## One open street source, anonymously: KartaView (OpenStreetCam)
+
+`bin/kartaview.cljs` ingests street-imagery **metadata** (no pixel is
+fetched or stored) from KartaView's open-data photo search — the
+anonymous `api.openstreetcam.org/2.0/photo/` endpoint, which still
+answers 200 where `api.kartaview.org` now 401s. No credential exists to
+protect and none is needed; this is the provider's own public endpoint
+under `:kartaview-open-data` in `otent-vision-scope.edn`, imagery
+licensed CC-BY-SA 4.0 by the provider's terms.
+
+The bound is the same shape as the daily imagery sources: one bbox per
+invocation (`--bbox W S E N`), ≤ 0.01° a side, translated to the API's
+centre+radius form and **filtered back down to the bbox** — what we asked
+for is never confused with what we keep; everything the API returned
+outside the declared area stays visible in the counts. `--fixture`
+replays a captured payload offline with identical checks.
+
+Two gates run before any photo becomes an observation:
+
+- **privacy**: only provider-processed `BLURRED` imagery is admitted. A
+  photo whose `autoImgProcessingResult` is missing or `ORIGINAL` is
+  refused and counted — the first live run refused exactly one such
+  photo. Faces and plates stay blurred upstream and never become
+  entities here.
+- **deletion respect**: non-`public` or non-`active` photos are refused,
+  so a photo the provider withdrew is never re-admitted.
+
+The unmeasured stays visible: the provider publishes no GSD, no sensor
+model and no per-photo confidence, so each is carried as `:unknown`
+with a note saying so. Observations carry asset id, canonical provider
+URLs (processed image + sequence page), `shotDate` as capture time vs.
+ingest time, lon/lat footprint with the provider's `gpsAccuracy` as
+spatial uncertainty, heading, and sequence membership — and the exact
+response bytes are sha256'd before any of it is normalized, so the
+provenance hash covers even a run that refuses everything.
+
+Without `$CF_CATALOG_TOKEN` the run fetches, checks everything, writes
+nothing, and exits 2: nothing written is not the same as written
+nothing.
+
 ## Three planes, and what is allowed on each
 
 | plane | holds | addressed by |
