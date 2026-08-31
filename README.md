@@ -863,6 +863,19 @@ HEAD**: Cloudflare's REST object API answers HEAD with a non-2xx, so a
 HEAD probe reported every object as absent and concluded there was no
 basemap at all in a bucket holding 1,365 tiles.
 
+### Night lights: one composite, bounded
+
+`night_lights.cljs` ingests NASA GIBS `VIIRS_Black_Marble` (Suomi NPP
+Day/Night Band, public domain, keyless) under `otent/night-lights/<composite>/`.
+The Time dimension declares exactly two composites — 2012-01-01 and
+2016-01-01 — and the plan refuses any other date: the service's `default`
+alias moves under us, so it is never ingested. The layer serves to z8
+(z9 answers 400), but the ingest bound is z4 = 341 tiles, one composite
+per run. The per-composite manifest records asset id, source URL,
+capture (composite) and retrieval times, sha256, CRS, tile geometry,
+sensor/bands, resolution, licence and attribution per tile, and states
+the max zoom MEASURED in the bucket.
+
 ## Three planes, and what is allowed on each
 
 | plane | holds | addressed by |
