@@ -1141,6 +1141,46 @@ has no default, and prints how many it waived. Set to the epoch — covering
 nothing — the same three rows refuse again, naming them as observed *after*
 the archive existed, which is a failure rather than history.
 
+## One open street source, anonymously: Panoramax
+
+`bin/panoramax.cljs` ingests street-imagery **metadata** (no pixel is
+fetched or stored) from Panoramax — the IGN / OSM-FR street-imagery
+federation publishing CC-BY-SA-4.0 pictures over a STAC API. The
+anonymous aggregate endpoint `api.panoramax.xyz/api/search` answers 200
+with no credential; per-item licence links are carried through, so what
+an item is licensed as is what the observation records.
+
+The bound is one bbox per invocation (`--bbox W S E N`), ≤ 0.01° a side,
+**filtered back down to the bbox** — the API's aggregate answers may
+reach further than the declared area, so everything returned outside it
+stays visible in the counts. `--fixture` replays a captured payload
+offline with identical checks.
+
+Gates before any item becomes an observation:
+
+- **privacy, curated fields**: the raw EXIF block contains
+  uploader-identifying metadata (a `MAPSettingsEmail`,
+  upload hashes) — EXIF is never copied into an observation, only a
+  curated allow-list passes, and a redaction check refuses the whole run
+  if an `@` or a forbidden key ever reaches an emitted observation.
+- **processing and visibility**: unprocessed items (`geovisio:status` ≠
+  `ready`) and non-public items (`geovisio:visibility` ≠ `anyone`) are
+  refused and counted. The provider's automatic face/plate blurring is
+  platform-level and the item API publishes no per-item blur flag, so
+  the observation carries `provider-blur-verified false` with the
+  limitation stated rather than a claim that was never checked.
+- **geometry**: GeoJSON lon/lat only; a point that is only plausible if
+  swapped is refused, not repaired.
+- **uncertainty**: the provider's `quality:horizontal_accuracy` (metres,
+  95% interval) is carried as spatial uncertainty; where the item omits
+  it, `:unknown` stays visible.
+
+Capture time is the item's `properties.datetime`, never confused with
+ingest time; every refusal is counted by name; the response bytes are
+hashed (`input sha256=…`) before anything else runs, so provenance
+survives even a refusal. A picture is an observation at capture time,
+not current existence.
+
 ## Tests
 
 `npm test` — 121 tests, 1,493 assertions, against **captured real payloads**
