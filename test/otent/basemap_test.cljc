@@ -29,6 +29,7 @@
   (t/is (= "blue-marble" (:id (bm/source-for "blue-marble"))))
   (t/is (= "modis-terra-truecolor" (:id (bm/source-for "modis-terra-truecolor"))))
   (t/is (= "viirs-noaa20-truecolor" (:id (bm/source-for "viirs-noaa20-truecolor"))))
+  (t/is (= "modis-aqua-truecolor" (:id (bm/source-for "modis-aqua-truecolor"))))
   (let [r (bm/source-for "google-photorealistic-tiles")]
     (t/is (= :licence/unknown-source (:refusal r)))))
 
@@ -49,6 +50,11 @@
     (t/is (str/includes? (bm/tile-url s [4 1 3] "2026-08-28")
                          "VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/2026-08-28/"))
     (t/is (str/ends-with? (bm/tile-url s [4 1 3] "2026-08-28") "/4/3/1.jpeg"))
+    (t/is (str/includes? (bm/tile-url s [4 1 3] nil) "{date}")))
+  (let [s (bm/source-for "modis-aqua-truecolor")]
+    (t/is (str/includes? (bm/tile-url s [4 1 3] "2026-08-31")
+                         "MODIS_Aqua_CorrectedReflectance_TrueColor/default/2026-08-31/"))
+    (t/is (str/ends-with? (bm/tile-url s [4 1 3] "2026-08-31") "/4/3/1.jpeg"))
     (t/is (str/includes? (bm/tile-url s [4 1 3] nil) "{date}"))))
 
 (t/deftest daily-tiles-are-keyed-by-capture-date
@@ -99,6 +105,11 @@
     (t/is (= 341 (:tile-count p)))
     (t/is (str/starts-with? (:key (first (:tiles p)))
                             "otent/basemap/viirs-noaa20-truecolor/2026-08-28/")))
+  (let [p (bm/ingest-plan "modis-aqua-truecolor" 4 "2026-08-31")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/modis-aqua-truecolor/2026-08-31/")))
   (let [bad (bm/ingest-plan "blue-marble" 9 nil)]
     (t/is (not (:ok? bad)))
     (t/is (= :source/past-max-zoom (:refusal bad)))))
