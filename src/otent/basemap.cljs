@@ -140,6 +140,27 @@
     ;; sparse source. Served to level 9, bound to z4 -- 341 candidate
     ;; tiles per declared period, same as every daily layer.
     :max-source-zoom 9
+    :max-ingest-zoom 4}
+
+   {:id "modis-terra-lst-day"
+    :label "NASA GIBS MODIS Terra Land Surface Temperature (Day, daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / MODIS Terra LST"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "MODIS_Terra_Land_Surface_Temp_Day/default/"
+                       "{date}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png")
+    :time-mode :daily
+    :format "png"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "MODIS (Terra)"
+    :bands "land surface temperature (MODIS bands 31/32, colour-mapped by GIBS)"
+    :native-gsd "1 km"
+    ;; A science-parameter layer, not reflectance: the colour ramp is the
+    ;; data. Served to level 7 (1 km product), bound to z4 -- 341 tiles per
+    ;; capture date. The day's tiles publish the day after capture: a
+    ;; same-day date answers 404, which is an HTTP error, not a hole.
+    :max-source-zoom 7
     :max-ingest-zoom 4}])
 
 (def vector-sources
