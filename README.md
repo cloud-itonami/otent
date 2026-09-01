@@ -1216,6 +1216,37 @@ What it keeps honest:
   observation is not road condition, accessibility, ownership,
   inventory, availability, legal compliance, or current existence.
 
+### One derived task over the Mapillary metadata: spatial density (per-cell grid)
+
+`bin/mapillary_density.cljs` runs **one** derived task —
+`mapillary-street-density-v1` — over the same Mapillary observations: a
+fixed deterministic grid over the declared bbox (target cell 0.0025°,
+capped at 4×4 cells, edges computed from the bbox alone) with per-cell
+counts of admissible images, panoramas and compass-known/unknown. No
+model, no inference: `model-id` is `:none`, stated rather than hidden.
+
+What it keeps honest:
+
+- **The grid is a pure function of the bbox**, independent of the
+  observations — the same area always produces the same cells, so two
+  runs over the same tile are directly comparable.
+- **Empty cells stay visible as explicit zeros.** An empty cell is an
+  observation about one fetched page (with `paging-next` recorded), and
+  it says nothing about the provider's actual coverage there.
+- **Unknowns stay visible.** An image without a numeric
+  `compass_angle` is still counted in its cell, as `compass-unknown`.
+- **A point that is not placeable is counted, never folded** into a
+  neighbouring cell (`unplaceable`), and the stored document refuses
+  its own readback unless observations = placed + unplaceable and the
+  per-cell counts sum to the placed count.
+- **Coordinate order stays upstream**: the known swapped (lat,lon)
+  point is a refusal at the gate — it never becomes a coordinate and
+  never lands in a cell.
+- **The privacy gate is upstream and stated**, the same as the vintage
+  task: metadata only, thumbnails never requested,
+  `provider-blur-verified false`, no face, plate, person or vehicle
+  entity exists in this task.
+
 ## Tests
 
 `npm test` — 121 tests, 1,493 assertions, against **captured real payloads**

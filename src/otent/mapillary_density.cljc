@@ -1,0 +1,189 @@
+(ns otent.mapillary-density
+  "Derived spatial-density analysis over Mapillary street imagery
+  METADATA, one derived task per run per the vision scope
+  (:derived-allow :provider-published-detection; one source, one area,
+  one PR)."
+  ;; What this task is: from imagery-asset observations already
+  ;; normalized by otent.mapillary-images (Graph API /images, metadata
+  ;; only, thumbnails never requested), bin the one <=0.01 deg area the
+  ;; run fetched into a fixed deterministic grid and count admissible
+  ;; images per cell.
+  ;;
+  ;; What this task is NOT:
+  ;; - a per-cell count is an observation about published metadata in
+  ;;   one fetched page, never about street conditions, road quality,
+  ;;   accessibility, ownership, or current existence
+  ;; - the grid is a LOWER BOUND: the Graph API pages results
+  ;;   (paging.next, counted not followed); an empty cell proves
+  ;;   nothing about the provider's actual coverage there
+  ;; - no model inference happens here (provider geometry only), so
+  ;;   model-id is :none - stated, not hidden
+  ;; - every unknown stays visible: an image whose compass_angle is not
+  ;;   a number is still counted in its cell, as compass-unknown; a
+  ;;   cell with zero admissible images is kept as an explicit zero,
+  ;;   never omitted - an empty cell is an observation about the
+  ;;   fetched page, and it must stay visible as one
+  (:require [otent.mapillary-images :as mimg]))
+
+;; ── task identity ────────────────────────────────────────────────────
+
+(def task-id "mapillary-street-density-v1")
+(def source-id mimg/source-id)
+
+;; The grid: the bbox is strictly under 0.01 deg a side (upstream
+;; gate), so a fixed target cell size of 0.0025 deg yields at most a
+;; 4x4 grid. The cell count per axis is (ceil span 0.0025), computed
+;; from the declared bbox - the same bbox always produces the same
+;; grid, whatever the observations are.
+(def target-cell-deg 0.0025)
+(def max-cells-per-axis 4)
+
+(defn grid-shape
+  "A bbox [W S E N] -> the deterministic cell counts per axis and the
+  exact cell edges. Pure integer/float arithmetic over the declared
+  bbox; independent of any observation."
+  [[w s e n]]
+  (let [span-x (- e w)
+        span-y (- n s)
+        nx (min max-cells-per-axis
+                (max 1 (js/Math.ceil (- (/ span-x target-cell-deg) 1e-9))))
+        ny (min max-cells-per-axis
+                (max 1 (js/Math.ceil (- (/ span-y target-cell-deg) 1e-9))))]
+    {:nx nx :ny ny
+     :edges-x (mapv (fn [i] (+ w (* span-x (/ i nx)))) (range (inc nx)))
+     :edges-y (mapv (fn [i] (+ s (* span-y (/ i ny)))) (range (inc ny)))}))
+
+(defn- clamp-idx [v lo hi] (max lo (min hi v)))
+
+(defn cell-of
+  "One observation -> its [ix iy] cell index, or nil if the point lies
+  outside the declared bbox (which upstream already refuses to admit;
+  a nil here is a bug signal, never silently folded into a cell)."
+  [{:observation/keys [lon lat]} {:keys [edges-x edges-y nx ny]}]
+  (let [ix (some (fn [i]
+                   (when (and (<= (nth edges-x i) lon)
+                              (<= lon (nth edges-x (inc i))))
+                     i))
+                 (range nx))
+        iy (some (fn [i]
+                   (when (and (<= (nth edges-y i) lat)
+                              (<= lat (nth edges-y (inc i))))
+                     i))
+                 (range ny))]
+    (when (and ix iy) [ix iy])))
+
+(defn density-table
+  "One normalized Mapillary run -> one spatial-density table.
+
+  `observations` are accepted imagery-asset observations (already
+  gated upstream by otent.mapillary-images: metadata only, redaction
+  check passed, inside the declared bbox). `counts` is the run's
+  refusal/visibility accounting, carried through unchanged so
+  unknowns stay visible."
+  [{:keys [observations counts provenance]}]
+  (let [bbox (get provenance :bbox)
+        shape (grid-shape bbox)
+        per-cell (into (sorted-map)
+                       (for [iy (range (:ny shape))
+                             ix (range (:nx shape))]
+                         [[ix iy]
+                          {:images 0 :panoramas 0
+                           :compass-known 0 :compass-unknown 0}]))
+        binned (reduce (fn [acc o]
+                         (let [c (cell-of o shape)]
+                           (if (nil? c)
+                             ;; upstream admits only in-bbox points, so
+                             ;; this would be a bug -- it is counted
+                             ;; separately below, never folded into a
+                             ;; neighbouring cell
+                             acc
+                             (let [k (get acc c)
+                                   k2 (assoc k :images (inc (:images k)))]
+                               (assoc acc c
+                                      (cond-> k2
+                                        (:observation/is-panorama o)
+                                        (update :panoramas inc)
+                                        (number? (:observation/compass-angle-deg o))
+                                        (update :compass-known inc)
+                                        (not (number? (:observation/compass-angle-deg o)))
+                                        (update :compass-unknown inc)))))))
+                       per-cell
+                       observations)
+        unplaceable (count (filter #(nil? (cell-of % shape)) observations))
+        cells (vec (for [[iy ix] (for [iy (range (:ny shape))
+                                       ix (range (:nx shape))] [iy ix])
+                         :let [k (get binned [ix iy])]]
+                     {:cell-index [ix iy]
+                      :bounds [(nth (:edges-x shape) ix)
+                               (nth (:edges-y shape) iy)
+                               (nth (:edges-x shape) (inc ix))
+                               (nth (:edges-y shape) (inc iy))]
+                      :images (:images k)
+                      :panoramas (:panoramas k)
+                      :compass-known (:compass-known k)
+                      :compass-unknown (:compass-unknown k)}))]
+    {:table/task-id task-id
+     :table/kind :spatial-density
+     :table/source-id source-id
+     :table/area-id (get provenance :area-id)
+     :table/bbox bbox
+     :table/grid {:target-cell-degrees target-cell-deg
+                  :cells-x (:nx shape)
+                  :cells-y (:ny shape)
+                  :cell-count (count cells)}
+     :table/cells cells
+     :table/images {:accepted (count observations)
+                    :placed (- (count observations) unplaceable)
+                    :unplaceable unplaceable}
+     ;; the fetched page is bounded; the provider may hold more
+     :table/coverage-bound :lower-bound
+     :table/coverage-bound-note
+     (str "counts reflect one bounded fetch of one <=0.01 deg area; "
+          "paging-next=" (boolean (:links-next counts))
+          " - an empty cell says nothing about the provider's actual coverage there")
+     ;; counts carried through unchanged: refusals and out-of-bbox
+     ;; items stay visible, never silently dropped
+     :table/run-counts counts
+     :table/uncertainty-note
+     "image positions are as published by the provider (GeoJSON lon/lat; Mapillary publishes no per-image spatial-error figure, so per-cell counts inherit that unknown precision); a count in one cell is not density of anything but admissible metadata in one fetched page"
+     :table/epistemic-boundary
+     "a spatial-density observation is not road condition, accessibility, ownership, inventory, availability, legal compliance, or current existence"}))
+
+;; ── provenance for the derived run ───────────────────────────────────
+
+(defn provenance
+  "Derived-run provenance: wraps the upstream provenance block (source,
+  licence, sha256 of the exact response bytes, client constraints) and
+  adds the task identity. No model is involved, so model-id is :none -
+  stated, not hidden."
+  [upstream {:keys [run-at]}]
+  (assoc upstream
+         :provenance/task-id task-id
+         :provenance/model-id :none
+         :provenance/model-note
+         "deterministic binning of provider-published GeoJSON lon/lat into a fixed grid derived from the declared bbox; no model, no inference, no artifact"
+         :provenance/derived-run-at run-at
+         :provenance/privacy-note
+         "input is metadata only (no pixel was fetched or stored, thumbnail URLs never requested); provider blur state is not per-image verified (provider-blur-verified false); no face, plate, person or vehicle entity exists in this task"))
+
+(defn provenance-checks
+  "Readback check over the stored document: the derived table's own
+  placed/unplaceable accounting must agree with the observation vector
+  the document carries, and the per-cell image counts must sum to the
+  placed count."
+  [doc]
+  (let [obs (get doc "observations")
+        t (get doc "derived-table")
+        n (count obs)
+        placed (get-in t ["images" "placed"])
+        unplaceable (get-in t ["images" "unplaceable"])
+        cell-sum (reduce + 0 (map #(get % "images") (get t "cells" [])))]
+    (if (and (map? t) (number? placed) (number? unplaceable))
+      (if (and (= n (+ placed unplaceable))
+               (= placed cell-sum))
+        {:ok? true}
+        {:ok? false :error :provenance/counts-disagree
+         :detail (str "observations=" n " placed=" placed
+                      " unplaceable=" unplaceable " cell-sum=" cell-sum)})
+      {:ok? false :error :provenance/counts-disagree
+       :detail "derived table is missing its placed/unplaceable accounting"})))
