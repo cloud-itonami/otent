@@ -362,3 +362,42 @@
     (t/is (= "static" (:time-mode m)))
     (t/is (nil? (:capture-date m)))
     (t/is (= "otent/basemap/blue-marble" (:prefix m)))))
+
+;; ------------------------------------------------------------ bandsM11 composite
+
+(t/deftest viirs-bandsm11-urls-and-keys
+  (let [s (bm/source-for "viirs-snpp-bandsm11")]
+    (t/is (bm/dated? s))
+    (t/is (not (:sparse-coverage s)) "daylit-side reflectance: full-bound coverage expected")
+    (t/is (str/includes? (bm/tile-url s [4 1 3] "2026-08-31")
+                         "VIIRS_SNPP_CorrectedReflectance_BandsM11-I2-I1/default/2026-08-31/"))
+    (t/is (str/ends-with? (bm/tile-url s [4 1 3] "2026-08-31") "/4/3/1.jpeg"))
+    (t/is (str/includes? (bm/tile-url s [4 1 3] nil) "{date}"))
+    (t/is (= "otent/basemap/viirs-snpp-bandsm11/2026-08-31/4/1/3.jpg"
+             (bm/tile-key s [4 1 3] "2026-08-31")))
+    (t/is (not= (bm/tile-key s [4 1 3] "2026-08-31")
+                (bm/tile-key (bm/source-for "viirs-snpp-truecolor") [4 1 3] "2026-08-31"))
+          "two daily sources must never share a key prefix")))
+
+(t/deftest viirs-bandsm11-refusals
+  (let [s (bm/source-for "viirs-snpp-bandsm11")]
+    (t/is (= :source/past-ingest-bound (:refusal (bm/ingest-refusal s 5 "2026-08-31"))))
+    ;; past the layer's own level 9 the service would upsample
+    (t/is (= :source/past-max-zoom (:refusal (bm/ingest-refusal s 10 "2026-08-31"))))
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 nil))))
+    (t/is (nil? (bm/ingest-refusal s 4 "2026-08-31"))))
+  (let [p (bm/ingest-plan "viirs-snpp-bandsm11" 4 "2026-08-31")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)))
+    (t/is (= "2026-08-31" (:date p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/viirs-snpp-bandsm11/2026-08-31/"))))
+
+(t/deftest viirs-bandsm11-manifest-entry-states-what-exists
+  (let [s (bm/source-for "viirs-snpp-bandsm11")
+        m (bm/manifest-imagery-entry s 4 "2026-08-31" 341 "t")]
+    (t/is (= "daily" (:time-mode m)))
+    (t/is (= "2026-08-31" (:capture-date m)))
+    (t/is (false? (:sparse-coverage m)))
+    (t/is (= 341 (:tile-count m)))
+    (t/is (= "otent/basemap/viirs-snpp-bandsm11/2026-08-31" (:prefix m)))))
