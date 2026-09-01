@@ -1182,3 +1182,29 @@ every row was correctly held as an hour in the future and the suite read
 that as the parser being broken. The clock is now derived from the fixture.
 A recording is a moment; a test that compares it against a fixed present
 is testing the calendar.
+
+## The Panoramax collections coverage manifest
+
+`otent.panoramax-coverage` turns one request to the federation's
+`GET /api/collections` into a **coverage manifest**: which open
+street-imagery collections exist, where their providers *declare* they span,
+which capture window they state, under which licence, by whom. Metadata only
+— no image is requested, no pixel URL is requested, no pixel is stored, and
+the run bound is real: a `rel=next` link is counted in the provenance
+(`paging-next`), never followed.
+
+The extent is the collection's declared bbox, kept as published; a bbox that
+does not hold together is refused, not repaired. A declared extent is not a
+verified observation (`coverage-declared-not-verified`), and a collection
+existing is not a road being covered or current. Producer attribution
+(names + roles) is kept because licence terms require it; a redaction check
+refuses the run if an `@` or an exif/email-shaped key reaches an observation
+anyway. No face or plate can appear here: no image was fetched.
+
+    npx nbb --classpath src:test bin/panoramax_coverage.cljs --fixture test/otent/fixtures/panoramax-collections-live.json
+    npx nbb --classpath src:test bin/panoramax_coverage.cljs --live --limit 20
+
+Exit 0 manifest produced · 1 refused · 2 could-not-act (no write
+credential, or bad payload). The R2 write stays behind
+`$CF_CATALOG_TOKEN`; without it the run reports `nothing written` and
+exits 2 rather than pretending.
