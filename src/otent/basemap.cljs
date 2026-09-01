@@ -163,6 +163,26 @@
     :max-source-zoom 7
     :max-ingest-zoom 4}
 
+   {:id "modis-terra-lst-night"
+    :label "NASA GIBS MODIS Terra Land Surface Temperature (Night, daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / MODIS Terra LST"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "MODIS_Terra_Land_Surface_Temp_Night/default/"
+                       "{date}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png")
+    :time-mode :daily
+    :format "png"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "MODIS (Terra)"
+    :bands "land surface temperature (MODIS bands 31/32, colour-mapped by GIBS)"
+    :native-gsd "1 km"
+    ;; The night overpass half of the Terra day layer above. Served to
+    ;; level 7 (1 km product), bound to z4 -- 341 tiles per capture date,
+    ;; and the day's tiles publish the day after capture like the rest.
+    :max-source-zoom 7
+    :max-ingest-zoom 4}
+
    {:id "modis-aqua-lst-night"
     :label "NASA GIBS MODIS Aqua Land Surface Temperature (Night, daily)"
     :licence "NASA -- public domain"
