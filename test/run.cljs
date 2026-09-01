@@ -42,6 +42,7 @@
             [otent.parse-test]
             [otent.panoramax-test]
             [otent.parses-test]
+            [otent.panoramax-daylight-test]
             [otent.receipt-test]
             [otent.sanctions-test]
             [otent.watchlist-test]))
@@ -58,6 +59,7 @@
     otent.parse-test
     otent.panoramax-test
     otent.parses-test
+    otent.panoramax-daylight-test
     otent.receipt-test
     otent.sanctions-test
     otent.watchlist-test])
