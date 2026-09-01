@@ -115,32 +115,7 @@
     ;; the year's period start, e.g. 1998-12-01).
     :max-source-zoom 12
     :max-ingest-zoom 4
-    :sparse-coverage true}
-
-   {:id "modis-terra-ndvi-8day"
-    :label "NASA GIBS MODIS Terra NDVI (rolling 8-Day)"
-    :licence "NASA -- public domain"
-    :attribution "NASA EOSDIS GIBS / MODIS Terra NDVI"
-    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
-                       "MODIS_Terra_NDVI_8Day/default/"
-                       "{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png")
-    :time-mode :8day
-    :format "png"
-    :crs "EPSG:3857"
-    :tile-size 256
-    :sensor "MODIS (Terra)"
-    :bands "NDVI derived from MODIS bands (250 m, colour-mapped by GIBS)"
-    :native-gsd "250 m"
-    ;; A rolling 8-day product: the service files it under the PERIOD'S
-    ;; START date, on an 8-day grid with one-day gaps between windows
-    ;; (verified live: 2026-08-30 serves, 2026-08-31 404s). Like the
-    ;; annual composite it gets NO wall-clock default -- a period nobody
-    ;; declared must be refused, not guessed. Tiles exist everywhere
-    ;; (ocean comes back as an empty PNG, not a 404), so this is NOT a
-    ;; sparse source. Served to level 9, bound to z4 -- 341 candidate
-    ;; tiles per declared period, same as every daily layer.
-    :max-source-zoom 9
-    :max-ingest-zoom 4}])
+    :sparse-coverage true}])
 
 (def vector-sources
   [{:id "coastline"
@@ -154,8 +129,8 @@
 
 (defn dated?
   "True when a source is keyed by a capture period: :daily layers take a
-   capture date, :annual composites take the year's period start, :8day
-   products take the 8-day window's start. Only :static layers ignore it."
+   capture date, :annual composites take the year's period start. Only
+   :static layers ignore it."
   [source] (not= :static (:time-mode source)))
 
 (defn- src [id] (some #(when (= (:id %) id) %) raster-sources))
@@ -210,8 +185,7 @@
   ([source [z x y] date]
    (str prefix "/" (:id source)
         (when (dated? source) (str "/" date))
-        "/" z "/" x "/" y "."
-        (case (:format source) "png" "png" "jpg"))))
+        "/" z "/" x "/" y ".jpg")))
 
 ;; ------------------------------------------------------------------ refusals
 

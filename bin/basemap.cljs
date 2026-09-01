@@ -126,13 +126,7 @@
                                  (swap! absent conj tile)
                                  (if-not (:ok? r)
                                    (swap! failed conj (assoc r :tile tile))
-                                   (-> (r2-put! key (:buf r)
-                                                ;; the content-type is the
-                                                ;; source's declared format,
-                                                ;; not a blanket image/jpeg
-                                                (if (= "png" (:format source))
-                                                  "image/png"
-                                                  "image/jpeg"))
+                                   (-> (r2-put! key (:buf r) "image/jpeg")
                                        (.then (fn [p]
                                                 (when-not (:ok? p)
                                                   (swap! failed conj (assoc p :tile tile)))))))))))

@@ -30,7 +30,6 @@
   (t/is (= "modis-terra-truecolor" (:id (bm/source-for "modis-terra-truecolor"))))
   (t/is (= "viirs-noaa20-truecolor" (:id (bm/source-for "viirs-noaa20-truecolor"))))
   (t/is (= "viirs-snpp-truecolor" (:id (bm/source-for "viirs-snpp-truecolor"))))
-  (t/is (= "modis-terra-ndvi-8day" (:id (bm/source-for "modis-terra-ndvi-8day"))))
   (let [r (bm/source-for "google-photorealistic-tiles")]
     (t/is (= :licence/unknown-source (:refusal r)))))
 
@@ -108,44 +107,6 @@
     (t/is (= 187 (:tile-count m)) "the STORED count -- sparse coverage means fewer than 341")
     (t/is (= "NASA -- public domain" (:licence m)))
     (t/is (= "otent/basemap/landsat-weld-truecolor-annual/1998-12-01" (:prefix m)))))
-
-;; ------------------------------------------------------------ 8-day product
-
-(t/deftest ndvi-8day-urls-and-keys-carry-the-window-start
-  (let [s (bm/source-for "modis-terra-ndvi-8day")]
-    (t/is (bm/dated? s))
-    (t/is (not (:sparse-coverage s)) "the 8-day layer serves an (empty) PNG over ocean -- not sparse")
-    (t/is (= "png" (:format s)))
-    (t/is (str/includes? (bm/tile-url s [4 12 6] "2026-08-30")
-                         "MODIS_Terra_NDVI_8Day/default/2026-08-30/GoogleMapsCompatible_Level9/4/6/12.png"))
-    (t/is (= "otent/basemap/modis-terra-ndvi-8day/2026-08-30/4/12/6.png"
-             (bm/tile-key s [4 12 6] "2026-08-30")))
-    (t/is (str/includes? (bm/tile-url s [4 12 6] nil) "{date}")
-          "without a window the template must leak, not silently fetch `default`")))
-
-(t/deftest ndvi-8day-refusals
-  (let [s (bm/source-for "modis-terra-ndvi-8day")]
-    (t/is (= :source/past-ingest-bound (:refusal (bm/ingest-refusal s 5 "2026-08-30"))))
-    (t/is (= :source/past-max-zoom (:refusal (bm/ingest-refusal s 10 "2026-08-30"))))
-    ;; an 8-day window is a declared period: no wall-clock default
-    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 nil))))
-    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 "2026-08-31T00:00:00Z"))))
-    (t/is (nil? (bm/ingest-refusal s 4 "2026-08-30"))))
-  (let [p (bm/ingest-plan "modis-terra-ndvi-8day" 4 "2026-08-30")]
-    (t/is (:ok? p))
-    (t/is (= 341 (:tile-count p)))
-    (t/is (= "2026-08-30" (:date p)))
-    (t/is (str/starts-with? (:key (first (:tiles p)))
-                            "otent/basemap/modis-terra-ndvi-8day/2026-08-30/"))))
-
-(t/deftest ndvi-8day-manifest-entry-states-what-exists
-  (let [s (bm/source-for "modis-terra-ndvi-8day")
-        m (bm/manifest-imagery-entry s 4 "2026-08-30" 341 "t")]
-    (t/is (= "8day" (:time-mode m)))
-    (t/is (= "2026-08-30" (:capture-date m)))
-    (t/is (= 341 (:tile-count m)) "not sparse: full candidate count is the stored count")
-    (t/is (false? (:sparse-coverage m)))
-    (t/is (= "otent/basemap/modis-terra-ndvi-8day/2026-08-30" (:prefix m)))))
 
 (t/deftest refusals
   (let [bm (bm/source-for "blue-marble")
