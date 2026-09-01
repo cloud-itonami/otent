@@ -44,6 +44,7 @@
             [otent.receipt-test]
             [otent.sanctions-test]
             [otent.street-test]
+            [otent.street-tally-test]
             [otent.watchlist-test]))
 
 (def declared
@@ -60,6 +61,7 @@
     otent.receipt-test
     otent.sanctions-test
     otent.street-test
+    otent.street-tally-test
     otent.watchlist-test])
 
 (def min-tests 20)
