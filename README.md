@@ -1185,6 +1185,44 @@ No live observation has been ingested yet: **no `MAPILLARY_ACCESS_TOKEN`
 exists** (env, keychain, secrets — re-verified this run). Live mode is
 ready and will run one ≤0.01° tile the moment a token is provisioned.
 
+## One derived task over the Mapillary image metadata: heading/panorama coverage
+
+`street-imagery-heading-v1` (`otent.street-heading`,
+`bin/street_heading.cljs`) consumes the observations the
+`mapillary-images` source already normalized and produces one bounded
+**heading-coverage table** for the one ≤0.01° area the run fetched:
+
+- an **8-sector compass histogram** of the provider-published
+  `compass_angle` values — pure integer binning
+  (`floor(mod(angle,360)/45)`), no smoothing, no re-projection;
+- **panorama vs non-panorama** counts from the provider's own `is_pano`;
+- **unknowns stay visible**: images whose published angle is missing or
+  non-numeric are counted as `heading-unknown`, never dropped, never
+  folded into a sector;
+- **a lower bound**: the provider pages results (`paging.next` counted,
+  not followed), so a sector count proves nothing outside the fetched
+  area or page — the bound and its note are part of the table;
+- **no model**: model-id is `:none` (deterministic binning over
+  provider metadata), stated in the derived provenance, not hidden;
+- **the epistemic boundary is part of the table**: a heading sector is
+  the camera bearing at capture — not image content, not a property of
+  any object in the frame, and not road condition, ownership, or
+  current existence.
+
+Offline, with no credential:
+
+```
+nbb --classpath src:../../kotoba-lang/com-mapillary-graph-api/src \
+  bin/street_heading.cljs --fixture payload.json --bbox 139.765 35.678 139.77 35.682
+# → heading: {"N" 0, "E" 1, "W" 2, ...} heading-unknown=0 panorama=1
+```
+
+Readback checks run on the derived table itself (known + unknown =
+accepted; the histogram sums to heading-known; panorama + non-panorama
+= accepted) before anything is stored, and the stored document is
+read back through the same R2 path — without `$CF_CATALOG_TOKEN`
+nothing is written and the run exits 2.
+
 ## Tests
 
 `npm test` — 121 tests, 1,493 assertions, against **captured real payloads**
