@@ -521,3 +521,43 @@
     (t/is (false? (:sparse-coverage m)))
     (t/is (= 341 (:tile-count m)))
     (t/is (= "otent/basemap/viirs-snpp-bandsm11/2026-08-31" (:prefix m)))))
+
+;; ------------------------------------------------- GHRSST L4 MUR SST
+
+(t/deftest ghrsst-mur-sst-urls-and-keys-carry-the-capture-date
+  (let [s (bm/source-for "ghrsst-mur-sst")]
+    (t/is (= "ghrsst-mur-sst" (:id s)))
+    (t/is (bm/dated? s))
+    (t/is (not (:sparse-coverage s)) "the SST layer serves a (coloured) PNG over land as well -- not sparse")
+    (t/is (= "png" (:format s)))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] "2026-08-30")
+                         "GHRSST_L4_MUR_Sea_Surface_Temperature/default/2026-08-30/GoogleMapsCompatible_Level7/4/6/12.png"))
+    (t/is (= "otent/basemap/ghrsst-mur-sst/2026-08-30/4/12/6.png"
+             (bm/tile-key s [4 12 6] "2026-08-30")))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] nil) "{date}")
+          "without a date the template must leak, not silently fetch `default`")))
+
+(t/deftest ghrsst-mur-sst-refusals
+  (let [s (bm/source-for "ghrsst-mur-sst")]
+    (t/is (= :source/past-ingest-bound (:refusal (bm/ingest-refusal s 5 "2026-08-30"))))
+    ;; past the layer's own level 7: the analysis must not be upsampled
+    (t/is (= :source/past-max-zoom (:refusal (bm/ingest-refusal s 8 "2026-08-30"))))
+    ;; a daily capture date is declared, not defaulted
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 nil))))
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 "2026-08-31T00:00:00Z"))))
+    (t/is (nil? (bm/ingest-refusal s 4 "2026-08-30"))))
+  (let [p (bm/ingest-plan "ghrsst-mur-sst" 4 "2026-08-30")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)))
+    (t/is (= "2026-08-30" (:date p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/ghrsst-mur-sst/2026-08-30/"))))
+
+(t/deftest ghrsst-mur-sst-manifest-entry-states-what-exists
+  (let [s (bm/source-for "ghrsst-mur-sst")
+        m (bm/manifest-imagery-entry s 4 "2026-08-30" 341 "t")]
+    (t/is (= "daily" (:time-mode m)))
+    (t/is (= "2026-08-30" (:capture-date m)))
+    (t/is (false? (:sparse-coverage m)))
+    (t/is (= 341 (:tile-count m)))
+    (t/is (= "otent/basemap/ghrsst-mur-sst/2026-08-30" (:prefix m)))))

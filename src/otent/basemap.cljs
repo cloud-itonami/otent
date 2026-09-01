@@ -294,6 +294,28 @@
     ;; tiles publish the day after capture: a same-day date answers 404,
     ;; an HTTP error, not a hole.
     :max-source-zoom 9
+    :max-ingest-zoom 4}
+
+   {:id "ghrsst-mur-sst"
+    :label "NASA GIBS GHRSST L4 MUR Sea Surface Temperature (daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / GHRSST L4 MUR SST (JPL MUR)"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "GHRSST_L4_MUR_Sea_Surface_Temperature/default/"
+                       "{date}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png")
+    :time-mode :daily
+    :format "png"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "GHRSST Multi-Ultra High Resolution L4 analysis (satellite + in situ blend)"
+    :bands "sea surface temperature (fused MW+IR analysis, colour-mapped by GIBS)"
+    :native-gsd "1 km"
+    ;; The sea complement to the land-surface layers above: an L4 *analysis*
+    ;; (JPL MUR), not one sensor's overpass, so it answers everywhere the
+    ;; ocean is -- including the polar night, where MODIS reflectance has
+    ;; nothing. Served to level 7, bound to z4 -- 341 tiles per capture
+    ;; date, published with a one-day lag like the rest.
+    :max-source-zoom 7
     :max-ingest-zoom 4}])
 
 (def vector-sources
