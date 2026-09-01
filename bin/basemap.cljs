@@ -72,6 +72,7 @@
       (.then (fn [r]
                (if-not (.-ok r)
                  {:ok? false :error :source/http-error
+                  :status (.-status r)
                   :detail (str (.-status r) " from " url)}
                  (.then (.arrayBuffer r)
                         (fn [ab] {:ok? true :buf (js/Buffer.from ab)})))))
@@ -100,10 +101,13 @@
           retrieved-at (str (js/Date. (js/Date.now)))
           queue (atom (vec tiles))
           done (atom 0)
+          absent (atom [])
           failed (atom [])
           total (count tiles)]
       (log "raster:" (:id source) (count tiles) "tiles"
-           (when date (str "capture date " date)))
+           (when date (str "capture date " date))
+           (when (:sparse-coverage source)
+             "(sparse: 404 means no data there, not a failed fetch)"))
       (letfn [(next-tile! []
                 (let [[t] (swap-vals! queue #(if (seq %) (subvec % 1) %))]
                   (first t)))
@@ -111,20 +115,31 @@
                 (if-let [{:keys [tile url key]} (next-tile!)]
                   (-> (fetch-bytes url)
                       (.then (fn [r]
-                               (if-not (:ok? r)
-                                 (do (swap! failed conj (assoc r :tile tile)) nil)
-                                 (-> (r2-put! key (:buf r) "image/jpeg")
-                                     (.then (fn [p]
-                                              (when-not (:ok? p)
-                                                (swap! failed conj (assoc p :tile tile))))))))))
+                               ;; A sparse source declares its holes: over
+                               ;; ocean (and wherever the product has no
+                               ;; data) the service answers 404, and that
+                               ;; tile is ABSENT -- recorded as a hole in
+                               ;; coverage, never stored and never a lie.
+                               (if (and (:sparse-coverage source)
+                                        (= :source/http-error (:error r))
+                                        (= 404 (:status r)))
+                                 (swap! absent conj tile)
+                                 (if-not (:ok? r)
+                                   (swap! failed conj (assoc r :tile tile))
+                                   (-> (r2-put! key (:buf r) "image/jpeg")
+                                       (.then (fn [p]
+                                                (when-not (:ok? p)
+                                                  (swap! failed conj (assoc p :tile tile)))))))))))
                       (.then (fn [_]
                                (let [n (swap! done inc)]
                                  (when (zero? (mod n 50))
-                                   (log "  " n "/" total (str "(" (count @failed) " failed)"))))
+                                   (log "  " n "/" total
+                                        (str "(" (count @absent) " absent,"
+                                             (count @failed) " failed)"))))
                                (worker)))
                   (js/Promise.resolve nil)))]
         (-> (js/Promise.all (clj->js (repeatedly conc worker)))
-            (.then (fn [_] {:done @done :failed @failed
+            (.then (fn [_] {:done @done :absent @absent :failed @failed
                             :source source :date date
                             :retrieved-at retrieved-at})))))))
 
@@ -284,7 +299,13 @@
                  (-> (js/Promise.all
                       (clj->js
                        (map (fn [s]
-                              (let [date (when (= :daily (:time-mode s)) nil)]
+                              ;; A dated source is measured with no date,
+                              ;; so its probe keys cannot match a dated
+                              ;; raster run's prefix -- its entry is
+                              ;; written only by a run that ingested it,
+                              ;; which is what 'states exactly what
+                              ;; exists' means here.
+                              (let [date (when (bm/dated? s) nil)]
                                 (.then (measure-max-zoom s date)
                                        (fn [z] {:source s :date date :max-z z
                                                 :retrieved-at nil}))))
@@ -294,8 +315,20 @@
                                     (->> (js->clj imagery-results :keywordize-keys true)
                                          (remove #(neg? (:max-z %)))
                                          (map (fn [r]
-                                                (assoc r :tile-count
-                                                       (count (bm/tiles-to-zoom (:max-z r))))))
+                                                (let [candidate (count (bm/tiles-to-zoom (:max-z r)))]
+                                                  (if (:sparse-coverage (:source r))
+                                                    ;; A sparse composite's
+                                                    ;; holes are real
+                                                    ;; coverage, so a
+                                                    ;; formula count would
+                                                    ;; overstate what is
+                                                    ;; stored: record the
+                                                    ;; candidate bound and
+                                                    ;; leave tile-count to
+                                                    ;; the run that stored.
+                                                    (assoc r :tile-count nil
+                                                           :candidate-tile-count candidate)
+                                                    (assoc r :tile-count candidate)))))
                                          vec)
                                     retrieved-at (str (js/Date. (js/Date.now)))]
                                 (.then (write-manifest!
@@ -333,21 +366,23 @@
       date (get opts :date)]
   (case cmd
     "raster"
-    (let [daily? (when-let [s (and (not= :licence/unknown-source (:refusal (bm/source-for source-id)))
+    (let [source (when-let [s (and (not= :licence/unknown-source (:refusal (bm/source-for source-id)))
                                    (bm/source-for source-id))]
-                   (= :daily (:time-mode s)))
+                   s)
+          ;; A :daily run without --date gets UTC yesterday from the wall
+          ;; clock. An :annual composite gets NO default: a year nobody
+          ;; declared must be refused, not silently picked by the clock.
           date (cond
                  date date
-                 ;; A daily source run without --date gets UTC yesterday
-                 ;; from the wall clock; a static one gets nil.
-                 daily? (yesterday-utc)
+                 (and source (= :daily (:time-mode source))) (yesterday-utc)
                  :else nil)]
       (-> (bm/ingest-plan source-id max-z date)
           (ingest-raster!)
-          (.then (fn [{:keys [done failed refused source]}]
+          (.then (fn [{:keys [done absent failed refused]}]
                    (if refused
                      (js/process.exit 1)
-                     (do (log "raster: wrote" (- done (count failed)) "of" done "tiles")
+                     (do (log "raster: wrote" (- done (count failed)) "of" done "tiles"
+                              (str "(" (count absent) " absent over no-data)"))
                          (doseq [f (take 5 failed)] (log "  FAILED" (pr-str (:tile f)) (:detail f)))
                          (js/process.exit (if (seq failed) 1 0))))))))
 

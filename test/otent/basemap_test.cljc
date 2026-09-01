@@ -70,6 +70,44 @@
   (let [s (bm/source-for "blue-marble")]
     (t/is (= "otent/basemap/blue-marble/3/4/5.jpg" (bm/tile-key s [3 4 5])))))
 
+;; ------------------------------------------------------------ annual composite
+
+(t/deftest annual-composite-urls-and-keys-carry-the-period
+  (let [s (bm/source-for "landsat-weld-truecolor-annual")]
+    (t/is (bm/dated? s))
+    (t/is (:sparse-coverage s) "the WELD composite 404s over ocean -- that must be declared")
+    (t/is (str/includes? (bm/tile-url s [4 12 6] "1998-12-01")
+                         "Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/1998-12-01/GoogleMapsCompatible_Level12/4/6/12.jpeg"))
+    (t/is (= "otent/basemap/landsat-weld-truecolor-annual/1998-12-01/4/12/6.jpg"
+             (bm/tile-key s [4 12 6] "1998-12-01")))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] nil) "{date}")
+          "without a period the template must leak, not silently fetch `default`")))
+
+(t/deftest annual-composite-refusals
+  (let [w (bm/source-for "landsat-weld-truecolor-annual")]
+    ;; the service serves level 12, but this run's bound is still z4
+    (t/is (= :source/past-ingest-bound (:refusal (bm/ingest-refusal w 5 "1998-12-01"))))
+    (t/is (= :source/past-max-zoom (:refusal (bm/ingest-refusal w 13 "1998-12-01"))))
+    ;; a composite year is still a declared period
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal w 4 nil))))
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal w 4 "1998"))))
+    (t/is (nil? (bm/ingest-refusal w 4 "1998-12-01"))))
+  (let [p (bm/ingest-plan "landsat-weld-truecolor-annual" 4 "1998-12-01")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)) "candidate tiles: holes over ocean are measured later, not planned away")
+    (t/is (= "1998-12-01" (:date p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/landsat-weld-truecolor-annual/1998-12-01/"))))
+
+(t/deftest annual-manifest-entry-states-what-exists
+  (let [w (bm/source-for "landsat-weld-truecolor-annual")
+        m (bm/manifest-imagery-entry w 4 "1998-12-01" 187 "t")]
+    (t/is (= "annual" (:time-mode m)))
+    (t/is (= "1998-12-01" (:capture-date m)))
+    (t/is (= 187 (:tile-count m)) "the STORED count -- sparse coverage means fewer than 341")
+    (t/is (= "NASA -- public domain" (:licence m)))
+    (t/is (= "otent/basemap/landsat-weld-truecolor-annual/1998-12-01" (:prefix m)))))
+
 (t/deftest refusals
   (let [bm (bm/source-for "blue-marble")
         mo (bm/source-for "modis-terra-truecolor")]

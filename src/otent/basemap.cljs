@@ -90,7 +90,32 @@
     ;; The third daily true-colour layer on the same service: served to
     ;; level 9, bound to z4 -- 341 tiles per capture date.
     :max-source-zoom 9
-    :max-ingest-zoom 4}])
+    :max-ingest-zoom 4}
+
+   {:id "landsat-weld-truecolor-annual"
+    :label "NASA GIBS Landsat WELD CorrectedReflectance TrueColor Global Annual"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / Landsat 5 and 7 (WELD)"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/"
+                       "{date}/GoogleMapsCompatible_Level12/{z}/{y}/{x}.jpeg")
+    :time-mode :annual
+    :format "jpeg"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "Landsat 5 TM / Landsat 7 ETM+ (WELD annual composite)"
+    :bands "bands 3,2,1 as RGB true colour"
+    :native-gsd "30 m"
+    ;; Unlike the daily reflectance layers this composite is SPARSE: the
+    ;; service 404s over ocean and anywhere the WELD product has no data,
+    ;; so a missing tile is an honest hole in coverage, not a failure.
+    ;; The service serves level 12; the ingest is bound to z4 -- 341
+    ;; candidate tiles per declared year, of which only the land ones
+    ;; exist. Each run takes ONE declared composite year (the `date` is
+    ;; the year's period start, e.g. 1998-12-01).
+    :max-source-zoom 12
+    :max-ingest-zoom 4
+    :sparse-coverage true}])
 
 (def vector-sources
   [{:id "coastline"
@@ -101,6 +126,12 @@
     :label "Natural Earth 110m admin-0 land boundaries"
     :licence "public domain (CC0)"
     :url "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_boundary_lines_land.geojson"}])
+
+(defn dated?
+  "True when a source is keyed by a capture period: :daily layers take a
+   capture date, :annual composites take the year's period start. Only
+   :static layers ignore it."
+  [source] (not= :static (:time-mode source)))
 
 (defn- src [id] (some #(when (= (:id %) id) %) raster-sources))
 
@@ -134,25 +165,26 @@
     [z x y]))
 
 (defn tile-url
-  "The source URL for one tile. `date` is required for :daily sources and
-   ignored by :static ones."
+  "The source URL for one tile. `date` is required for dated sources
+   (:daily, :annual) and ignored by :static ones."
   ([source tile] (tile-url source tile nil))
   ([source [z x y] date]
    (let [t (-> (:url-template source)
                (clojure.string/replace "{z}" (str z))
                (clojure.string/replace "{x}" (str x))
                (clojure.string/replace "{y}" (str y)))]
-     (if (and (= :daily (:time-mode source)) date)
+     (if (and (dated? source) date)
        (clojure.string/replace t "{date}" (str date))
        t))))
 
 (defn tile-key
-  "The R2 object key for one tile. A daily layer is keyed by capture date,
-   so two days can sit side by side and the manifest says which exists."
+  "The R2 object key for one tile. A dated layer is keyed by capture
+   period, so two days (or two composite years) can sit side by side and
+   the manifest says which exists."
   ([source tile] (tile-key source tile nil))
   ([source [z x y] date]
    (str prefix "/" (:id source)
-        (when (= :daily (:time-mode source)) (str "/" date))
+        (when (dated? source) (str "/" date))
         "/" z "/" x "/" y ".jpg")))
 
 ;; ------------------------------------------------------------------ refusals
@@ -163,8 +195,8 @@
   Three refusals, each a different lie the ingest could otherwise tell:
   past the source's own max zoom it would store upsampled bytes and call
   them detail; past the ingest bound it would crawl the planet a day at a
-  time; without a well-formed date a :daily run would silently fetch
-  `default` and never say what day the pixels are."
+  time; without a well-formed date a dated run would silently fetch
+  `default` and never say what day (or year) the pixels are."
   [source max-z date]
   (cond
     (:refusal source) ;; already a refusal from source-for
@@ -183,9 +215,9 @@
                   " tiles-to-fetch (" (count (tiles-to-zoom (:max-ingest-zoom source)))
                   " tiles) -- unbounded planet crawl is refused")}
 
-    (and (= :daily (:time-mode source)) (not (valid-date? date)))
+    (and (dated? source) (not (valid-date? date)))
     {:refusal :source/capture-date-required
-     :detail (str "a :daily source needs a YYYY-MM-DD capture date, got "
+     :detail (str "a dated source needs a YYYY-MM-DD capture period, got "
                   (pr-str date))}))
 
 (defn ingest-plan
@@ -200,7 +232,7 @@
       (let [tiles (tiles-to-zoom max-z)]
         {:ok? true
          :source source
-         :date (when (= :daily (:time-mode source)) date)
+         :date (when (dated? source) date)
          :tile-count (count tiles)
          :tiles (map (fn [t]
                        {:tile t
@@ -252,5 +284,10 @@
    :scheme "xyz"
    :max-zoom max-z
    :ingest-bound (:max-ingest-zoom source)
+   :sparse-coverage (boolean (:sparse-coverage source))
+   ;; For a sparse source the caller supplies the count of tiles it
+   ;; actually stored (a generic measurement can only count the bound).
+   :candidate-tile-count (when (:sparse-coverage source)
+                           (count (tiles-to-zoom (:max-ingest-zoom source))))
    :tile-count tile-count
    :format (:format source)})
