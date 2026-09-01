@@ -184,7 +184,34 @@
     ;; date. The day's tiles publish the day after capture: a same-day
     ;; date answers 404, an HTTP error, not a hole.
     :max-source-zoom 9
-    :max-ingest-zoom 4}])
+    :max-ingest-zoom 4}
+
+   {:id "viirs-snpp-dnb-radiance"
+    :label "NASA GIBS VIIRS SNPP Day/Night Band At-Sensor Radiance (daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / VIIRS Suomi NPP DNB"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "VIIRS_SNPP_DayNightBand_At_Sensor_Radiance/default/"
+                       "{date}/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png")
+    :time-mode :daily
+    :format "png"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "VIIRS (Suomi NPP)"
+    :bands "day/night band (DNB) at-sensor radiance, greyscale night lights"
+    :native-gsd "750 m"
+    ;; Night lights, not reflectance: the satellite only sees the night
+    ;; side of its orbit, and GIBS answers 404 where no DNB granule
+    ;; covered a tile that day (verified live: a Pacific night-side tile
+    ;; 404s while populated night-side tiles answer 200 with PNG magic).
+    ;; So this is a SPARSE source -- a 404 is an honest hole in the
+    ;; day's coverage, not an error. Served to level 8 (750 m product),
+    ;; bound to z4 -- 341 candidate tiles per declared capture date.
+    ;; The day's tiles publish the day after capture: a same-day date
+    ;; answers 404, which is also just a hole, not a refusal to store.
+    :max-source-zoom 8
+    :max-ingest-zoom 4
+    :sparse-coverage true}])
 
 (def vector-sources
   [{:id "coastline"
