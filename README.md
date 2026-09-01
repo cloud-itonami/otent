@@ -938,6 +938,46 @@ accepted=11 refused=1 outside-bbox=5 has-more=false`, vintage span
 R2 write stopped at the no-credential gate. `--fixture` replays a
 labeled SYNTHETIC payload offline with identical checks.
 
+## One derived task over the open street source: spatial density (per-cell grid)
+
+`bin/kartaview_density.cljs` runs **one** derived task —
+`kartaview-street-density-v1` — over the KartaView observations the
+upstream pass normalized: the one ≤ 0.01° area is binned into a fixed
+deterministic grid (target cell 0.0025°, so at most 4×4 cells derived
+from the declared bbox, never from the data) and admissible photos are
+counted per cell. No model, no inference: `model-id` is `:none`,
+stated rather than hidden.
+
+What it keeps honest:
+
+- **The grid is a pure function of the declared bbox.** The same bbox
+  always produces the same cell edges, whatever the observations are;
+  a photo outside the declared bbox would be counted `unplaceable`,
+  never folded into a neighbouring cell.
+- **Unknowns stay visible.** A photo whose published heading is not a
+  number is counted `heading-unknown` in its cell; a photo with no
+  sequence id is simply absent from `sequence-known` — counted, never
+  dropped. Cells with zero admissible photos stay as explicit zeros.
+- **A lower bound, said out loud.** The provider pages results; the
+  table records `coverage-bound: lower-bound` with `has-more-data` in
+  the note — an empty cell says nothing about the provider's actual
+  coverage there.
+- **The privacy gate is upstream and stated.** Only provider-BLURRED,
+  public, active photos (admitted by `otent.kartaview`) reach the
+  table; the derived provenance re-asserts that no face, plate, person
+  or vehicle entity exists in this task, and that no pixel was fetched
+  or stored.
+- **The stored document self-checks.** `provenance-checks` verifies
+  that placed + unplaceable equals the observation count and that the
+  per-cell counts sum to placed — a tampered count refuses, not passes.
+
+Verified live (one area, central Tokyo, 2026-09-02): `fetched=17
+accepted=11 refused=1 outside-bbox=5 has-more=false`, grid 2×2,
+`photos-placed=11 unplaceable=0`; the refused photo was an
+`ORIGINAL` (unblurred) image, counted at the privacy gate. R2 write
+stopped at the no-credential gate. `--fixture` replays a labeled
+SYNTHETIC payload offline with identical checks.
+
 ## Three planes, and what is allowed on each
 
 | plane | holds | addressed by |
