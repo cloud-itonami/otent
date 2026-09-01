@@ -161,6 +161,29 @@
     ;; capture date. The day's tiles publish the day after capture: a
     ;; same-day date answers 404, which is an HTTP error, not a hole.
     :max-source-zoom 7
+    :max-ingest-zoom 4}
+
+   {:id "modis-aqua-bands721"
+    :label "NASA GIBS MODIS Aqua CorrectedReflectance Bands721 (daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / MODIS Aqua"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "MODIS_Aqua_CorrectedReflectance_Bands721/default/"
+                       "{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg")
+    :time-mode :daily
+    :format "jpeg"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "MODIS (Aqua)"
+    :bands "bands 7,2,1 as RGB false colour (SWIR burn/flood discrimination)"
+    :native-gsd "500 m"
+    ;; Same service, same shape as the Terra Bands721 layer, but the
+    ;; afternoon overpass: the same date is a genuinely different
+    ;; observation, and only Aqua works when Terra's daytime track is
+    ;; degraded. Served to level 9, bound to z4 -- 341 tiles per capture
+    ;; date. The day's tiles publish the day after capture: a same-day
+    ;; date answers 404, an HTTP error, not a hole.
+    :max-source-zoom 9
     :max-ingest-zoom 4}])
 
 (def vector-sources

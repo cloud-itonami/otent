@@ -187,6 +187,47 @@
     (t/is (false? (:sparse-coverage m)))
     (t/is (= "otent/basemap/modis-terra-lst-day/2026-08-30" (:prefix m)))))
 
+;; ------------------------------------------------- Aqua Bands721
+
+(t/deftest aqua-bands721-urls-and-keys-carry-the-capture-date
+  (let [s (bm/source-for "modis-aqua-bands721")]
+    (t/is (= "modis-aqua-bands721" (:id s)))
+    (t/is (bm/dated? s))
+    (t/is (not (:sparse-coverage s)) "reflectance JPEGs cover the whole day's disk -- not sparse")
+    (t/is (= "jpeg" (:format s)))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] "2026-08-30")
+                         "MODIS_Aqua_CorrectedReflectance_Bands721/default/2026-08-30/GoogleMapsCompatible_Level9/4/6/12.jpeg"))
+    (t/is (= "otent/basemap/modis-aqua-bands721/2026-08-30/4/12/6.jpg"
+             (bm/tile-key s [4 12 6] "2026-08-30")))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] nil) "{date}")
+          "without a date the template must leak, not silently fetch `default`")))
+
+(t/deftest aqua-bands721-refusals
+  (let [s (bm/source-for "modis-aqua-bands721")]
+    (t/is (= :source/past-ingest-bound (:refusal (bm/ingest-refusal s 5 "2026-08-30"))))
+    ;; past the layer's own level 9 the service would upsample -- and
+    ;; past the ingest bound the unbounded-crawl refusal bites first
+    (t/is (= :source/past-max-zoom (:refusal (bm/ingest-refusal s 10 "2026-08-30"))))
+    ;; a daily capture date is declared, not defaulted
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 nil))))
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 "2026-08-31T00:00:00Z"))))
+    (t/is (nil? (bm/ingest-refusal s 4 "2026-08-30"))))
+  (let [p (bm/ingest-plan "modis-aqua-bands721" 4 "2026-08-30")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)))
+    (t/is (= "2026-08-30" (:date p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/modis-aqua-bands721/2026-08-30/"))))
+
+(t/deftest aqua-bands721-manifest-entry-states-what-exists
+  (let [s (bm/source-for "modis-aqua-bands721")
+        m (bm/manifest-imagery-entry s 4 "2026-08-30" 341 "t")]
+    (t/is (= "daily" (:time-mode m)))
+    (t/is (= "2026-08-30" (:capture-date m)))
+    (t/is (= 341 (:tile-count m)) "not sparse: full candidate count is the stored count")
+    (t/is (false? (:sparse-coverage m)))
+    (t/is (= "otent/basemap/modis-aqua-bands721/2026-08-30" (:prefix m)))))
+
 (t/deftest refusals
   (let [bm (bm/source-for "blue-marble")
         mo (bm/source-for "modis-terra-truecolor")]
