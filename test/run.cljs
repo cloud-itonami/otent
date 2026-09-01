@@ -40,6 +40,7 @@
             [otent.governor-test]
             [otent.lock-test]
             [otent.mapillary-images-test]
+            [otent.mapillary-coverage-test]
             [otent.parse-test]
             [otent.parses-test]
             [otent.receipt-test]
@@ -56,6 +57,7 @@
     otent.governor-test
     otent.lock-test
     otent.mapillary-images-test
+    otent.mapillary-coverage-test
     otent.parse-test
     otent.parses-test
     otent.receipt-test
