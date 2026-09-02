@@ -1182,3 +1182,17 @@ every row was correctly held as an hour in the future and the suite read
 that as the parser being broken. The clock is now derived from the fixture.
 A recording is a moment; a test that compares it against a fixed present
 is testing the calendar.
+
+## One KartaView image pixel sample (2026-09-02)
+
+KartaView metadata (PR #12) and a derived density task (PR #34) were ingested
+with no pixel ever fetched. This run adds the KartaView counterpart of the
+Panoramax pixel sample (`otent.kartaview-image`): one anonymous search in a
+bbox of at most 0.01 degrees per side, the first in-bbox photo that passes
+every gate — public, active, provider-processed `BLURRED`, plausible lon/lat
+geometry, capture time, published processed-image URL — then ONE pixel GET of
+that photo's own URL. Bytes are hashed and stored only behind
+`$CF_CATALOG_TOKEN`; without the credential the run reports nothing written
+and exits 2. An unblurred, unknown-flag, withdrawn or non-public photo keeps
+its metadata eligibility but is refused the fetch; a record carrying an `@`
+or an exif-shaped key refuses the whole run.
