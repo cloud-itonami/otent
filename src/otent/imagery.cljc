@@ -193,3 +193,32 @@
   [rec fixture-sha256]
   {:provenance-complete (provenance-complete? rec)
    :sha256-matches (= (:payload-sha256 rec) fixture-sha256)})
+
+(def viirs-citylights-2012-sample
+  "The fifth bounded sample: Earth at Night 2012 (VIIRS City Lights,
+  Suomi NPP) -- a static composite with no time dimension, so capture
+  time is the 2012 composite epoch, not a dated acquisition. Night-lights
+  imagery the daytime reflectance layers do not carry. Same shape as the
+  Blue Marble sample: static composite, one tile, level 0, public domain."
+  {:asset-id "VIIRS_CityLights_2012/500m/0/0/0"
+   :layer "VIIRS_CityLights_2012"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/"
+        "VIIRS_CityLights_2012/default/500m/0/0/0.jpeg")
+   :capture-time "2012"
+   :capture-note
+   "VIIRS day/night band composite for 2012 (Earth at Night); the layer
+  exposes no time dimension, so capture time is the composite epoch, not
+  a dated satellite acquisition."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 500
+   :sensor "VIIRS (Suomi NPP), day/night band night-lights composite"
+   :bands #{:r :g :b}
+   :band-source "day/night band radiance rendered as a night-lights image"
+   :licence :nasa-public-domain
+   :tile-matrix "500m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-02T18:19:36Z"
+   :payload-sha256
+   "0530f0aa7ab41c8f71bd91b8468f4192abb5b8569b94376d272a4f454d318f10"})
