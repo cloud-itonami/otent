@@ -41,19 +41,25 @@
 (defn manifest
   "The coverage statement: exactly what exists, derived from the
   provenance record. Nothing here may claim coverage the record does
-  not back."
+  not back. `:bounds` (optional) carries the footprint when it is not
+  the whole planet; `:capture-time` is stated verbatim when the record
+  declares a dated acquisition."
   [rec]
-  {:what-exists
-   (str "One bounded GIBS WMTS sample: layer "
-        (:layer rec) ", tile matrix " (:tile-matrix rec)
-        ", tile z/x/y " (:tile-zxy rec)
-        ", global EPSG:4326 footprint at level 0.")
-   :asset-id (:asset-id rec)
-   :licence (:licence rec)
-   :payload-sha256 (:payload-sha256 rec)
-   :retrieved-at (:retrieved-at rec)
-   :bounds-epg4326-deg [-180.0 180.0 -90.0 90.0]
-   :level-0-only true})
+  (merge
+   {:what-exists
+    (str "One bounded GIBS WMTS sample: layer "
+         (:layer rec) ", tile matrix " (:tile-matrix rec)
+         ", tile z/x/y " (:tile-zxy rec)
+         (if (:capture-time rec)
+           (str ", declared capture date " (:capture-time rec) ".")
+           ", global EPSG:4326 footprint at level 0."))
+    :asset-id (:asset-id rec)
+    :licence (:licence rec)
+    :payload-sha256 (:payload-sha256 rec)
+    :retrieved-at (:retrieved-at rec)
+    :level-0-only (= 0 (first (:tile-zxy rec)))}
+   (when (:capture-time rec) {:capture-time (:capture-time rec)})
+   {:bounds-epg4326-deg (:bounds rec (:footprint rec))}))
 
 (def sample
   "The provenance record for the bounded sample this slice captured.
@@ -62,6 +68,7 @@
   layer is static, so capture time is the BMNG composite epoch, not a
   dated acquisition."
   {:asset-id "BlueMarble_ShadedRelief_Bathymetry/500m/0/0/0"
+   :layer "BlueMarble_ShadedRelief_Bathymetry"
    :source-url
    "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/BlueMarble_ShadedRelief_Bathymetry/default/500m/"
    :capture-time "2004"
@@ -79,6 +86,37 @@
    :retrieved-at "2026-09-02T07:53:00Z"
    :payload-sha256
    "bcba78c5d01ba5ff545281d3acd77f7429f724f6213bec949f8298c518a963ab"})
+
+(def modis-terra-truecolor-sample
+  "The second bounded sample: MODIS Terra CorrectedReflectance TrueColor,
+  one EPSG:4326 level-0 tile for ONE declared capture date. Unlike the
+  static Blue Marble layer this is a dated acquisition -- the capture
+  date is declared by the run, never defaulted from the wall clock, and
+  the record carries it verbatim. Same public-domain licence; the ingest
+  stays bounded at one tile, level 0."
+  {:asset-id "MODIS_Terra_CorrectedReflectance_TrueColor/250m/0/0/0"
+   :layer "MODIS_Terra_CorrectedReflectance_TrueColor"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/"
+        "MODIS_Terra_CorrectedReflectance_TrueColor/default/"
+        "2026-09-01/250m/0/0/0.jpeg")
+   :capture-time "2026-09-01"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's time dimension. The date is declared per run, not guessed
+  from the wall clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 250
+   :sensor "MODIS (Terra)"
+   :bands #{:r :g :b}
+   :band-source "bands 1,4,3 as RGB true colour"
+   :licence :nasa-public-domain
+   :tile-matrix "250m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-02T02:52:37Z"
+   :payload-sha256
+   "ec1ca4b6b6aba2b6a30fa67a6bca7155649008677515a3f295c4b5e6122befda"})
 
 (defn verify-sample
   "The object readback: re-derive the sample's provenance completeness
