@@ -350,3 +350,60 @@
                   (:licence imagery/modis-aqua-truecolor-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/modis-aqua-truecolor-sample))))))
+
+;; ---- the eighth bounded sample: Landsat WELD true colour, annual, level 0
+
+(def weld-truecolor-fixture-name "landsat-weld-truecolor-1985-z0.jpeg")
+
+(defn weld-truecolor-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             weld-truecolor-fixture-name))
+
+(t/deftest weld-truecolor-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/landsat-weld-truecolor-1985-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/landsat-weld-truecolor-1985-sample
+                           :capture-time))))))
+
+(t/deftest weld-truecolor-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/landsat-weld-truecolor-1985-sample)]
+    (t/is (= (:asset-id imagery/landsat-weld-truecolor-1985-sample)
+             (:asset-id m)))
+    (t/is (re-find #"Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual"
+                   (:what-exists m)))
+    (t/testing "the declared composite period is stated verbatim"
+      (t/is (re-find #"1985-12-01" (:what-exists m)))
+      (t/is (= "1985-12-01" (:capture-time m))))
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the half-globe tile states its bounds, never the planet"
+      (t/is (= [-180.0 0.0 0.0 90.0] (:bounds-epg4326-deg m)))
+      (t/is (re-find #"north-west half\s+of the globe" (:what-exists m))))))
+
+(t/deftest weld-truecolor-object-readback-test
+  (t/testing "the WELD fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (weld-truecolor-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/landsat-weld-truecolor-1985-sample) sha256)))))
+
+(t/deftest weld-truecolor-verify-sample-test
+  (let [bytes (fs/readFileSync (weld-truecolor-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/landsat-weld-truecolor-1985-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest weld-truecolor-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the Landsat source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/landsat-weld-truecolor-1985-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/landsat-weld-truecolor-1985-sample))))))
