@@ -1181,9 +1181,49 @@ hashed (`input sha256=…`) before anything else runs, so provenance
 survives even a refusal. A picture is an observation at capture time,
 not current existence.
 
+## One derived task over the Panoramax observations: spatial density (per-cell grid)
+
+`bin/panorama_density.cljs` runs **one** derived task —
+`panoramax-street-density-v1` — over the Panoramax observations the
+upstream pass normalized: the one ≤ 0.01° area is binned into a fixed
+deterministic grid (target cell 0.0025°, so at most 4×4 cells derived
+from the declared bbox, never from the data) and admissible pictures
+are counted per cell. No model, no inference: `model-id` is `:none`,
+stated rather than hidden.
+
+What it keeps honest:
+
+- **The grid is a pure function of the declared bbox.** The same bbox
+  always produces the same cell edges, whatever the observations are;
+  a picture outside the declared bbox would be counted `unplaceable`,
+  never folded into a neighbouring cell.
+- **Unknowns stay visible.** A picture whose published `view:azimuth`
+  is not a number is counted `heading-unknown` in its cell; a picture
+  with no collection id is simply absent from `sequence-known` —
+  counted, never dropped. Cells with zero admissible pictures stay as
+  explicit zeros.
+- **A lower bound, said out loud.** The provider pages results; the
+  table records `coverage-bound: lower-bound` with the presence of a
+  `next` link in the note — an empty cell says nothing about the
+  provider's actual coverage there.
+- **The privacy gate is upstream and stated.** Only `status=ready`,
+  public, licence-carrying items with uploader EXIF redacted (admitted
+  by `otent.panoramax`) reach the table; the derived provenance
+  re-asserts that no face, plate, person or vehicle entity exists in
+  this task, and that no pixel was fetched or stored.
+- **The stored document self-checks.** `provenance-checks` verifies
+  that placed + unplaceable equals the observation count and that the
+  per-cell counts sum to placed — a tampered count refuses, not passes.
+
+Verified live (one area, central Tokyo, 2026-09-03): `fetched=100
+accepted=100 refused=0 outside-bbox=0 next-link=false`, grid 2×2,
+`pictures-placed=100 unplaceable=0`. R2 write stopped at the
+no-credential gate. `--fixture` replays a labeled SYNTHETIC payload
+offline with identical checks.
+
 ## Tests
 
-`npm test` — 121 tests, 1,493 assertions, against **captured real payloads**
+`npm test` — 134 tests, 1,576 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
