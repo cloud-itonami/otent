@@ -254,3 +254,33 @@
    :retrieved-at "2026-09-02T19:45:50Z"
    :payload-sha256
    "376d09b371b6d150a8716626b7a1da4d9c0e656904185343499b02b272762a37"})
+
+(def modis-aqua-truecolor-sample
+  "The seventh bounded sample: MODIS Aqua CorrectedReflectance TrueColor,
+  one EPSG:4326 level-0 tile for ONE declared capture date. Same daytime
+  reflectance family as the Terra sample but from the afternoon platform
+  -- a different sensor, a different observation, not a re-render. Dated
+  acquisition, declared capture date, one tile, level 0, public domain."
+  {:asset-id "MODIS_Aqua_CorrectedReflectance_TrueColor/250m/0/0/0"
+   :layer "MODIS_Aqua_CorrectedReflectance_TrueColor"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/"
+        "MODIS_Aqua_CorrectedReflectance_TrueColor/default/"
+        "2026-09-02/250m/0/0/0.jpeg")
+   :capture-time "2026-09-02"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's time dimension. The date is declared per run, not guessed
+  from the wall clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 250
+   :sensor "MODIS (Aqua)"
+   :bands #{:r :g :b}
+   :band-source "bands 1,4,3 as RGB true colour"
+   :licence :nasa-public-domain
+   :tile-matrix "250m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-02T19:51:17Z"
+   :payload-sha256
+   "530d2c14e4c680de1ebaba761395d0206adf6d10e0df8ff66d6b9d9fa601ccc9"})
