@@ -682,3 +682,59 @@
                   (:licence imagery/viirs-snpp-dnb-encc-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/viirs-snpp-dnb-encc-sample))))))
+
+;; ---- the fourteenth bounded sample: VIIRS NOAA-20 BandsM11-I2-I1
+;; ---- false colour, one declared capture date, level 0
+
+(def n20-m11-fixture-name "viirs-noaa20-bandsm11-i2-i1-20260901-z0.jpeg")
+
+(defn n20-m11-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             n20-m11-fixture-name))
+
+(t/deftest n20-m11-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/viirs-noaa20-bandsm11-i2-i1-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/viirs-noaa20-bandsm11-i2-i1-sample
+                           :capture-time))))))
+
+(t/deftest n20-m11-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/viirs-noaa20-bandsm11-i2-i1-sample)]
+    (t/is (= (:asset-id imagery/viirs-noaa20-bandsm11-i2-i1-sample)
+             (:asset-id m)))
+    (t/is (re-find #"VIIRS_NOAA20_CorrectedReflectance_BandsM11-I2-I1"
+                   (:what-exists m)))
+    (t/is (= "2026-09-01" (:capture-time m))
+          "the declared capture date is carried verbatim")
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the global tile states the planet it covers"
+      (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))))))
+
+(t/deftest n20-m11-object-readback-test
+  (t/testing "the n20-m11 fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (n20-m11-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/viirs-noaa20-bandsm11-i2-i1-sample) sha256)))))
+
+(t/deftest n20-m11-verify-sample-test
+  (let [bytes (fs/readFileSync (n20-m11-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/viirs-noaa20-bandsm11-i2-i1-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest n20-m11-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the n20-m11 source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/viirs-noaa20-bandsm11-i2-i1-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/viirs-noaa20-bandsm11-i2-i1-sample))))))

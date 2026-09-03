@@ -491,3 +491,37 @@
    :retrieved-at "2026-09-03T15:14:09Z"
    :payload-sha256
    "7b7be2b361953c489bded84eefb57ad9e21ca6bf64fa7838e293555fc7542347"})
+
+(def viirs-noaa20-bandsm11-i2-i1-sample
+  "The fourteenth bounded sample: VIIRS NOAA-20 CorrectedReflectance
+  BandsM11-I2-I1, one EPSG:4326 level-0 tile for ONE declared capture
+  date. A different sensor and different band stack from the SNPP
+  samples in this slice: NOAA-20 (JPSS-1), false colour built from the
+  M11 cirrus/reflective band with the I2 near-infrared and I1 red
+  bands, where ice and snow show up bright and cloud temperature
+  structure is visible. A dated daily acquisition; the declared capture
+  date selects the layer's time dimension, stated verbatim, not a date
+  guessed from the wall clock. One tile, level 0, public domain."
+  {:asset-id "VIIRS_NOAA20_CorrectedReflectance_BandsM11-I2-I1/250m/0/0/0"
+   :layer "VIIRS_NOAA20_CorrectedReflectance_BandsM11-I2-I1"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "VIIRS_NOAA20_CorrectedReflectance_BandsM11-I2-I1/default/"
+        "2026-09-01/250m/0/0/0.jpeg")
+   :capture-time "2026-09-01"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 250
+   :sensor "VIIRS (NOAA-20 / JPSS-1)"
+   :bands #{:m11 :i2 :i1}
+   :band-source "bands M11, I2, I1 as RGB false colour"
+   :licence :nasa-public-domain
+   :tile-matrix "250m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-03T15:21:02Z"
+   :payload-sha256
+   "215dd279a82f2e9823c2f8e69b1521e985e3a2413ad7a6565f8d92d798cc52a2"})
