@@ -525,3 +525,38 @@
    :retrieved-at "2026-09-03T15:21:02Z"
    :payload-sha256
    "215dd279a82f2e9823c2f8e69b1521e985e3a2413ad7a6565f8d92d798cc52a2"})
+
+(def modis-aqua-bands721-sample
+  "The fifteenth bounded sample: MODIS Aqua CorrectedReflectance Bands721,
+  one EPSG:4326 level-0 tile for ONE declared capture date. The Aqua
+  sibling of the Terra 7-2-1 false-colour slice: bands 7 (shortwave
+  infrared), 2 (near infrared) and 1 (red) mapped to RGB, where snow and
+  ice read bright while vegetation stays green -- the classic
+  snow/ice-versus-cloud discriminator, from Aqua's afternoon overpass
+  where the Terra slices see the morning. A dated daily acquisition; the
+  declared capture date selects the layer's time dimension, stated
+  verbatim, not a date guessed from the wall clock. One tile, level 0,
+  public domain."
+  {:asset-id "MODIS_Aqua_CorrectedReflectance_Bands721/250m/0/0/0"
+   :layer "MODIS_Aqua_CorrectedReflectance_Bands721"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Aqua_CorrectedReflectance_Bands721/default/"
+        "2026-09-03/250m/0/0/0.jpeg")
+   :capture-time "2026-09-03"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 250
+   :sensor "MODIS (Aqua)"
+   :bands #{:b7 :b2 :b1}
+   :band-source "bands 7 (SWIR), 2 (NIR), 1 (red) as RGB false colour (snow/ice discrimination)"
+   :licence :nasa-public-domain
+   :tile-matrix "250m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-03T19:52:13Z"
+   :payload-sha256
+   "ba7470083cafc2efe3ec54f1573ff3cecaa3ca3e372d7485c30a3729d30b0924"})
