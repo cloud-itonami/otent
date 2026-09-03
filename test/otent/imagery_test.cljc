@@ -407,3 +407,59 @@
                   (:licence imagery/landsat-weld-truecolor-1985-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/landsat-weld-truecolor-1985-sample))))))
+
+;; ---- the ninth bounded sample: MODIS Terra Bands721 false colour, level 0
+
+(def bands721-fixture-name "modis-terra-bands721-20260901-z0.jpeg")
+
+(defn bands721-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             bands721-fixture-name))
+
+(t/deftest bands721-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/modis-terra-bands721-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/modis-terra-bands721-sample
+                           :capture-time))))))
+
+(t/deftest bands721-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/modis-terra-bands721-sample)]
+    (t/is (= (:asset-id imagery/modis-terra-bands721-sample)
+             (:asset-id m)))
+    (t/is (re-find #"MODIS_Terra_CorrectedReflectance_Bands721"
+                   (:what-exists m)))
+    (t/testing "the declared capture date is stated verbatim"
+      (t/is (re-find #"2026-09-01" (:what-exists m)))
+      (t/is (= "2026-09-01" (:capture-time m))))
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))
+          "the manifest's bounds are the record's footprint, not more")))
+
+(t/deftest bands721-object-readback-test
+  (t/testing "the Bands721 fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (bands721-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/modis-terra-bands721-sample) sha256)))))
+
+(t/deftest bands721-verify-sample-test
+  (let [bytes (fs/readFileSync (bands721-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/modis-terra-bands721-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest bands721-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the Bands721 source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/modis-terra-bands721-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/modis-terra-bands721-sample))))))

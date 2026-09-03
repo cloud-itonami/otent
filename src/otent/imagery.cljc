@@ -323,3 +323,35 @@
    :retrieved-at "2026-09-02T19:51:17Z"
    :payload-sha256
    "530d2c14e4c680de1ebaba761395d0206adf6d10e0df8ff66d6b9d9fa601ccc9"})
+
+(def modis-terra-bands721-sample
+  "The ninth bounded sample: MODIS Terra CorrectedReflectance Bands721,
+  one EPSG:4326 level-0 tile for ONE declared capture date. A false-colour
+  rendering -- bands 7, 2, 1 as RGB -- from the same Terra platform as the
+  true-colour sample, but a different band product and therefore a
+  different observation, not a re-render: snow and ice read bright blue,
+  vegetation red, bare earth green, and burned areas a deep red. Dated
+  acquisition, declared capture date, one tile, level 0, public domain."
+  {:asset-id "MODIS_Terra_CorrectedReflectance_Bands721/250m/0/0/0"
+   :layer "MODIS_Terra_CorrectedReflectance_Bands721"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/"
+        "MODIS_Terra_CorrectedReflectance_Bands721/default/"
+        "2026-09-01/250m/0/0/0.jpeg")
+   :capture-time "2026-09-01"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's time dimension. The date is declared per run, not guessed
+  from the wall clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 250
+   :sensor "MODIS (Terra)"
+   :bands #{:r :g :b}
+   :band-source "bands 7, 2, 1 as RGB false colour (SWIR, NIR, red)"
+   :licence :nasa-public-domain
+   :tile-matrix "250m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-03T05:27:21Z"
+   :payload-sha256
+   "dabd312d93d1703b99e1cf6c419913d80da0a1547a06cd62ea2e73ea97eccf42"})
