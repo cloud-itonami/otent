@@ -42,6 +42,7 @@
             [otent.parse-test]
             [otent.panoramax-test]
             [otent.panorama-density-test]
+            [otent.panorama-coverage-test]
             [otent.parses-test]
             [otent.receipt-test]
             [otent.sanctions-test]
@@ -59,6 +60,7 @@
     otent.parse-test
     otent.panoramax-test
     otent.panorama-density-test
+    otent.panorama-coverage-test
     otent.parses-test
     otent.receipt-test
     otent.sanctions-test
