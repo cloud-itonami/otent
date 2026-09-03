@@ -571,3 +571,59 @@
                   (:licence imagery/viirs-black-marble-2016-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/viirs-black-marble-2016-sample))))))
+
+;; ---- the twelfth bounded sample: MODIS Terra 8-day surface
+;; ---- reflectance bands 1-4-3, one declared period start, level 0
+
+(def bands143-fixture-name "modis-terra-bands143-8day-20260202-z0.jpeg")
+
+(defn bands143-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             bands143-fixture-name))
+
+(t/deftest bands143-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/modis-terra-bands143-8day-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/modis-terra-bands143-8day-sample
+                           :capture-time))))))
+
+(t/deftest bands143-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/modis-terra-bands143-8day-sample)]
+    (t/is (= (:asset-id imagery/modis-terra-bands143-8day-sample)
+             (:asset-id m)))
+    (t/is (re-find #"MODIS_Terra_L3_SurfaceReflectance_Bands143_8Day"
+                   (:what-exists m)))
+    (t/is (= "2026-02-02" (:capture-time m))
+          "the declared 8-day period start is carried verbatim")
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the global tile states the planet it covers"
+      (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))))))
+
+(t/deftest bands143-object-readback-test
+  (t/testing "the bands143 fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (bands143-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/modis-terra-bands143-8day-sample) sha256)))))
+
+(t/deftest bands143-verify-sample-test
+  (let [bytes (fs/readFileSync (bands143-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/modis-terra-bands143-8day-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest bands143-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the bands143 source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/modis-terra-bands143-8day-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/modis-terra-bands143-8day-sample))))))

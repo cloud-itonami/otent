@@ -419,3 +419,37 @@
    :retrieved-at "2026-09-03T11:07:43Z"
    :payload-sha256
    "61c65af49b7acc532fa409b2cec0ec168caf3df70dad940d55c4b837e9c0c850"})
+
+(def modis-terra-bands143-8day-sample
+  "The twelfth bounded sample: MODIS Terra Land Surface Reflectance,
+  Bands 1-4-3 (8-Day, True Color) -- one EPSG:4326 level-0 tile for ONE
+  declared 8-day period start. A different quantity from the daily
+  corrected-reflectance slices: L3 8-day composite surface reflectance
+  (MYD09/MOD09 processing family) rather than a daily corrected
+  reflectance swath render, and a different band combination from the
+  Terra 3-6-7 and 7-2-1 false-colour samples. One tile, level 0, public
+  domain."
+  {:asset-id "MODIS_Terra_L3_SurfaceReflectance_Bands143_8Day/500m/0/0/0"
+   :layer "MODIS_Terra_L3_SurfaceReflectance_Bands143_8Day"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/"
+        "MODIS_Terra_L3_SurfaceReflectance_Bands143_8Day/default/"
+        "2026-02-02/500m/0/0/0.jpeg")
+   :capture-time "2026-02-02"
+   :capture-note
+   "Dated acquisition: the declared value selects the layer's 8-day
+  composite period start (2026-02-02), the latest period the layer
+  publishes. The date is declared per run, not guessed from the wall
+  clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 500
+   :sensor "MODIS (Terra), L3 8-day surface reflectance composite"
+   :bands #{:r :g :b}
+   :band-source "surface reflectance bands 1 (645nm), 4 (555nm), 3 (469nm) as RGB true colour"
+   :licence :nasa-public-domain
+   :tile-matrix "500m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-03T12:08:59Z"
+   :payload-sha256
+   "8dbea2ce1222c4cf1908ac2b65f832e6ce4a8c387ff2c7338fd08fa15d243f8b"})
