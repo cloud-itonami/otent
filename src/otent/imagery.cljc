@@ -387,3 +387,35 @@
    :retrieved-at "2026-09-03T05:58:00Z"
    :payload-sha256
    "a460d7f324aa1a401effb7ee7925151205cc52af3c3dd656a58ae1b535049673"})
+
+(def viirs-black-marble-2016-sample
+  "The eleventh bounded sample: Black Marble (VIIRS, Suomi NPP) -- the
+  2016 day/night band annual composite, one EPSG:4326 level-0 tile. A
+  second night-lights source in this slice, distinct from the 2012 City
+  Lights composite in epoch, calibration (VIIRS DNB annual processing)
+  and file format (PNG rather than JPEG) -- so it is a different
+  observation, not a re-render. The layer is static on GIBS, so capture
+  time is the 2016 composite epoch, not a dated acquisition. One tile,
+  level 0, public domain."
+  {:asset-id "VIIRS_Black_Marble/500m/0/0/0"
+   :layer "VIIRS_Black_Marble"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/"
+        "VIIRS_Black_Marble/default/500m/0/0/0.png")
+   :capture-time "2016"
+   :capture-note
+   "VIIRS day/night band annual composite for 2016 (Black Marble); the
+  layer is static on GIBS, so capture time is the composite epoch, not
+  a dated satellite acquisition."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 500
+   :sensor "VIIRS (Suomi NPP), day/night band annual night-lights composite"
+   :bands #{:r :g :b}
+   :band-source "day/night band radiance rendered as a night-lights image"
+   :licence :nasa-public-domain
+   :tile-matrix "500m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-03T11:07:43Z"
+   :payload-sha256
+   "61c65af49b7acc532fa409b2cec0ec168caf3df70dad940d55c4b837e9c0c850"})

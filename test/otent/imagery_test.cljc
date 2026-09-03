@@ -519,3 +519,55 @@
                   (:licence imagery/viirs-noaa20-truecolor-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/viirs-noaa20-truecolor-sample))))))
+
+;; ---- the eleventh bounded sample: Black Marble 2016, static, level 0
+
+(def black-marble-fixture-name "viirs-black-marble-2016-z0.png")
+
+(defn black-marble-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             black-marble-fixture-name))
+
+(t/deftest black-marble-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/viirs-black-marble-2016-sample)))
+  (t/testing "a static record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/viirs-black-marble-2016-sample
+                           :sensor))))))
+
+(t/deftest black-marble-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/viirs-black-marble-2016-sample)]
+    (t/is (= (:asset-id imagery/viirs-black-marble-2016-sample)
+             (:asset-id m)))
+    (t/is (re-find #"VIIRS_Black_Marble" (:what-exists m)))
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the static global tile states the planet it covers"
+      (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))))))
+
+(t/deftest black-marble-object-readback-test
+  (t/testing "the black-marble fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (black-marble-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/viirs-black-marble-2016-sample) sha256)))))
+
+(t/deftest black-marble-verify-sample-test
+  (let [bytes (fs/readFileSync (black-marble-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/viirs-black-marble-2016-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest black-marble-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the Black Marble source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/viirs-black-marble-2016-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/viirs-black-marble-2016-sample))))))
