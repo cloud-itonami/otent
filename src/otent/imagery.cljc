@@ -453,3 +453,41 @@
    :retrieved-at "2026-09-03T12:08:59Z"
    :payload-sha256
    "8dbea2ce1222c4cf1908ac2b65f832e6ce4a8c387ff2c7338fd08fa15d243f8b"})
+
+(def viirs-snpp-dnb-encc-sample
+  "The thirteenth bounded sample: VIIRS SNPP Day/Night Band Enhanced Near
+  Constant Contrast (ENCC), one EPSG:4326 level-0 tile for ONE declared
+  capture date. A different quantity from the static night-lights
+  composites (2012 City Lights, 2016 Black Marble) in this slice: a
+  DAILY calibrated DNB product -- radiance converted to near-constant
+  contrast so lit and unlit terrain are both visible -- rather than an
+  annual composite render. The SNPP ENCC layer's daily time dimension
+  ends 2023-07-07 (SNPP day/night band ENCC processing stops there), so
+  the declared date is the last date the layer publishes, stated
+  verbatim, not a date guessed from the wall clock. One tile, level 0,
+  public domain."
+  {:asset-id "VIIRS_SNPP_DayNightBand_ENCC/500m/0/0/0"
+   :layer "VIIRS_SNPP_DayNightBand_ENCC"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "VIIRS_SNPP_DayNightBand_ENCC/default/"
+        "2023-07-07/500m/0/0/0.png")
+   :capture-time "2023-07-07"
+   :capture-note
+   "Dated acquisition: the declared value selects the layer's daily time
+  dimension, and is the last date the SNPP day/night band ENCC layer
+  publishes. The date is declared per run, not guessed from the wall
+  clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 500
+   :sensor "VIIRS (Suomi NPP), day/night band enhanced near-constant contrast"
+   :bands #{:near-constant-contrast}
+   :band-source
+   "day/night band at-sensor radiance converted to enhanced near-constant contrast"
+   :licence :nasa-public-domain
+   :tile-matrix "500m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-03T15:14:09Z"
+   :payload-sha256
+   "7b7be2b361953c489bded84eefb57ad9e21ca6bf64fa7838e293555fc7542347"})

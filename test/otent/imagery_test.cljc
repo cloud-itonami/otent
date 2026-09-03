@@ -627,3 +627,58 @@
                   (:licence imagery/modis-terra-bands143-8day-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/modis-terra-bands143-8day-sample))))))
+
+;; ---- the thirteenth bounded sample: VIIRS SNPP day/night band
+;; ---- enhanced near-constant contrast, one declared capture date, level 0
+
+(def dnb-encc-fixture-name "viirs-snpp-dnb-encc-20230707-z0.png")
+
+(defn dnb-encc-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             dnb-encc-fixture-name))
+
+(t/deftest dnb-encc-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/viirs-snpp-dnb-encc-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/viirs-snpp-dnb-encc-sample
+                           :capture-time))))))
+
+(t/deftest dnb-encc-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/viirs-snpp-dnb-encc-sample)]
+    (t/is (= (:asset-id imagery/viirs-snpp-dnb-encc-sample)
+             (:asset-id m)))
+    (t/is (re-find #"VIIRS_SNPP_DayNightBand_ENCC" (:what-exists m)))
+    (t/is (= "2023-07-07" (:capture-time m))
+          "the declared capture date is carried verbatim")
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the global tile states the planet it covers"
+      (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))))))
+
+(t/deftest dnb-encc-object-readback-test
+  (t/testing "the dnb-encc fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (dnb-encc-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/viirs-snpp-dnb-encc-sample) sha256)))))
+
+(t/deftest dnb-encc-verify-sample-test
+  (let [bytes (fs/readFileSync (dnb-encc-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/viirs-snpp-dnb-encc-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest dnb-encc-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the dnb-encc source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/viirs-snpp-dnb-encc-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/viirs-snpp-dnb-encc-sample))))))
