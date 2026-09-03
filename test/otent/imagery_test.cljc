@@ -794,3 +794,59 @@
                   (:licence imagery/modis-aqua-bands721-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/modis-aqua-bands721-sample))))))
+
+;; ---- the sixteenth bounded sample: MODIS Aqua surface reflectance
+;; ---- Bands 1-4-3, one declared capture date, level 0, 500m matrix
+
+(def surf143-fixture-name "modis-aqua-surf143-20260903-z0.jpeg")
+
+(defn surf143-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             surf143-fixture-name))
+
+(t/deftest surf143-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/modis-aqua-surf143-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/modis-aqua-surf143-sample
+                           :capture-time))))))
+
+(t/deftest surf143-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/modis-aqua-surf143-sample)]
+    (t/is (= (:asset-id imagery/modis-aqua-surf143-sample)
+             (:asset-id m)))
+    (t/is (re-find #"MODIS_Aqua_SurfaceReflectance_Bands143"
+                   (:what-exists m)))
+    (t/is (= "2026-09-03" (:capture-time m))
+          "the declared capture date is carried verbatim")
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the global tile states the planet it covers"
+      (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))))))
+
+(t/deftest surf143-object-readback-test
+  (t/testing "the surf143 fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (surf143-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/modis-aqua-surf143-sample) sha256)))))
+
+(t/deftest surf143-verify-sample-test
+  (let [bytes (fs/readFileSync (surf143-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/modis-aqua-surf143-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest surf143-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the surf143 source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/modis-aqua-surf143-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/modis-aqua-surf143-sample))))))

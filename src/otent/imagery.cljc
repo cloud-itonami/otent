@@ -560,3 +560,39 @@
    :retrieved-at "2026-09-03T19:52:13Z"
    :payload-sha256
    "ba7470083cafc2efe3ec54f1573ff3cecaa3ca3e372d7485c30a3729d30b0924"})
+
+(def modis-aqua-surf143-sample
+  "The sixteenth bounded sample: MODIS Aqua Surface Reflectance Bands143,
+  one EPSG:4326 level-0 tile for ONE declared capture date. The Aqua
+  sibling of the Terra Bands143 8-day slice, but the daily product:
+  atmospherically corrected surface reflectance -- bands 1 (red), 4
+  (green) and 3 (blue) mapped to RGB for a natural-ish colour view from
+  Aqua's afternoon overpass. Unlike the CorrectedReflectance layers,
+  these are L2G surface reflectances, so cloud and snow read with their
+  true spectral colours. Served from the 500m tile matrix; the declared
+  capture date selects the layer's daily time dimension, stated
+  verbatim, not a date guessed from the wall clock. One tile, level 0,
+  public domain."
+  {:asset-id "MODIS_Aqua_SurfaceReflectance_Bands143/500m/0/0/0"
+   :layer "MODIS_Aqua_SurfaceReflectance_Bands143"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Aqua_SurfaceReflectance_Bands143/default/"
+        "2026-09-03/500m/0/0/0.jpeg")
+   :capture-time "2026-09-03"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 500
+   :sensor "MODIS (Aqua)"
+   :bands #{:b1 :b4 :b3}
+   :band-source "bands 1 (red), 4 (green), 3 (blue) as RGB surface reflectance"
+   :licence :nasa-public-domain
+   :tile-matrix "500m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-03T22:34:45Z"
+   :payload-sha256
+   "142e6dfa58cad724a38deb4941eebeb2ecc55d86f2cd5104f5ede86cf695892e"})
