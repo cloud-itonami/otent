@@ -1141,6 +1141,19 @@ has no default, and prints how many it waived. Set to the epoch — covering
 nothing — the same three rows refuse again, naming them as observed *after*
 the archive existed, which is a failure rather than history.
 
+## Street imagery sources (bounded, one subject per run)
+
+`src/otent/mapillary_mapfeature_detections.cljc` + `bin/mapillary_mapfeature_detections.cljs`:
+ONE `/:map_feature_id/detections` request through the registered client
+`com-mapillary-graph-api` (`detections-request` with `kind :map-feature`),
+metadata only — no pixel field is ever requested. `paging.next` is counted,
+never followed. Detection taxonomy values naming a person, face or licence
+plate are refused before any record exists (counted, not stored). Token:
+`MAPILLARY_ACCESS_TOKEN` from the environment only, in the `Authorization`
+header; without it live mode exits 2 — a 401 must never be misread as an
+empty subject. A map feature is a provider-published observation, not a
+current fact about the world.
+
 ## One Mapillary per-image detections source — metadata only
 
 `bin/mapillary_image_detections.cljs` covers the client endpoint no

@@ -1,0 +1,26 @@
+{
+  "image-id": null,
+  "map-feature-id": "982746150392817",
+  "retrieved-at": null,
+  "data": [
+    {
+      "id": "193892647102583",
+      "value": "object--support--utility-pole",
+      "geometry": {"type": "Point", "coordinates": [139.7654, 35.6789]},
+      "created_at": 1755100900000
+    },
+    {
+      "id": "193892647102585",
+      "value": "object--human--person",
+      "geometry": {"type": "Point", "coordinates": [139.7656, 35.6791]},
+      "created_at": 1755100902000
+    },
+    {
+      "id": "193892647102584",
+      "value": "object--sign--information",
+      "geometry": {"type": "Point", "coordinates": [139.7655, 35.6790]},
+      "created_at": 1755100901000
+    }
+  ],
+  "paging": {"next": "https://graph.mapillary.com/982746150392817/detections?cursor=SYNTHETIC"}
+}
