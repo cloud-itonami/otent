@@ -4,7 +4,7 @@
   "description": "Ingest actor: public satellite/quake/aircraft/fire/vessel feeds -> governed rows -> Cloudflare R2 Data Catalog (Apache Iceberg)",
   "license": "MIT",
   "scripts": {
-    "test": "nbb --classpath src:test:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src:../../kotoba-lang/org-ietf-csv/src:../../kotoba-lang/map/src test/run.cljs",
+    "test": "nbb --classpath src:test:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src:../../kotoba-lang/org-ietf-csv/src:../../kotoba-lang/map/src:../../kotoba-lang/com-mapillary-graph-api/src test/run.cljs",
     "tick": "nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src:../../kotoba-lang/org-ietf-csv/src bin/otent.cljs tick",
     "feeds": "nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src:../../kotoba-lang/org-ietf-csv/src bin/otent.cljs feeds",
     "retain": "nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src:../../kotoba-lang/org-ietf-csv/src bin/otent.cljs retain",
