@@ -597,6 +597,48 @@
    :payload-sha256
    "142e6dfa58cad724a38deb4941eebeb2ecc55d86f2cd5104f5ede86cf695892e"})
 
+(def modis-terra-ndsi-snow-sample
+  "The eighteenth bounded sample: MODIS Terra L3 NDSI Snow Cover Daily,
+  one EPSG:4326 level-0 tile for ONE declared capture date. A new
+  quantity class in this slice: a binary classification -- snow cover
+  derived from the Normalized Difference Snow Index (MOD10 L2/L3
+  processing family) -- rendered through the GIBS colour map, not a
+  reflectance image and not a temperature. Snow reads white through the
+  classification palette, snow-free land a dull green-brown, water and
+  cloud-masked pixels their own classes. Served from the 500m tile
+  matrix (2x1 tiles at level 0), so the single level-0 tile is the
+  north-west half of the globe -- the record states that footprint
+  exactly. A dated daily acquisition; the declared capture date selects
+  the layer's time dimension, stated verbatim, not a date guessed from
+  the wall clock. One tile, level 0, public domain."
+  {:asset-id "MODIS_Terra_L3_NDSI_Snow_Cover_Daily/500m/0/0/0"
+  :layer "MODIS_Terra_L3_NDSI_Snow_Cover_Daily"
+  :source-url
+  (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+       "MODIS_Terra_L3_NDSI_Snow_Cover_Daily/default/"
+       "2026-09-01/500m/0/0/0.png")
+  :capture-time "2026-09-01"
+  :capture-note
+  "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+  :coverage-note
+  "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+  :footprint [-180.0 0.0 0.0 90.0]
+  :crs "EPSG:4326"
+  :resolution-gsd-m 500
+  :sensor "MODIS (Terra), MOD10 daily NDSI snow cover classification"
+  :bands #{:ndsi-snow-class}
+  :band-source
+  "NDSI snow cover classification rendered through the GIBS colour map"
+  :licence :nasa-public-domain
+  :tile-matrix "500m"
+  :tile-zxy [0 0 0]
+  :retrieved-at "2026-09-04T06:38:06Z"
+  :payload-sha256
+  "b96a85a6a63f95ce4bf3d1fe6b92d982846f9d002caec703ddcabf09eea8cf44"})
+
 (def modis-terra-lst-day-sample
   "The seventeenth bounded sample: MODIS Terra Land Surface Temperature
   (Day), one EPSG:4326 level-0 tile for ONE declared capture date. A new
