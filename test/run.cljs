@@ -31,6 +31,7 @@
             [clojure.string :as str]
             ["fs" :as fs]
             ["path" :as path]
+            [otent.imagery-test]
             [otent.catalog-test]
             [otent.coverage-test]
             [otent.darkness-test]
@@ -47,7 +48,8 @@
             [otent.watchlist-test]))
 
 (def declared
-  '[otent.catalog-test
+  '[otent.imagery-test
+  otent.catalog-test
     otent.coverage-test
     otent.darkness-test
     otent.deadline-test
