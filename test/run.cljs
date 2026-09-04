@@ -31,6 +31,7 @@
             [clojure.string :as str]
             ["fs" :as fs]
             ["path" :as path]
+            [otent.imagery-test]
             [otent.catalog-test]
             [otent.coverage-test]
             [otent.darkness-test]
@@ -39,6 +40,7 @@
     [otent.feeds-due-test]
             [otent.governor-test]
             [otent.lock-test]
+            [otent.mapillary-image-detections-test]
             [otent.parse-test]
             [otent.parses-test]
             [otent.receipt-test]
@@ -47,7 +49,8 @@
             [otent.mapillary-mapfeature-detections-test]))
 
 (def declared
-  '[otent.catalog-test
+  '[otent.imagery-test
+  otent.catalog-test
     otent.coverage-test
     otent.darkness-test
     otent.deadline-test
@@ -55,6 +58,7 @@
     otent.feeds-due-test
     otent.governor-test
     otent.lock-test
+    otent.mapillary-image-detections-test
     otent.parse-test
     otent.parses-test
     otent.receipt-test

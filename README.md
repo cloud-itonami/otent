@@ -1154,6 +1154,43 @@ header; without it live mode exits 2 — a 401 must never be misread as an
 empty subject. A map feature is a provider-published observation, not a
 current fact about the world.
 
+## One Mapillary per-image detections source — metadata only
+
+`bin/mapillary_image_detections.cljs` covers the client endpoint no
+other otent run had touched: the registered client
+`com-mapillary-graph-api`'s `detections-request` with `kind :image`
+(`GET /:image_id/detections`). The bbox metadata source, the pixel
+sample and the map_features analysis pass exist; this is the
+per-image detection pass over them.
+
+- **one image, one request**: a single provider image id (validated
+  numeric, refused before any request is built), one HTTP GET.
+  `paging.next` is counted and printed, **never followed**
+  (:run-bounds). No bbox, no siblings.
+- **metadata only**: the field list (`id,value,geometry,created_at`)
+  carries no thumbnail field, so no pixel was requested and none had
+  to be defended. The pixel exception belongs to the pixel sample,
+  not here.
+- **privacy boundary before normalization**: detection `value` is the
+  provider's taxonomy string; any value naming a person, face or
+  licence plate is **refused before any record exists** — counted,
+  never stored, never an entity. The redaction check also refuses any
+  record carrying an `@` or an exif/email key.
+- **provenance**: provider image id + detection id, taxonomy value
+  verbatim, Point geometry (refused, not repaired), `created_at` (ms
+  since epoch), retrieval time, image permalink, licence named where
+  it actually lives (the payload carries no per-detection licence
+  field), attribution, `requests-made 1`, `:unknown` spatial
+  uncertainty.
+
+**Measured this run (offline, synthetic fixture)**: 3 raw detections
+→ 2 recorded, 1 privacy-refused (`object--human--person`), counted
+not stored; `paging.next` present, not followed. `npm test` — 129
+tests, 1,533 assertions, 0 failures. Live mode without
+`MAPILLARY_ACCESS_TOKEN` hard-fails exit 2 `no-credential` — **no
+token exists** in this environment (env, keychain — re-verified), so
+nothing was fetched from Mapillary and none is invented.
+
 ## Tests
 
 `npm test` — 121 tests, 1,493 assertions, against **captured real payloads**
