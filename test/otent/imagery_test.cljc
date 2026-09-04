@@ -907,3 +907,59 @@
                   (:licence imagery/modis-terra-lst-day-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/modis-terra-lst-day-sample))))))
+
+;; ---- the eighteenth bounded sample: MODIS Terra NDVI 8-Day, one
+;; ---- declared capture date, level 0, 250m matrix
+
+(def ndvi-8day-fixture-name "modis-terra-ndvi-8day-20260826-z0.png")
+
+(defn ndvi-8day-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             ndvi-8day-fixture-name))
+
+(t/deftest ndvi-8day-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/modis-terra-ndvi-8day-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/modis-terra-ndvi-8day-sample
+                           :capture-time))))))
+
+(t/deftest ndvi-8day-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/modis-terra-ndvi-8day-sample)]
+    (t/is (= (:asset-id imagery/modis-terra-ndvi-8day-sample)
+             (:asset-id m)))
+    (t/is (re-find #"MODIS_Terra_NDVI_8Day" (:what-exists m)))
+    (t/is (= "2026-08-26" (:capture-time m))
+          "the declared capture date is carried verbatim")
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the half-globe tile states its bounds, never the planet"
+      (t/is (= [-180.0 0.0 0.0 90.0] (:bounds-epg4326-deg m)))
+      (t/is (re-find #"north-west half\s+of the globe" (:what-exists m))))))
+
+(t/deftest ndvi-8day-object-readback-test
+  (t/testing "the ndvi-8day fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (ndvi-8day-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/modis-terra-ndvi-8day-sample) sha256)))))
+
+(t/deftest ndvi-8day-verify-sample-test
+  (let [bytes (fs/readFileSync (ndvi-8day-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/modis-terra-ndvi-8day-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest ndvi-8day-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the ndvi-8day source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/modis-terra-ndvi-8day-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/modis-terra-ndvi-8day-sample))))))
