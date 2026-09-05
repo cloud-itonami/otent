@@ -40,8 +40,8 @@
     [otent.feeds-due-test]
             [otent.governor-test]
             [otent.lock-test]
-            [otent.mapillary-image-detections-test]
-            [otent.parse-test]
+[otent.mapillary-image-detections-test]
+[otent.mapillary-image-test]            [otent.parse-test]
 [otent.panoramax-coverage-test]
 [otent.panoramax-test]
             [otent.panorama-density-test]
@@ -62,8 +62,8 @@
     otent.feeds-due-test
     otent.governor-test
     otent.lock-test
-    otent.mapillary-image-detections-test
-    otent.parse-test
+otent.mapillary-image-detections-test
+otent.mapillary-image-test    otent.parse-test
 otent.panoramax-coverage-test
 otent.panoramax-test
     otent.panorama-density-test

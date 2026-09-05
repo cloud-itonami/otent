@@ -1357,6 +1357,48 @@ gate. `--fixture` replays a labeled SYNTHETIC payload offline with
 identical checks (span `2017-09-09T08:28:31.000000+00:00` →
 `2021-04-02T12:00:00Z`, `capture-unknown=1`).
 
+## One Mapillary image pixel sample — the exception, earned
+
+`bin/mapillary_image.cljs` is the **pixel** counterpart of the Mapillary
+metadata source (`bin/mapillary_images.cljs`, which deliberately never
+requested `thumb_1024_url` — a field never read was a field never had
+to defend). This one earns the exception rather than assuming it:
+
+- **built through the registered client `com-mapillary-graph-api`**:
+  the `/images` request is built by the client (bbox strictly under
+  0.01° a side, token in the `Authorization` header, never the URL).
+- **one image, one pixel request**: the first admissible image's own
+  `thumb_1024_url`, fetched once. Siblings and `paging.next` are
+  counted and printed, **never followed** (:run-bounds).
+- **permission basis stated on the record**: Mapillary contributor
+  imagery is published CC-BY-SA under Mapillary's Terms of Service;
+  the payload carries no per-image licence field, so the licence is
+  named where it actually lives and the record carries the basis
+  rather than an invented flag.
+- **privacy**: Mapillary publishes no per-image blur-result flag, so
+  `provider-blur-verified` is `false` with the limitation carried on
+  the record — the same story the Panoramax pixel source states.
+  Faces and plates stay outside the observation space. A redaction
+  check refuses any record carrying an `@` or an exif/email key.
+- **provenance**: provider image id, viewer permalink, `captured_at`
+  (ms since epoch), geometry (refused, not repaired), heading,
+  panorama flag, sequence id as published, licence, attribution,
+  retrieval time, sha256 + byte-size of the exact bytes, `:unknown`
+  spatial uncertainty.
+- **gates**: id, geometry, numeric `captured_at`, published
+  `thumb_1024_url` — an image without a published pixel URL keeps its
+  metadata observability and is refused the byte fetch.
+
+Storage is gated: bytes go to R2 only behind `$CF_CATALOG_TOKEN`;
+without it the run reports `nothing written` and exits 2.
+
+**Measured this run (offline, synthetic bytes)**: the full
+gate → record → check path runs deterministically on the fixture;
+live mode hard-fails exit 2 with `:mapillary-image/no-credential` —
+**no `MAPILLARY_ACCESS_TOKEN` exists** in this environment (env,
+keychain — re-verified), so no pixel has been fetched from Mapillary
+and none is invented. A 401 must never be misread as an empty tile.
+
 ## Tests
 
 `npm test` — 143 tests, 1,611 assertions, against **captured real payloads**
