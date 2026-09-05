@@ -244,3 +244,56 @@
                   (:licence imagery/viirs-citylights-2012-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/viirs-citylights-2012-sample))))))
+
+;; ---- the sixth bounded sample: VIIRS SNPP true colour, dated, level 0
+
+(def snpp-truecolor-fixture-name "viirs-snpp-truecolor-20260901-z0.jpeg")
+
+(defn snpp-truecolor-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             snpp-truecolor-fixture-name))
+
+(t/deftest snpp-truecolor-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/viirs-snpp-truecolor-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/viirs-snpp-truecolor-sample
+                           :capture-time))))))
+
+(t/deftest snpp-truecolor-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/viirs-snpp-truecolor-sample)]
+    (t/is (= (:asset-id imagery/viirs-snpp-truecolor-sample) (:asset-id m)))
+    (t/is (re-find #"VIIRS_SNPP_CorrectedReflectance_TrueColor"
+                   (:what-exists m)))
+    (t/testing "the declared capture date is stated verbatim"
+      (t/is (re-find #"2026-09-01" (:what-exists m)))
+      (t/is (= "2026-09-01" (:capture-time m))))
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the level-0 tile states the planet it covers"
+      (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))))))
+
+(t/deftest snpp-truecolor-object-readback-test
+  (t/testing "the SNPP true-colour fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (snpp-truecolor-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256 imagery/viirs-snpp-truecolor-sample) sha256)))))
+
+(t/deftest snpp-truecolor-verify-sample-test
+  (let [bytes (fs/readFileSync (snpp-truecolor-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample imagery/viirs-snpp-truecolor-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest snpp-truecolor-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the VIIRS daytime source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/viirs-snpp-truecolor-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/viirs-snpp-truecolor-sample))))))

@@ -222,3 +222,35 @@
    :retrieved-at "2026-09-02T18:19:36Z"
    :payload-sha256
    "0530f0aa7ab41c8f71bd91b8468f4192abb5b8569b94376d272a4f454d318f10"})
+
+(def viirs-snpp-truecolor-sample
+  "The sixth bounded sample: VIIRS SNPP CorrectedReflectance TrueColor,
+  one EPSG:4326 level-0 tile for ONE declared capture date. A daytime
+  reflectance image from a new sensor in this slice -- Suomi NPP's VIIRS
+  rather than Terra's or Aqua's MODIS -- so it is a different observation,
+  not a re-render of an existing sample. Same shape as the MODIS
+  true-colour sample: dated acquisition, declared capture date, one tile,
+  level 0, public domain."
+  {:asset-id "VIIRS_SNPP_CorrectedReflectance_TrueColor/250m/0/0/0"
+   :layer "VIIRS_SNPP_CorrectedReflectance_TrueColor"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/"
+        "VIIRS_SNPP_CorrectedReflectance_TrueColor/default/"
+        "2026-09-01/250m/0/0/0.jpeg")
+   :capture-time "2026-09-01"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's time dimension. The date is declared per run, not guessed
+  from the wall clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 250
+   :sensor "VIIRS (Suomi NPP)"
+   :bands #{:r :g :b}
+   :band-source "VIIRS imaging bands I-1, M-4, M-3 as RGB true colour"
+   :licence :nasa-public-domain
+   :tile-matrix "250m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-02T19:45:50Z"
+   :payload-sha256
+   "376d09b371b6d150a8716626b7a1da4d9c0e656904185343499b02b272762a37"})
