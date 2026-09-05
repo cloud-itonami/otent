@@ -903,6 +903,41 @@ Without `$CF_CATALOG_TOKEN` the run fetches, checks everything, writes
 nothing, and exits 2: nothing written is not the same as written
 nothing.
 
+## One derived task over the open street source: vintage (temporal coverage)
+
+`bin/street_coverage.cljs` runs **one** derived task —
+`street-imagery-vintage-v1` — over the KartaView observations the
+previous pass normalized: a temporal-coverage table for the one ≤ 0.01°
+area, built from the provider's own published `shotDate` strings. No
+model, no inference: `model-id` is `:none`, stated rather than hidden.
+
+What it keeps honest:
+
+- **The span endpoints are the provider's bytes.** Timestamps are
+  validated against the provider's fixed `YYYY-MM-DD HH:MM:SS.mmm`
+  format and compared lexicographically — which sorts chronologically —
+  so the earliest/latest are byte-identical to what was published. No
+  timezone is invented, no date math performed.
+- **Unknowns stay visible.** A photo whose published timestamp does not
+  match the provider's own format is counted `capture-unknown`, never
+  dropped, never folded into the span.
+- **A lower bound, said out loud.** The provider pages results; the
+  table records `coverage-bound: lower-bound` with `has-more-data` in
+  the note — a span proves nothing outside the fetched area or page.
+- **The privacy gate is upstream and stated.** Only provider-BLURRED,
+  public, active photos (admitted by `otent.kartaview`) reach the
+  table; the derived provenance re-asserts that no face, plate, person
+  or vehicle entity exists in this task.
+- **The epistemic boundary is part of the table**: a vintage
+  observation is not road condition, accessibility, ownership,
+  inventory, availability, legal compliance, or current existence.
+
+Verified live (one area, central Tokyo, 2026-09-01): `fetched=17
+accepted=11 refused=1 outside-bbox=5 has-more=false`, vintage span
+`2016-12-03 03:34:39.000` → `2019-12-11 05:28:37.000`, capture-unknown=0;
+R2 write stopped at the no-credential gate. `--fixture` replays a
+labeled SYNTHETIC payload offline with identical checks.
+
 ## Three planes, and what is allowed on each
 
 | plane | holds | addressed by |
