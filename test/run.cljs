@@ -46,7 +46,8 @@
             [otent.watchlist-test]
             [otent.basemap-test]
             [otent.kartaview-test]
-            [otent.street-coverage-test]))
+            [otent.street-coverage-test]
+            [otent.night-lights-test]))
 
 (def declared
   '(otent.imagery-test
@@ -78,7 +79,8 @@
   otent.watchlist-test
   otent.basemap-test
   otent.kartaview-test
-  otent.street-coverage-test))
+  otent.street-coverage-test
+  otent.night-lights-test))
 
 (def min-tests 20)
 
