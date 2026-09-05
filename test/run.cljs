@@ -43,7 +43,8 @@
             [otent.receipt-test]
             [otent.sanctions-test]
             [otent.street-heading-test]
-            [otent.watchlist-test]))
+            [otent.watchlist-test]
+            [otent.basemap-test]))
 
 (def declared
   '(otent.imagery-test
@@ -72,7 +73,8 @@
   otent.receipt-test
   otent.sanctions-test
   otent.street-heading-test
-  otent.watchlist-test))
+  otent.watchlist-test
+  otent.basemap-test))
 
 (def min-tests 20)
 
