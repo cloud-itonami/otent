@@ -841,6 +841,45 @@
    :retrieved-at "2026-09-05T10:37:32Z"
    :payload-sha256
    "10f416b011b3fb58628d0c8fede159dc459600813d087b512dd8fb2a0b28bc04"})
+(def modis-aqua-chlorophyll-sample
+  "The twenty-first bounded sample: MODIS Aqua L2 Chlorophyll-A, one
+  EPSG:4326 level-0 tile (1km matrix) for ONE declared capture date. A
+  new quantity class in this slice -- an ocean-colour derived product:
+  chlorophyll-a concentration estimated from Aqua's visible bands
+  (MODIS L2 processing family), so the open ocean blooms green in the
+  GIBS colour ramp where a true-colour image shows only water. Served
+  from the 1km tile matrix (2x1 tiles at level 0), so the single
+  level-0 tile is the north-west half of the globe -- the record states
+  that footprint exactly. A dated daily acquisition; the declared
+  capture date selects the layer's time dimension, stated verbatim, not
+  a date guessed from the wall clock. One tile, level 0, public domain."
+  {:asset-id "MODIS_Aqua_L2_Chlorophyll_A/1km/0/0/0"
+   :layer "MODIS_Aqua_L2_Chlorophyll_A"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Aqua_L2_Chlorophyll_A/default/"
+        "2026-09-03/1km/0/0/0.png")
+   :capture-time "2026-09-03"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 1000
+   :sensor "MODIS (Aqua), L2 chlorophyll-a concentration"
+   :bands #{:chlorophyll-a}
+   :band-source
+   "chlorophyll-a derived from Aqua visible bands, rendered through the GIBS ocean-colour ramp"
+   :licence :nasa-public-domain
+   :tile-matrix "1km"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-05T22:41:00Z"
+   :payload-sha256
+   "263ca33203ebe9c34d2a35855f43da9ee17b30f6d70fa92b08646f2239b6730a"})
 
 (def modis-terra-lst-day-sample
   "The seventeenth bounded sample: MODIS Terra Land Surface Temperature

@@ -1795,6 +1795,24 @@ and object-readback tests assert the record: fixture bytes hash to the
 record's `payload-sha256`. `npm test` -- 418 tests, 2,779 assertions,
 0 failures.
 
+## One MODIS Aqua chlorophyll-A sample
+
+`otent.imagery/modis-aqua-chlorophyll-sample` is the twenty-first
+bounded sample: **one** `MODIS_Aqua_L2_Chlorophyll_A` EPSG:4326 level-0
+tile (1km tile matrix) for ONE declared capture date, 2026-09-03. A new
+quantity class in this slice -- an ocean-colour derived product:
+chlorophyll-a concentration estimated from Aqua's visible bands (MODIS
+L2 processing family), so the open ocean blooms green in the GIBS
+colour ramp where a true-colour image shows only water. The 1km matrix
+is 2x1 tiles at level 0, so the single level-0 tile is the north-west
+half of the globe and the record states that footprint exactly rather
+than claiming the planet. A dated daily acquisition; the declared
+capture date selects the layer's time dimension, stated verbatim, never
+guessed from the wall clock. NASA GIBS, public domain, one tile,
+level 0. Provenance, licence-allowlist and object-readback tests assert
+the record: fixture bytes hash to the record's `payload-sha256`.
+`npm test` -- 423 tests, 2,792 assertions, 0 failures.
+
 ## One KartaView image pixel sample (2026-09-02)
 
 KartaView metadata (PR #12) and a derived density task (PR #34) were ingested
