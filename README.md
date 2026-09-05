@@ -1181,6 +1181,32 @@ hashed (`input sha256=…`) before anything else runs, so provenance
 survives even a refusal. A picture is an observation at capture time,
 not current existence.
 
+## One derived task over the Panoramax metadata: vintage
+
+`bin/panoramax_coverage.cljs` derives a temporal-coverage (vintage)
+table from the observations `otent.panoramax` already admitted — one
+derived task, one source, one area, one PR. No pixel, no model: the
+table counts accepted items and the span of their **provider-published**
+`properties.datetime` strings.
+
+- **Endpoints are the provider's bytes**: timestamps validated against
+  the provider's observed fixed-offset UTC STAC format
+  (`YYYY-MM-DDTHH:MM:SS[.fff…]+00:00`) and compared lexicographically,
+  which sorts chronologically (an exact second sorts before its own
+  fractional extensions); no timezone is invented, no date math runs.
+- **Unknowns stay visible**: a non-conforming published timestamp is
+  counted `capture-unknown`, never dropped, never folded into the span.
+- **Lower bound, said out loud**: `coverage-bound: lower-bound` with
+  `links-next` in the note — a span proves nothing outside the fetched
+  area or page.
+- **Privacy gate is upstream and re-asserted**: only `status=ready`,
+  `visibility=anyone`, EXIF-redacted items reach the table, and the
+  derived provenance restates that no face, plate, person or vehicle
+  entity exists in this task.
+- **Epistemic boundary in the table**: a vintage observation is not
+  road condition, accessibility, ownership, inventory, availability,
+  legal compliance, or current existence.
+
 ## Tests
 
 `npm test` — 121 tests, 1,493 assertions, against **captured real payloads**

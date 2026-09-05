@@ -40,6 +40,7 @@
             [otent.governor-test]
             [otent.lock-test]
             [otent.parse-test]
+            [otent.panoramax-coverage-test]
             [otent.panoramax-test]
             [otent.parses-test]
             [otent.receipt-test]
@@ -56,6 +57,7 @@
     otent.governor-test
     otent.lock-test
     otent.parse-test
+    otent.panoramax-coverage-test
     otent.panoramax-test
     otent.parses-test
     otent.receipt-test
