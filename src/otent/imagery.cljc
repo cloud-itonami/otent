@@ -719,3 +719,44 @@
    :retrieved-at "2026-09-05T03:11:05Z"
    :payload-sha256
    "b225a05802b4816f8d401656e5c697efba20569f936519f19b9b5e3e00ed4b60"})
+
+(def modis-terra-lst-night-sample
+  "The eighteenth bounded sample: MODIS Terra Land Surface Temperature
+  (Night), one EPSG:4326 level-0 tile for ONE declared capture date. The
+  night-sibling of the seventeenth slice and a different observation,
+  not a re-render: the same MOD11 processing family but the night
+  overpass, where the thermal field is the surface cooling after sunset
+  -- the day and night grids are measured roughly twelve hours apart and
+  disagree wherever thermal inertia differs. A dated daily acquisition;
+  the declared capture date selects the layer's time dimension, stated
+  verbatim, not a date guessed from the wall clock. Served from the 1km
+  tile matrix (2x1 tiles at level 0), so the single level-0 tile is the
+  north-west half of the globe -- the record states that footprint
+  exactly. One tile, level 0, public domain."
+  {:asset-id "MODIS_Terra_Land_Surface_Temp_Night/1km/0/0/0"
+   :layer "MODIS_Terra_Land_Surface_Temp_Night"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Terra_Land_Surface_Temp_Night/default/"
+        "2026-09-03/1km/0/0/0.png")
+   :capture-time "2026-09-03"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 1000
+   :sensor "MODIS (Terra), MOD11 daily land surface temperature (night)"
+   :bands #{:lst}
+   :band-source
+   "single-band surface temperature rendered through the GIBS thermal colour map"
+   :licence :nasa-public-domain
+   :tile-matrix "1km"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-05T04:12:00Z"
+   :payload-sha256
+   "e3153c07cad07401cbcc6d86aa8b51059e70d1ae8360df7a162f4be908f5ae02"})
