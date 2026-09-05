@@ -1300,3 +1300,21 @@ Exit 0 manifest produced · 1 refused · 2 could-not-act (no write
 credential, or bad payload). The R2 write stays behind
 `$CF_CATALOG_TOKEN`; without it the run reports `nothing written` and
 exits 2 rather than pretending.
+
+## One MODIS Aqua land surface temperature (day) sample
+
+`otent.imagery/modis-aqua-lst-day-sample` is the nineteenth bounded
+sample: **one** `MODIS_Aqua_Land_Surface_Temp_Day` EPSG:4326 level-0
+tile (1km tile matrix) for ONE declared capture date, 2026-09-04. The
+Aqua sibling of the Terra LST (day) slice -- the same MOD11-family
+daily thermal product from Aqua's afternoon overpass, where the
+afternoon surface-temperature maximum is visible; a different
+observation, not a re-render. The 1km matrix is 2x1 tiles at level 0,
+so the single level-0 tile is the north-west half of the globe and the
+record states that footprint exactly rather than claiming the planet.
+A dated daily acquisition; the declared capture date selects the
+layer's time dimension, stated verbatim, never guessed from the wall
+clock. NASA GIBS, public domain, one tile, level 0. Provenance,
+licence-allowlist and object-readback tests assert the record: fixture
+bytes hash to the record's `payload-sha256`. `npm test` -- 245 tests,
+1,889 assertions, 0 failures.

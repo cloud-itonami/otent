@@ -679,3 +679,43 @@
    :retrieved-at "2026-09-04T02:39:58Z"
    :payload-sha256
    "e603f7bd151f88550c2ac072f632b7954b5f54f81fb34be5ac893022773721a3"})
+
+(def modis-aqua-lst-day-sample
+  "The nineteenth bounded sample: MODIS Aqua Land Surface Temperature
+  (Day), one EPSG:4326 level-0 tile for ONE declared capture date. The
+  Aqua sibling of the Terra LST (day) slice: the same MOD11-family daily
+  thermal product from Aqua's afternoon overpass, where the afternoon
+  surface-temperature maximum is visible -- a different observation, not
+  a re-render. Served from the 1km tile matrix (2x1 tiles at level 0),
+  so the single level-0 tile is the north-west half of the globe -- the
+  record states that footprint exactly. A dated daily acquisition; the
+  declared capture date selects the layer's time dimension, stated
+  verbatim, not a date guessed from the wall clock. One tile, level 0,
+  public domain."
+  {:asset-id "MODIS_Aqua_Land_Surface_Temp_Day/1km/0/0/0"
+   :layer "MODIS_Aqua_Land_Surface_Temp_Day"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Aqua_Land_Surface_Temp_Day/default/"
+        "2026-09-04/1km/0/0/0.png")
+   :capture-time "2026-09-04"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 1000
+   :sensor "MODIS (Aqua), MOD11 daily land surface temperature (day)"
+   :bands #{:lst}
+   :band-source
+   "single-band surface temperature rendered through the GIBS thermal colour map"
+   :licence :nasa-public-domain
+   :tile-matrix "1km"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-05T03:11:05Z"
+   :payload-sha256
+   "b225a05802b4816f8d401656e5c697efba20569f936519f19b9b5e3e00ed4b60"})
