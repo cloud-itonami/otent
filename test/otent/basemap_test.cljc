@@ -228,6 +228,47 @@
     (t/is (false? (:sparse-coverage m)))
     (t/is (= "otent/basemap/modis-aqua-bands721/2026-08-30" (:prefix m)))))
 
+;; ------------------------------------------------- VIIRS DNB radiance
+
+(t/deftest viirs-dnb-urls-and-keys-carry-the-capture-date
+  (let [s (bm/source-for "viirs-snpp-dnb-radiance")]
+    (t/is (= "viirs-snpp-dnb-radiance" (:id s)))
+    (t/is (bm/dated? s))
+    (t/is (:sparse-coverage s) "the night side only: 404s are holes, not errors")
+    (t/is (= "png" (:format s)))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] "2026-08-31")
+                         "VIIRS_SNPP_DayNightBand_At_Sensor_Radiance/default/2026-08-31/GoogleMapsCompatible_Level8/4/6/12.png"))
+    (t/is (= "otent/basemap/viirs-snpp-dnb-radiance/2026-08-31/4/12/6.png"
+             (bm/tile-key s [4 12 6] "2026-08-31")))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] nil) "{date}")
+          "without a date the template must leak, not silently fetch `default`")))
+
+(t/deftest viirs-dnb-refusals
+  (let [s (bm/source-for "viirs-snpp-dnb-radiance")]
+    (t/is (= :source/past-ingest-bound (:refusal (bm/ingest-refusal s 5 "2026-08-31"))))
+    ;; past the layer's own level 8 the service would upsample -- and
+    ;; past the ingest bound the unbounded-crawl refusal bites first
+    (t/is (= :source/past-max-zoom (:refusal (bm/ingest-refusal s 9 "2026-08-31"))))
+    ;; a daily capture date is declared, not defaulted
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 nil))))
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 "2026-09-01T00:00:00Z"))))
+    (t/is (nil? (bm/ingest-refusal s 4 "2026-08-31"))))
+  (let [p (bm/ingest-plan "viirs-snpp-dnb-radiance" 4 "2026-08-31")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)))
+    (t/is (= "2026-08-31" (:date p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/viirs-snpp-dnb-radiance/2026-08-31/"))))
+
+(t/deftest viirs-dnb-manifest-entry-states-what-exists
+  (let [s (bm/source-for "viirs-snpp-dnb-radiance")
+        m (bm/manifest-imagery-entry s 4 "2026-08-31" 217 "t")]
+    (t/is (= "daily" (:time-mode m)))
+    (t/is (= "2026-08-31" (:capture-date m)))
+    (t/is (true? (:sparse-coverage m)))
+    (t/is (= 217 (:tile-count m)) "sparse: the manifest states the tiles that EXIST")
+    (t/is (= "otent/basemap/viirs-snpp-dnb-radiance/2026-08-31" (:prefix m)))))
+
 (t/deftest refusals
   (let [bm (bm/source-for "blue-marble")
         mo (bm/source-for "modis-terra-truecolor")]
