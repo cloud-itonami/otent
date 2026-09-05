@@ -187,6 +187,45 @@
    :payload-sha256
    "2a36384d0eeecdad6377ce1422f28538f191cc930947437a3468efb0f525c951"})
 
+(def landsat-weld-truecolor-1985-sample
+  "The eighth bounded sample: Landsat WELD CorrectedReflectance TrueColor
+  Global Annual, one EPSG:4326 level-0 tile for ONE declared composite
+  year. Landsat is a new sensor family in this slice -- 30m-class
+  surface reflectance mosaics rather than the 250m daily MODIS/VIIRS
+  sweeps -- so it is a different observation, not a re-render. The
+  layer's time dimension is annual, declared as the composite period
+  date GIBS exposes (1985-12-01); the record carries that date
+  verbatim and the note says what it is. One tile, level 0, public
+  domain."
+  {:asset-id
+   "Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/31.25m/0/0/0"
+   :layer "Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/"
+        "1985-12-01/31.25m/0/0/0.jpeg")
+   :capture-time "1985-12-01"
+   :capture-note
+   "Annual Landsat WELD surface-reflectance composite; the layer's time
+  dimension is annual and the date is the declared composite period as
+  GIBS exposes it, not a single satellite overpass and not a date
+  guessed from the wall clock."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 31.25
+   :sensor "Landsat (WELD annual global surface-reflectance composite)"
+   :bands #{:r :g :b}
+   :band-source "Landsat bands 3,2,1 as RGB true colour"
+   :licence :nasa-public-domain
+   :tile-matrix "31.25m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-02T22:48:25Z"
+   :payload-sha256
+   "e4b1965e50c28155f52a03e2489c8c017cf9fd4d0fcb6e492afea28fe95393a5"})
+
 (defn verify-sample
   "The object readback: re-derive the sample's provenance completeness
   and that its sha256 matches the fixture bytes' hash."
