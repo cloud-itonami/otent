@@ -801,6 +801,47 @@
    :payload-sha256
    "5ed77eff38d6d1ce55871a7b2bbc73f67f8d3c09bb17d7fb93095dc0288ce665"})
 
+(def modis-aqua-lst-night-sample
+  "The twentieth bounded sample: MODIS Aqua Land Surface Temperature
+  (Night), one EPSG:4326 level-0 tile for ONE declared capture date. The
+  night-sibling of the Aqua LST (day) slice and a different observation,
+  not a re-render: the same MOD11-family daily thermal product from
+  Aqua's night overpass, where the surface-temperature minimum is
+  visible -- the day and night grids are measured roughly twelve hours
+  apart and disagree wherever thermal inertia differs. Served from the
+  1km tile matrix (2x1 tiles at level 0), so the single level-0 tile is
+  the north-west half of the globe -- the record states that footprint
+  exactly. A dated daily acquisition; the declared capture date selects
+  the layer's time dimension, stated verbatim, not a date guessed from
+  the wall clock. One tile, level 0, public domain."
+  {:asset-id "MODIS_Aqua_Land_Surface_Temp_Night/1km/0/0/0"
+   :layer "MODIS_Aqua_Land_Surface_Temp_Night"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Aqua_Land_Surface_Temp_Night/default/"
+        "2026-09-04/1km/0/0/0.png")
+   :capture-time "2026-09-04"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 1000
+   :sensor "MODIS (Aqua), MOD11 daily land surface temperature (night)"
+   :bands #{:lst}
+   :band-source
+   "single-band surface temperature rendered through the GIBS thermal colour map"
+   :licence :nasa-public-domain
+   :tile-matrix "1km"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-05T10:37:32Z"
+   :payload-sha256
+   "10f416b011b3fb58628d0c8fede159dc459600813d087b512dd8fb2a0b28bc04"})
+
 (def modis-terra-lst-day-sample
   "The seventeenth bounded sample: MODIS Terra Land Surface Temperature
   (Day), one EPSG:4326 level-0 tile for ONE declared capture date. A new

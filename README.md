@@ -1777,6 +1777,24 @@ licence-allowlist and object-readback tests assert the record: fixture
 bytes hash to the record's `payload-sha256`. `npm test` -- 245 tests,
 1,889 assertions, 0 failures.
 
+## One MODIS Aqua land surface temperature (night) sample
+
+`otent.imagery/modis-aqua-lst-night-sample` is the twentieth bounded
+sample: **one** `MODIS_Aqua_Land_Surface_Temp_Night` EPSG:4326 level-0
+tile (1km tile matrix) for ONE declared capture date, 2026-09-04. The
+night-sibling of the Aqua LST (day) slice -- the same MOD11-family daily
+thermal product from Aqua's night overpass, where the
+surface-temperature minimum is visible; a different observation, not a
+re-render. The 1km matrix is 2x1 tiles at level 0, so the single
+level-0 tile is the north-west half of the globe and the record states
+that footprint exactly rather than claiming the planet. A dated daily
+acquisition; the declared capture date selects the layer's time
+dimension, stated verbatim, never guessed from the wall clock. NASA
+GIBS, public domain, one tile, level 0. Provenance, licence-allowlist
+and object-readback tests assert the record: fixture bytes hash to the
+record's `payload-sha256`. `npm test` -- 418 tests, 2,779 assertions,
+0 failures.
+
 ## One KartaView image pixel sample (2026-09-02)
 
 KartaView metadata (PR #12) and a derived density task (PR #34) were ingested
