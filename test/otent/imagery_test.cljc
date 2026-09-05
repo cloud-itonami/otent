@@ -964,3 +964,60 @@
                   (:licence imagery/modis-terra-ndsi-snow-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/modis-terra-ndsi-snow-sample))))))
+
+;; ---- the nineteenth bounded sample: MODIS Aqua land surface
+;; ---- temperature (day), one declared capture date, level 0, 1km matrix
+
+(def lst-day-aqua-fixture-name "modis-aqua-lst-day-20260904-z0.png")
+
+(defn lst-day-aqua-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             lst-day-aqua-fixture-name))
+
+(t/deftest lst-day-aqua-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/modis-aqua-lst-day-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/modis-aqua-lst-day-sample
+                           :capture-time))))))
+
+(t/deftest lst-day-aqua-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/modis-aqua-lst-day-sample)]
+    (t/is (= (:asset-id imagery/modis-aqua-lst-day-sample)
+             (:asset-id m)))
+    (t/is (re-find #"MODIS_Aqua_Land_Surface_Temp_Day"
+                   (:what-exists m)))
+    (t/is (= "2026-09-04" (:capture-time m))
+          "the declared capture date is carried verbatim")
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the half-globe tile states its bounds, never the planet"
+      (t/is (= [-180.0 0.0 0.0 90.0] (:bounds-epg4326-deg m)))
+      (t/is (re-find #"north-west half\s+of the globe" (:what-exists m))))))
+
+(t/deftest lst-day-aqua-object-readback-test
+  (t/testing "the aqua lst-day fixture bytes hash to what the record claims"
+    (let [bytes (fs/readFileSync (lst-day-aqua-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/modis-aqua-lst-day-sample) sha256)))))
+
+(t/deftest lst-day-aqua-verify-sample-test
+  (let [bytes (fs/readFileSync (lst-day-aqua-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/modis-aqua-lst-day-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest lst-day-aqua-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the aqua lst-day source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/modis-aqua-lst-day-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/modis-aqua-lst-day-sample))))))
