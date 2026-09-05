@@ -44,7 +44,8 @@
             [otent.sanctions-test]
             [otent.street-heading-test]
             [otent.watchlist-test]
-            [otent.basemap-test]))
+            [otent.basemap-test]
+            [otent.mapillary-coverage-test]))
 
 (def declared
   '(otent.imagery-test
@@ -74,7 +75,8 @@
   otent.sanctions-test
   otent.street-heading-test
   otent.watchlist-test
-  otent.basemap-test))
+  otent.basemap-test
+  otent.mapillary-coverage-test))
 
 (def min-tests 20)
 
