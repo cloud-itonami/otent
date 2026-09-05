@@ -99,3 +99,51 @@
   (t/testing "the same refusal gate applies to the dated source"
     (t/is (nil? (imagery/refusal (:licence imagery/modis-terra-truecolor-sample))))
     (t/is (true? (:refused (imagery/refusal "Map data (c) unknown terms"))))))
+
+;; ---- the third bounded sample: ASTER GDEM colour index, half-globe tile
+
+(def aster-fixture-name "aster-gdem-color-31m-z0.png")
+
+(defn aster-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures" aster-fixture-name))
+
+(t/deftest aster-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/aster-gdem-color-sample)))
+  (t/testing "a static record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/aster-gdem-color-sample :sensor))))))
+
+(t/deftest aster-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/aster-gdem-color-sample)]
+    (t/is (= (:asset-id imagery/aster-gdem-color-sample) (:asset-id m)))
+    (t/is (re-find #"ASTER_GDEM_Color_Index" (:what-exists m)))
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the bounds are the half-globe tile, never the planet"
+      (t/is (= [-180.0 0.0 0.0 90.0] (:bounds-epg4326-deg m)))
+      (t/is (re-find #"north-west half\s+of the globe" (:what-exists m))))))
+
+(t/deftest aster-object-readback-test
+  (t/testing "the aster fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (aster-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256 imagery/aster-gdem-color-sample) sha256)))))
+
+(t/deftest aster-verify-sample-test
+  (let [bytes (fs/readFileSync (aster-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample imagery/aster-gdem-color-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest aster-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the elevation source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/aster-gdem-color-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/aster-gdem-color-sample))))))

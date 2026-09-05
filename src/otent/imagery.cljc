@@ -52,7 +52,10 @@
          ", tile z/x/y " (:tile-zxy rec)
          (if (:capture-time rec)
            (str ", declared capture date " (:capture-time rec) ".")
-           ", global EPSG:4326 footprint at level 0."))
+           (str ", " (or (:coverage-note rec)
+                         "global EPSG:4326 footprint at level 0.")))
+         (when (:coverage-note rec)
+           (str " Coverage: " (:coverage-note rec) ".")))
     :asset-id (:asset-id rec)
     :licence (:licence rec)
     :payload-sha256 (:payload-sha256 rec)
@@ -117,6 +120,40 @@
    :retrieved-at "2026-09-02T02:52:37Z"
    :payload-sha256
    "ec1ca4b6b6aba2b6a30fa67a6bca7155649008677515a3f295c4b5e6122befda"})
+
+(def aster-gdem-color-sample
+  "The third bounded sample: ASTER GDEM Color Index -- a digital elevation
+  model rendered as a colour index, not a reflectance image. The layer is
+  a static composite with no time dimension, so capture time is the GDEM
+  composite epoch (version 3), not a dated acquisition. The 31.25m tile
+  matrix is 2x1 tiles at level 0, so the single level-0 tile (0/0/0) is
+  the north-west half of the globe -- the record and manifest state that
+  footprint exactly instead of claiming the planet."
+  {:asset-id "ASTER_GDEM_Color_Index/31.25m/0/0/0"
+   :layer "ASTER_GDEM_Color_Index"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "ASTER_GDEM_Color_Index/default/31.25m/0/0/0.png")
+   :capture-time "2019"
+   :capture-note
+   "ASTER Global Digital Elevation Model version 3 static composite; the
+  layer exposes no time dimension, so capture time is the GDEM v3
+  composite epoch, not a dated satellite acquisition."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 31.25
+   :sensor "ASTER (Terra), GDEM v3 elevation composite"
+   :bands #{:colour-index}
+   :band-source "single-band elevation rendered through the GIBS colour map"
+   :licence :nasa-public-domain
+   :tile-matrix "31.25m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-02T09:44:08Z"
+   :payload-sha256
+   "fae46382a606e67415bf3acea247c149560eeab5eb8ea98a62749db917d2d405"})
 
 (defn verify-sample
   "The object readback: re-derive the sample's provenance completeness
