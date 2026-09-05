@@ -1,0 +1,32 @@
+{
+  "status": {
+    "httpCode": 200,
+    "apiCode": 600
+  },
+  "result": {
+    "data": [
+      {
+        "id": "118823961",
+        "sequenceId": "583739",
+        "sequenceIndex": "1694",
+        "lat": "35.680192",
+        "lng": "139.765267",
+        "matchLat": "35.680263519287110",
+        "matchLng": "139.765304565429700",
+        "heading": "297.32",
+        "projection": "PLANE",
+        "gpsAccuracy": "10.0000",
+        "width": "1920",
+        "height": "1080",
+        "shotDate": "2017-09-09 08:28:31.000",
+        "autoImgProcessingResult": "BLURRED",
+        "autoImgProcessingStatus": "FINISHED",
+        "status": "active",
+        "visibility": "public",
+        "imageProcUrl": "https://cdn.kartaview.org/pr:sharp/aHR0cHM6",
+        "qualityStatus": "FINISHED"
+      }
+    ],
+    "hasMoreData": false
+  }
+}
