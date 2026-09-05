@@ -18,6 +18,7 @@
             ["fs" :as fs]
             ["path" :as path]
             [otent.imagery-test]
+            [otent.natural-earth-test]
             [otent.catalog-test]
             [otent.coverage-test]
             [otent.darkness-test]
@@ -48,11 +49,7 @@
             [otent.basemap-test]
             [otent.kartaview-test]
             [otent.street-coverage-test]
-<<<<<<< HEAD
-            [otent.natural-earth-test]))
-=======
             [otent.night-lights-test]))
->>>>>>> origin/main
 
 (def declared
   '(otent.imagery-test
@@ -85,13 +82,9 @@
   otent.basemap-test
   otent.kartaview-test
   otent.street-coverage-test
-<<<<<<< HEAD
+  otent.night-lights-test
   otent.mapillary-coverage-test
   otent.natural-earth-test))
-=======
-  otent.night-lights-test
-  otent.mapillary-coverage-test))
->>>>>>> origin/main
 
 (def min-tests 20)
 
