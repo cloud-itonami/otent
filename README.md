@@ -966,6 +966,19 @@ the asset once and walks the zip's local-file headers by hand (no unzip
 dependency) to confirm the published entries are present and the
 GeoTIFF inside starts with the little-endian TIFF magic.
 
+### Night lights: one composite, bounded
+
+`night_lights.cljs` ingests NASA GIBS `VIIRS_Black_Marble` (Suomi NPP
+Day/Night Band, public domain, keyless) under `otent/night-lights/<composite>/`.
+The Time dimension declares exactly two composites — 2012-01-01 and
+2016-01-01 — and the plan refuses any other date: the service's `default`
+alias moves under us, so it is never ingested. The layer serves to z8
+(z9 answers 400), but the ingest bound is z4 = 341 tiles, one composite
+per run. The per-composite manifest records asset id, source URL,
+capture (composite) and retrieval times, sha256, CRS, tile geometry,
+sensor/bands, resolution, licence and attribution per tile, and states
+the max zoom MEASURED in the bucket.
+
 ## Three planes, and what is allowed on each
 
 | plane | holds | addressed by |
