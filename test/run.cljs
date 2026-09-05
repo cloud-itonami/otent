@@ -42,8 +42,10 @@
             [otent.lock-test]
             [otent.mapillary-image-detections-test]
             [otent.parse-test]
-            [otent.panoramax-coverage-test]
-            [otent.parses-test]
+[otent.panoramax-coverage-test]
+[otent.panoramax-test]
+            [otent.panorama-density-test]
+            [otent.panorama-coverage-test]            [otent.parses-test]
             [otent.receipt-test]
             [otent.sanctions-test]
             [otent.watchlist-test]
@@ -62,8 +64,10 @@
     otent.lock-test
     otent.mapillary-image-detections-test
     otent.parse-test
-    otent.panoramax-coverage-test
-    otent.parses-test
+otent.panoramax-coverage-test
+otent.panoramax-test
+    otent.panorama-density-test
+    otent.panorama-coverage-test    otent.parses-test
     otent.receipt-test
     otent.sanctions-test
     otent.watchlist-test
