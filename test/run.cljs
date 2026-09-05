@@ -34,6 +34,7 @@
             [otent.basemap-test]
             [otent.catalog-test]
             [otent.coverage-test]
+            [otent.cloud-obs-test]
             [otent.darkness-test]
             [otent.deadline-test]
     [otent.cli-test]
@@ -50,6 +51,7 @@
   '[otent.basemap-test
     otent.catalog-test
     otent.coverage-test
+    otent.cloud-obs-test
     otent.darkness-test
     otent.deadline-test
     otent.cli-test
