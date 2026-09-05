@@ -227,6 +227,46 @@
     (t/is (false? (:sparse-coverage m)))
     (t/is (= "otent/basemap/modis-aqua-lst-night/2026-08-30" (:prefix m)))))
 
+;; ------------------------------------------------- Aqua LST day
+
+(t/deftest aqua-lst-day-urls-and-keys-carry-the-capture-date
+  (let [s (bm/source-for "modis-aqua-lst-day")]
+    (t/is (= "modis-aqua-lst-day" (:id s)))
+    (t/is (bm/dated? s))
+    (t/is (not (:sparse-coverage s)) "the LST layer serves a (coloured) PNG over ocean -- not sparse")
+    (t/is (= "png" (:format s)))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] "2026-08-30")
+                         "MODIS_Aqua_Land_Surface_Temp_Day/default/2026-08-30/GoogleMapsCompatible_Level7/4/6/12.png"))
+    (t/is (= "otent/basemap/modis-aqua-lst-day/2026-08-30/4/12/6.png"
+             (bm/tile-key s [4 12 6] "2026-08-30")))
+    (t/is (str/includes? (bm/tile-url s [4 12 6] nil) "{date}")
+          "without a date the template must leak, not silently fetch `default`")))
+
+(t/deftest aqua-lst-day-refusals
+  (let [s (bm/source-for "modis-aqua-lst-day")]
+    (t/is (= :source/past-ingest-bound (:refusal (bm/ingest-refusal s 5 "2026-08-30"))))
+    ;; past the layer's own level 7: the 1 km product must not be upsampled
+    (t/is (= :source/past-max-zoom (:refusal (bm/ingest-refusal s 8 "2026-08-30"))))
+    ;; a daily capture date is declared, not defaulted
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 nil))))
+    (t/is (= :source/capture-date-required (:refusal (bm/ingest-refusal s 4 "2026-08-31T00:00:00Z"))))
+    (t/is (nil? (bm/ingest-refusal s 4 "2026-08-30"))))
+  (let [p (bm/ingest-plan "modis-aqua-lst-day" 4 "2026-08-30")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)))
+    (t/is (= "2026-08-30" (:date p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/modis-aqua-lst-day/2026-08-30/"))))
+
+(t/deftest aqua-lst-day-manifest-entry-states-what-exists
+  (let [s (bm/source-for "modis-aqua-lst-day")
+        m (bm/manifest-imagery-entry s 4 "2026-08-30" 341 "t")]
+    (t/is (= "daily" (:time-mode m)))
+    (t/is (= "2026-08-30" (:capture-date m)))
+    (t/is (= 341 (:tile-count m)) "not sparse: full candidate count is the stored count")
+    (t/is (false? (:sparse-coverage m)))
+    (t/is (= "otent/basemap/modis-aqua-lst-day/2026-08-30" (:prefix m)))))
+
 ;; ------------------------------------------------- Aqua Bands721
 
 (t/deftest aqua-bands721-urls-and-keys-carry-the-capture-date

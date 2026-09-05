@@ -183,6 +183,26 @@
     :max-source-zoom 7
     :max-ingest-zoom 4}
 
+   {:id "modis-aqua-lst-day"
+    :label "NASA GIBS MODIS Aqua Land Surface Temperature (Day, daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / MODIS Aqua LST"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "MODIS_Aqua_Land_Surface_Temp_Day/default/"
+                       "{date}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png")
+    :time-mode :daily
+    :format "png"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "MODIS (Aqua)"
+    :bands "land surface temperature (MODIS bands 31/32, colour-mapped by GIBS)"
+    :native-gsd "1 km"
+    ;; The day overpass half of the Aqua night layer above. Served to
+    ;; level 7 (1 km product), bound to z4 -- 341 tiles per capture date,
+    ;; and the day's tiles publish the day after capture like the rest.
+    :max-source-zoom 7
+    :max-ingest-zoom 4}
+
    {:id "modis-aqua-bands721"
     :label "NASA GIBS MODIS Aqua CorrectedReflectance Bands721 (daily)"
     :licence "NASA -- public domain"
