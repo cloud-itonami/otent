@@ -22,7 +22,7 @@
   | layer | source | licence |
   |---|---|---|
   | raster | NASA GIBS `BlueMarble_ShadedRelief_Bathymetry` | NASA, public domain |
-  | imagery | NASA GIBS daily true colour -- `MODIS_Terra_...` and `VIIRS_NOAA20_...`, one capture date per run | NASA, public domain |
+  | imagery | NASA GIBS daily true colour -- `MODIS_Terra_...`, `VIIRS_NOAA20_...` and `VIIRS_SNPP_...`, one capture date per run | NASA, public domain |
   | vector | Natural Earth 110m coastline + land borders | public domain (CC0) |
 
   Source definitions, tile maths, refusal rules and the shapes of the

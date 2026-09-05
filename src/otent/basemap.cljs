@@ -71,6 +71,25 @@
     ;; Same service, same shape as the MODIS layer: served to level 9,
     ;; bound to z4 -- 341 tiles per capture date.
     :max-source-zoom 9
+    :max-ingest-zoom 4}
+
+   {:id "viirs-snpp-truecolor"
+    :label "NASA GIBS VIIRS SNPP CorrectedReflectance TrueColor (daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / VIIRS Suomi NPP"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "VIIRS_SNPP_CorrectedReflectance_TrueColor/default/"
+                       "{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg")
+    :time-mode :daily
+    :format "jpeg"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "VIIRS (Suomi NPP)"
+    :bands "bands M5, M4, M3 as RGB true colour"
+    :native-gsd "375 m"
+    ;; The third daily true-colour layer on the same service: served to
+    ;; level 9, bound to z4 -- 341 tiles per capture date.
+    :max-source-zoom 9
     :max-ingest-zoom 4}])
 
 (def vector-sources
