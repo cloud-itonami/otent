@@ -133,3 +133,7 @@ otent.panoramax-image-test
     otent.parses-test
     otent.receipt-test
     otent.watchlist-test])
+            [otent.street-test]
+            [otent.street-tally-test]
+    otent.street-test
+    otent.street-tally-test
