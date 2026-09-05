@@ -196,3 +196,51 @@
                   (:licence imagery/modis-terra-bands367-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/modis-terra-bands367-sample))))))
+
+;; ---- the fifth bounded sample: VIIRS City Lights 2012, static, level 0
+
+(def citylights-fixture-name "viirs-citylights-2012-z0.jpeg")
+
+(defn citylights-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures" citylights-fixture-name))
+
+(t/deftest citylights-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/viirs-citylights-2012-sample)))
+  (t/testing "a static record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/viirs-citylights-2012-sample
+                           :retrieved-at))))))
+
+(t/deftest citylights-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/viirs-citylights-2012-sample)]
+    (t/is (= (:asset-id imagery/viirs-citylights-2012-sample) (:asset-id m)))
+    (t/is (re-find #"VIIRS_CityLights_2012" (:what-exists m)))
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the static global tile states the planet it covers"
+      (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))))))
+
+(t/deftest citylights-object-readback-test
+  (t/testing "the city-lights fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (citylights-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256 imagery/viirs-citylights-2012-sample) sha256)))))
+
+(t/deftest citylights-verify-sample-test
+  (let [bytes (fs/readFileSync (citylights-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample imagery/viirs-citylights-2012-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest citylights-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the night-lights source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/viirs-citylights-2012-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/viirs-citylights-2012-sample))))))
