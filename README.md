@@ -1233,9 +1233,133 @@ tests, 1,533 assertions, 0 failures. Live mode without
 token exists** in this environment (env, keychain — re-verified), so
 nothing was fetched from Mapillary and none is invented.
 
+## One open street source, anonymously: Panoramax
+
+`bin/panoramax.cljs` ingests street-imagery **metadata** (no pixel is
+fetched or stored) from Panoramax — the IGN / OSM-FR street-imagery
+federation publishing CC-BY-SA-4.0 pictures over a STAC API. The
+anonymous aggregate endpoint `api.panoramax.xyz/api/search` answers 200
+with no credential; per-item licence links are carried through, so what
+an item is licensed as is what the observation records.
+
+The bound is one bbox per invocation (`--bbox W S E N`), ≤ 0.01° a side,
+**filtered back down to the bbox** — the API's aggregate answers may
+reach further than the declared area, so everything returned outside it
+stays visible in the counts. `--fixture` replays a captured payload
+offline with identical checks.
+
+Gates before any item becomes an observation:
+
+- **privacy, curated fields**: the raw EXIF block contains
+  uploader-identifying metadata (a `MAPSettingsEmail`,
+  upload hashes) — EXIF is never copied into an observation, only a
+  curated allow-list passes, and a redaction check refuses the whole run
+  if an `@` or a forbidden key ever reaches an emitted observation.
+- **processing and visibility**: unprocessed items (`geovisio:status` ≠
+  `ready`) and non-public items (`geovisio:visibility` ≠ `anyone`) are
+  refused and counted. The provider's automatic face/plate blurring is
+  platform-level and the item API publishes no per-item blur flag, so
+  the observation carries `provider-blur-verified false` with the
+  limitation stated rather than a claim that was never checked.
+- **geometry**: GeoJSON lon/lat only; a point that is only plausible if
+  swapped is refused, not repaired.
+- **uncertainty**: the provider's `quality:horizontal_accuracy` (metres,
+  95% interval) is carried as spatial uncertainty; where the item omits
+  it, `:unknown` stays visible.
+
+Capture time is the item's `properties.datetime`, never confused with
+ingest time; every refusal is counted by name; the response bytes are
+hashed (`input sha256=…`) before anything else runs, so provenance
+survives even a refusal. A picture is an observation at capture time,
+not current existence.
+
+## One derived task over the Panoramax observations: spatial density (per-cell grid)
+
+`bin/panorama_density.cljs` runs **one** derived task —
+`panoramax-street-density-v1` — over the Panoramax observations the
+upstream pass normalized: the one ≤ 0.01° area is binned into a fixed
+deterministic grid (target cell 0.0025°, so at most 4×4 cells derived
+from the declared bbox, never from the data) and admissible pictures
+are counted per cell. No model, no inference: `model-id` is `:none`,
+stated rather than hidden.
+
+What it keeps honest:
+
+- **The grid is a pure function of the declared bbox.** The same bbox
+  always produces the same cell edges, whatever the observations are;
+  a picture outside the declared bbox would be counted `unplaceable`,
+  never folded into a neighbouring cell.
+- **Unknowns stay visible.** A picture whose published `view:azimuth`
+  is not a number is counted `heading-unknown` in its cell; a picture
+  with no collection id is simply absent from `sequence-known` —
+  counted, never dropped. Cells with zero admissible pictures stay as
+  explicit zeros.
+- **A lower bound, said out loud.** The provider pages results; the
+  table records `coverage-bound: lower-bound` with the presence of a
+  `next` link in the note — an empty cell says nothing about the
+  provider's actual coverage there.
+- **The privacy gate is upstream and stated.** Only `status=ready`,
+  public, licence-carrying items with uploader EXIF redacted (admitted
+  by `otent.panoramax`) reach the table; the derived provenance
+  re-asserts that no face, plate, person or vehicle entity exists in
+  this task, and that no pixel was fetched or stored.
+- **The stored document self-checks.** `provenance-checks` verifies
+  that placed + unplaceable equals the observation count and that the
+  per-cell counts sum to placed — a tampered count refuses, not passes.
+
+Verified live (one area, central Tokyo, 2026-09-03): `fetched=100
+accepted=100 refused=0 outside-bbox=0 next-link=false`, grid 2×2,
+`pictures-placed=100 unplaceable=0`. R2 write stopped at the
+no-credential gate. `--fixture` replays a labeled SYNTHETIC payload
+offline with identical checks.
+
+`bin/panorama_coverage.cljs` runs **one** derived task —
+`panoramax-street-vintage-v1` — over the same normalized Panoramax
+observations: a temporal-coverage (vintage) table for the one
+≤ 0.01° area, counting admissible pictures and the span of their
+published capture times. No model, no inference: `model-id` is
+`:none`, stated rather than hidden.
+
+What it keeps honest:
+
+- **The span endpoints are the provider's bytes.** Published
+  `datetime` strings are validated against the provider's ISO-8601
+  UTC form and compared lexicographically (which sorts
+  chronologically); no timezone conversion, no date math, so
+  `earliest-published` / `latest-published` are byte-identical to
+  what the provider published.
+- **Unknowns stay visible.** A picture whose published datetime does
+  not match the validated form is counted `capture-unknown`, never
+  dropped, never folded into the span; if nothing parses, the span is
+  an explicit `:unknown`, not an empty result that looks like a pass.
+- **A lower bound, said out loud.** The table records
+  `coverage-bound: lower-bound` with the presence of a `next` link in
+  the note — a span proves nothing outside the fetched area or page.
+- **The privacy gate is upstream and stated.** Only `status=ready`,
+  public, licence-carrying items with uploader EXIF redacted (admitted
+  by `otent.panoramax`) reach the table; the derived provenance
+  re-asserts that no pixel was fetched or stored and that no face,
+  plate, person or vehicle entity exists in this task.
+- **The stored document self-checks.** `provenance-checks` verifies
+  that `capture-known + capture-unknown` equals the observation count
+  and that the span endpoints are members of the capture-known set —
+  a tampered count or span refuses, not passes.
+- **The epistemic boundary is written in the table.** A
+  temporal-coverage observation is not road condition, accessibility,
+  ownership, inventory, availability, legal compliance, or current
+  existence.
+
+Verified live (same area, central Tokyo, 2026-09-03): `fetched=100
+accepted=100 refused=0 outside-bbox=0 next-link=false`,
+`capture-known=100 capture-unknown=0`, span `2016-10-13T13:13:07.592061+00:00`
+→ `2026-06-09T02:19:58+00:00`. R2 write stopped at the no-credential
+gate. `--fixture` replays a labeled SYNTHETIC payload offline with
+identical checks (span `2017-09-09T08:28:31.000000+00:00` →
+`2021-04-02T12:00:00Z`, `capture-unknown=1`).
+
 ## Tests
 
-`npm test` — 121 tests, 1,493 assertions, against **captured real payloads**
+`npm test` — 143 tests, 1,611 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:
