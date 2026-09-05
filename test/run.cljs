@@ -54,7 +54,8 @@
             [otent.mapillary-mapfeature-detections-test]
             [otent.mapillary-mapfeatures-bbox-test]
             [otent.mapillary-images-test]
-            [otent.street-heading-test]))
+            [otent.street-heading-test]
+            [otent.panoramax-daylight-test]))
 
 (def declared
   '[otent.imagery-test
@@ -80,7 +81,8 @@ otent.panoramax-image-test
     otent.mapillary-mapfeature-detections-test
     otent.mapillary-mapfeatures-bbox-test
   otent.mapillary-images-test
-  otent.street-heading-test])
+  otent.street-heading-test
+  otent.panoramax-daylight-test])
 
 (def min-tests 20)
 
