@@ -33,6 +33,7 @@
             ["path" :as path]
             [otent.basemap-test]
             [otent.analysis-test]
+            [otent.change-test]
             [otent.catalog-test]
             [otent.coverage-test]
             [otent.darkness-test]
@@ -49,6 +50,7 @@
 
 (def declared
   '[otent.analysis-test
+    otent.change-test
     otent.basemap-test
     otent.catalog-test
     otent.coverage-test
