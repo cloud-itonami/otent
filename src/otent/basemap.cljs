@@ -211,7 +211,30 @@
     ;; answers 404, which is also just a hole, not a refusal to store.
     :max-source-zoom 8
     :max-ingest-zoom 4
-    :sparse-coverage true}])
+    :sparse-coverage true}
+
+   {:id "viirs-snpp-bandsm11"
+    :label "NASA GIBS VIIRS SNPP CorrectedReflectance BandsM11-I2-I1 (daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / VIIRS Suomi NPP"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "VIIRS_SNPP_CorrectedReflectance_BandsM11-I2-I1/default/"
+                       "{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg")
+    :time-mode :daily
+    :format "jpeg"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "VIIRS (Suomi NPP)"
+    :bands "M11 (2.25 um SWIR), I2 (1.6 um SWIR), I1 (0.64 um red) as RGB false colour (hot-spot/fire discrimination)"
+    :native-gsd "375 m"
+    ;; The M11 composite: the 375 m I-band resolution with the 2.25 um
+    ;; M11 SWIR channel in the red plane, so active fires and hot spots
+    ;; read as bright red against the false-colour landscape. Served to
+    ;; level 9, bound to z4 -- 341 tiles per capture date. The day's
+    ;; tiles publish the day after capture: a same-day date answers 404,
+    ;; an HTTP error, not a hole.
+    :max-source-zoom 9
+    :max-ingest-zoom 4}])
 
 (def vector-sources
   [{:id "coastline"
