@@ -1442,3 +1442,40 @@ clock. NASA GIBS, public domain, one tile, level 0. Provenance,
 licence-allowlist and object-readback tests assert the record: fixture
 bytes hash to the record's `payload-sha256`. `npm test` -- 245 tests,
 1,889 assertions, 0 failures.
+
+## One image, once: the Panoramax pixel sample
+
+Every earlier street-imagery run recorded that **no pixel was fetched**.
+`otent.panoramax-image` is the first bounded exception, and it earns it
+rather than assuming it:
+
+- **permission, checked per item**: raw pixels are admissible only when the
+  item's own STAC `license` names a recorded share-alike/attribution
+  licence (`etalab-2.0`, `CC-BY-SA-4.0`). An unknown or missing licence is
+  never read as permission — the metadata stays observable, the bytes do
+  not (`:licence-does-not-permit-pixels`).
+- **one item, one pixel request**: one anonymous search (bbox ≤ 0.01°/side)
+  picks the first ready+public item; the pixel GET hits only that item's
+  own `sd` asset. Siblings and `rel=next` are never followed.
+- **what survives**: provider image id, evidence URL, capture time
+  (`properties.datetime`), geometry (refused, not repaired, if lon/lat is
+  only plausible swapped), heading, sequence + rank, licence as published,
+  attribution, retrieval time, sha256 + byte-size of the exact bytes, and
+  the provider's horizontal accuracy (or `:unknown`). The bytes go to
+  object storage only behind `$CF_CATALOG_TOKEN`; without the credential
+  the run reports `nothing written` and exits 2 rather than pretending.
+- **privacy**: the item must be `geovisio:status=ready` and
+  `geovisio:visibility=anyone`; `provider-blur-verified` stays `false`
+  with the platform-level blur story stated, never claimed per item; a
+  redaction check refuses the run if an `@` or an exif/email-shaped key
+  reaches the record.
+
+    npx nbb --classpath src bin/panoramax_image.cljs \
+      --fixture test/otent/fixtures/panoramax-image-item.json \
+      --pixel test/otent/fixtures/panoramax-image-pixel.jpg
+    npx nbb --classpath src bin/panoramax_image.cljs --live --bbox 4.4750 44.1351 4.4755 44.1353
+
+Exit 0 sample recorded · 1 refused · 2 could-not-act. Verified live
+2026-09-02: two requests, 226,336 bytes, `input pixel
+sha256=7d4797e55cc012047eea9163c88d1257bcb1e8ef13e98f55816c05877fed86c9`,
+deterministic across runs; nothing written (no write credential).
