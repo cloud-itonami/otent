@@ -1221,9 +1221,53 @@ accepted=100 refused=0 outside-bbox=0 next-link=false`, grid 2×2,
 no-credential gate. `--fixture` replays a labeled SYNTHETIC payload
 offline with identical checks.
 
+`bin/panorama_coverage.cljs` runs **one** derived task —
+`panoramax-street-vintage-v1` — over the same normalized Panoramax
+observations: a temporal-coverage (vintage) table for the one
+≤ 0.01° area, counting admissible pictures and the span of their
+published capture times. No model, no inference: `model-id` is
+`:none`, stated rather than hidden.
+
+What it keeps honest:
+
+- **The span endpoints are the provider's bytes.** Published
+  `datetime` strings are validated against the provider's ISO-8601
+  UTC form and compared lexicographically (which sorts
+  chronologically); no timezone conversion, no date math, so
+  `earliest-published` / `latest-published` are byte-identical to
+  what the provider published.
+- **Unknowns stay visible.** A picture whose published datetime does
+  not match the validated form is counted `capture-unknown`, never
+  dropped, never folded into the span; if nothing parses, the span is
+  an explicit `:unknown`, not an empty result that looks like a pass.
+- **A lower bound, said out loud.** The table records
+  `coverage-bound: lower-bound` with the presence of a `next` link in
+  the note — a span proves nothing outside the fetched area or page.
+- **The privacy gate is upstream and stated.** Only `status=ready`,
+  public, licence-carrying items with uploader EXIF redacted (admitted
+  by `otent.panoramax`) reach the table; the derived provenance
+  re-asserts that no pixel was fetched or stored and that no face,
+  plate, person or vehicle entity exists in this task.
+- **The stored document self-checks.** `provenance-checks` verifies
+  that `capture-known + capture-unknown` equals the observation count
+  and that the span endpoints are members of the capture-known set —
+  a tampered count or span refuses, not passes.
+- **The epistemic boundary is written in the table.** A
+  temporal-coverage observation is not road condition, accessibility,
+  ownership, inventory, availability, legal compliance, or current
+  existence.
+
+Verified live (same area, central Tokyo, 2026-09-03): `fetched=100
+accepted=100 refused=0 outside-bbox=0 next-link=false`,
+`capture-known=100 capture-unknown=0`, span `2016-10-13T13:13:07.592061+00:00`
+→ `2026-06-09T02:19:58+00:00`. R2 write stopped at the no-credential
+gate. `--fixture` replays a labeled SYNTHETIC payload offline with
+identical checks (span `2017-09-09T08:28:31.000000+00:00` →
+`2021-04-02T12:00:00Z`, `capture-unknown=1`).
+
 ## Tests
 
-`npm test` — 134 tests, 1,576 assertions, against **captured real payloads**
+`npm test` — 143 tests, 1,611 assertions, against **captured real payloads**
 rather than invented ones.
 
 The runner has two floors and four exit codes, each watched on 2026-08-26:

@@ -1,0 +1,58 @@
+{
+  "type": "FeatureCollection",
+  "_note": "SYNTHETIC fixture (labeled, never presented as a live payload) for the panorama_coverage fixture-mode run; values modeled on the published Panoramax STAC item shape",
+  "links": [],
+  "features": [
+    {
+      "type": "Feature",
+      "id": "fixture-item-1",
+      "links": [
+        {"rel": "self", "href": "https://api.panoramax.xyz/api/collections/fixture/items/fixture-item-1", "type": "application/geo+json"}
+      ],
+      "assets": {"sd": {"href": "https://panoramax.openstreetmap.fr/derivates/fx/sd.jpg"}},
+      "geometry": {"type": "Point", "coordinates": [139.7661, 35.6791]},
+      "properties": {
+        "datetime": "2017-09-09T08:28:31.000000+00:00",
+        "license": "CC-BY-SA-4.0",
+        "geovisio:status": "ready",
+        "geovisio:visibility": "anyone",
+        "collection": "fixture-collection-a",
+        "geovisio:rank_in_collection": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fixture-item-2",
+      "links": [
+        {"rel": "self", "href": "https://api.panoramax.xyz/api/collections/fixture/items/fixture-item-2", "type": "application/geo+json"}
+      ],
+      "assets": {"sd": {"href": "https://panoramax.openstreetmap.fr/derivates/fx/sd2.jpg"}},
+      "geometry": {"type": "Point", "coordinates": [139.7688, 35.6811]},
+      "properties": {
+        "datetime": "2021-04-02T12:00:00Z",
+        "license": "CC-BY-SA-4.0",
+        "geovisio:status": "ready",
+        "geovisio:visibility": "anyone",
+        "collection": "fixture-collection-a",
+        "geovisio:rank_in_collection": 2
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fixture-item-3",
+      "links": [
+        {"rel": "self", "href": "https://api.panoramax.xyz/api/collections/fixture/items/fixture-item-3", "type": "application/geo+json"}
+      ],
+      "assets": {"sd": {"href": "https://panoramax.openstreetmap.fr/derivates/fx/sd3.jpg"}},
+      "geometry": {"type": "Point", "coordinates": [139.7696, 35.6802]},
+      "properties": {
+        "datetime": "13/09/2018 10:11:12",
+        "license": "CC-BY-SA-4.0",
+        "geovisio:status": "ready",
+        "geovisio:visibility": "anyone",
+        "collection": "fixture-collection-a",
+        "geovisio:rank_in_collection": 3
+      }
+    }
+  ]
+}
