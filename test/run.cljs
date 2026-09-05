@@ -17,12 +17,8 @@
             [clojure.string :as str]
             ["fs" :as fs]
             ["path" :as path]
-<<<<<<< HEAD
             [otent.imagery-test]
-=======
-            [otent.basemap-test]
             [otent.analysis-test]
->>>>>>> pr-1
             [otent.catalog-test]
             [otent.coverage-test]
             [otent.darkness-test]
@@ -56,7 +52,6 @@
             [otent.night-lights-test]))
 
 (def declared
-<<<<<<< HEAD
   '(otent.imagery-test
   otent.catalog-test
   otent.coverage-test
@@ -88,24 +83,8 @@
   otent.kartaview-test
   otent.street-coverage-test
   otent.night-lights-test
-  otent.mapillary-coverage-test))
-=======
-  '[otent.analysis-test
-    otent.basemap-test
-    otent.catalog-test
-    otent.coverage-test
-    otent.darkness-test
-    otent.deadline-test
-    otent.cli-test
-    otent.feeds-due-test
-    otent.governor-test
-    otent.lock-test
-    otent.parse-test
-    otent.parses-test
-    otent.receipt-test
-    otent.sanctions-test
-    otent.watchlist-test])
->>>>>>> pr-1
+  otent.mapillary-coverage-test
+  otent.analysis-test))
 
 (def min-tests 20)
 
