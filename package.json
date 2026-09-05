@@ -13,6 +13,7 @@
   "dependencies": {
     "@ipld/dag-cbor": "^10.0.2",
     "@noble/curves": "^1.9.7",
-    "@noble/hashes": "^2.3.0"
+    "@noble/hashes": "^2.3.0",
+    "jpeg-js": "^0.4.4"
   }
 }
