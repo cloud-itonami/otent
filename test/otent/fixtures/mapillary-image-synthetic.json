@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "id": "482194673015931",
+      "geometry": {"type": "Point", "coordinates": [139.7654, 35.6789]},
+      "captured_at": 1755100800000,
+      "compass_angle": 271.5,
+      "is_pano": false,
+      "sequence": "q-9f79a75d",
+      "thumb_1024_url": "https://mapillary.openstreetmap.media/482194673015931-1024.jpg"
+    },
+    {
+      "id": "482194673015932",
+      "geometry": {"type": "Point", "coordinates": [139.7661, 35.6792]},
+      "captured_at": 1755100860000,
+      "compass_angle": 92.0,
+      "is_pano": true,
+      "sequence": "q-9f79a75d",
+      "thumb_1024_url": "https://mapillary.openstreetmap.media/482194673015932-1024.jpg"
+    }
+  ],
+  "paging": {
+    "next": "https://graph.mapillary.com/images?access_token=REDACTED&cursor=czoyNDoxMTQ0"
+  }
+}
