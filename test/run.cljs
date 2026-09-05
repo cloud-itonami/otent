@@ -45,6 +45,7 @@
             [otent.sanctions-test]
             [otent.street-test]
             [otent.street-tally-test]
+            [otent.street-extent-test]
             [otent.street-span-test]
             [otent.watchlist-test]))
 
@@ -64,6 +65,7 @@
     otent.street-test
     otent.street-tally-test
     otent.street-span-test
+    otent.street-extent-test
     otent.watchlist-test])
 
 (def min-tests 20)
