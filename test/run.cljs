@@ -32,6 +32,7 @@
             ["fs" :as fs]
             ["path" :as path]
             [otent.basemap-test]
+            [otent.analysis-test]
             [otent.catalog-test]
             [otent.coverage-test]
             [otent.darkness-test]
@@ -47,7 +48,8 @@
             [otent.watchlist-test]))
 
 (def declared
-  '[otent.basemap-test
+  '[otent.analysis-test
+    otent.basemap-test
     otent.catalog-test
     otent.coverage-test
     otent.darkness-test
