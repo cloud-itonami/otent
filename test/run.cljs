@@ -47,7 +47,8 @@
             [otent.watchlist-test]
             [otent.basemap-test]
             [otent.kartaview-test]
-            [otent.street-coverage-test]))
+            [otent.street-coverage-test]
+            [otent.natural-earth-test]))
 
 (def declared
   '(otent.imagery-test
@@ -80,7 +81,8 @@
   otent.basemap-test
   otent.kartaview-test
   otent.street-coverage-test
-  otent.mapillary-coverage-test))
+  otent.mapillary-coverage-test
+  otent.natural-earth-test))
 
 (def min-tests 20)
 

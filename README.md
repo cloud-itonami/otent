@@ -938,6 +938,34 @@ accepted=11 refused=1 outside-bbox=5 has-more=false`, vintage span
 R2 write stopped at the no-credential gate. `--fixture` replays a
 labeled SYNTHETIC payload offline with identical checks.
 
+## One static asset, pinned by hash: Natural Earth I at 1:50m
+
+`bin/natural_earth.cljs` ingests a single static raster asset — Natural
+Earth I with Shaded Relief and Water (`NE1_50M_SR_W`), public domain,
+from the official `naturalearth` S3 bucket — alongside the daily imagery
+sources. It is bounded in a way the daily sources cannot be: the
+published zip is byte-stable, so the catalogue **pins its sha256**
+(`9e8541722341…`) and a download whose hash differs is a REFUSAL, not a
+quiet overwrite. The same run also checks the declared Content-Length
+against a size band before the body is read, and the zip magic before
+the hash.
+
+Nothing is unzipped or repacked. The zip lands in R2 exactly as
+published (`otent/natural-earth/NE1_50M_SR_W/<sha12>/NE1_50M_SR_W.zip`),
+so a later reader can verify it against the pin without trusting this
+script; the manifest (`…/manifest-<ts>.json`) records every
+scope-required provenance field — CRS (EPSG:4326, from the shipped
+`Read_me.txt`), 0.033333°/px measured from the shipped `.tfw`, and a
+capture-time that honestly says *static composite* rather than
+inventing a date. Without `$CF_CATALOG_TOKEN` the run fetches, checks
+everything, writes nothing, and exits 2: nothing written is not the
+same as written nothing.
+
+`scripts/verify_ne1_sample.cljs` is the read-only live check: it fetches
+the asset once and walks the zip's local-file headers by hand (no unzip
+dependency) to confirm the published entries are present and the
+GeoTIFF inside starts with the little-endian TIFF magic.
+
 ## Three planes, and what is allowed on each
 
 | plane | holds | addressed by |
