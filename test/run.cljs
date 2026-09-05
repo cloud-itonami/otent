@@ -39,6 +39,7 @@
     [otent.feeds-due-test]
             [otent.governor-test]
             [otent.kartaview-test]
+            [otent.kartaview-density-test]
             [otent.lock-test]
             [otent.parse-test]
             [otent.parses-test]
@@ -56,6 +57,7 @@
     otent.feeds-due-test
     otent.governor-test
     otent.kartaview-test
+    otent.kartaview-density-test
     otent.lock-test
     otent.parse-test
     otent.parses-test
