@@ -155,6 +155,38 @@
    :payload-sha256
    "fae46382a606e67415bf3acea247c149560eeab5eb8ea98a62749db917d2d405"})
 
+(def modis-terra-bands367-sample
+  "The fourth bounded sample: MODIS Terra CorrectedReflectance Bands367,
+  one EPSG:4326 level-0 tile for ONE declared capture date. Bands 3, 6
+  and 7 map visible blue and two shortwave-infrared bands into RGB, so
+  this carries information the true-colour layer does not -- it is a
+  different observation, not a re-render of one. Same shape as the
+  true-colour sample: dated acquisition, declared capture date, one
+  tile, level 0."
+  {:asset-id "MODIS_Terra_CorrectedReflectance_Bands367/250m/0/0/0"
+   :layer "MODIS_Terra_CorrectedReflectance_Bands367"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Terra_CorrectedReflectance_Bands367/default/"
+        "2026-09-01/250m/0/0/0.jpeg")
+   :capture-time "2026-09-01"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's time dimension. The date is declared per run, not guessed
+  from the wall clock."
+   :footprint [-180.0 180.0 -90.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 250
+   :sensor "MODIS (Terra)"
+   :bands #{:r :g :b}
+   :band-source "bands 3,6,7 as RGB false colour (visible blue + SWIR discrimination)"
+   :licence :nasa-public-domain
+   :tile-matrix "250m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-02T13:47:03Z"
+   :payload-sha256
+   "2a36384d0eeecdad6377ce1422f28538f191cc930947437a3468efb0f525c951"})
+
 (defn verify-sample
   "The object readback: re-derive the sample's provenance completeness
   and that its sha256 matches the fixture bytes' hash."

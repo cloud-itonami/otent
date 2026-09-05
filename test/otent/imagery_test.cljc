@@ -147,3 +147,52 @@
                   (:licence imagery/aster-gdem-color-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/aster-gdem-color-sample))))))
+
+;; ---- the fourth bounded sample: MODIS Terra Bands367, dated, level 0
+
+(def bands367-fixture-name "modis-terra-bands367-20260901-z0.jpeg")
+
+(defn bands367-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures" bands367-fixture-name))
+
+(t/deftest bands367-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/modis-terra-bands367-sample)))
+  (t/testing "a record missing the capture-time claim is not a record"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/modis-terra-bands367-sample
+                           :capture-time))))))
+
+(t/deftest bands367-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/modis-terra-bands367-sample)]
+    (t/is (= (:asset-id imagery/modis-terra-bands367-sample) (:asset-id m)))
+    (t/is (re-find #"MODIS_Terra_CorrectedReflectance_Bands367" (:what-exists m)))
+    (t/is (re-find #"declared capture date 2026-09-01" (:what-exists m)))
+    (t/is (true? (:level-0-only m)))
+    (t/is (= "2026-09-01" (:capture-time m)))
+    (t/testing "the dated global tile still states the planet it covers"
+      (t/is (= [-180.0 180.0 -90.0 90.0] (:bounds-epg4326-deg m))))))
+
+(t/deftest bands367-object-readback-test
+  (t/testing "the bands367 fixture bytes on disk hash to what the record claims"
+    (let [bytes (fs/readFileSync (bands367-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256 imagery/modis-terra-bands367-sample) sha256)))))
+
+(t/deftest bands367-verify-sample-test
+  (let [bytes (fs/readFileSync (bands367-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample imagery/modis-terra-bands367-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest bands367-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the false-colour source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/modis-terra-bands367-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/modis-terra-bands367-sample))))))
