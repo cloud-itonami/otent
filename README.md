@@ -1484,3 +1484,17 @@ clock. NASA GIBS, public domain, one tile, level 0. Provenance,
 licence-allowlist and object-readback tests assert the record: fixture
 bytes hash to the record's `payload-sha256`. `npm test` -- 245 tests,
 1,889 assertions, 0 failures.
+
+## One KartaView image pixel sample (2026-09-02)
+
+KartaView metadata (PR #12) and a derived density task (PR #34) were ingested
+with no pixel ever fetched. This run adds the KartaView counterpart of the
+Panoramax pixel sample (`otent.kartaview-image`): one anonymous search in a
+bbox of at most 0.01 degrees per side, the first in-bbox photo that passes
+every gate — public, active, provider-processed `BLURRED`, plausible lon/lat
+geometry, capture time, published processed-image URL — then ONE pixel GET of
+that photo's own URL. Bytes are hashed and stored only behind
+`$CF_CATALOG_TOKEN`; without the credential the run reports nothing written
+and exits 2. An unblurred, unknown-flag, withdrawn or non-public photo keeps
+its metadata eligibility but is refused the fetch; a record carrying an `@`
+or an exif-shaped key refuses the whole run.
