@@ -41,6 +41,7 @@
             [otent.lock-test]
             [otent.mapillary-images-test]
             [otent.mapillary-coverage-test]
+            [otent.mapillary-density-test]
             [otent.parse-test]
             [otent.parses-test]
             [otent.receipt-test]
@@ -58,6 +59,7 @@
     otent.lock-test
     otent.mapillary-images-test
     otent.mapillary-coverage-test
+    otent.mapillary-density-test
     otent.parse-test
     otent.parses-test
     otent.receipt-test
