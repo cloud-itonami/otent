@@ -120,3 +120,16 @@ otent.panoramax-image-test
           (println "  run but not on disk:" (str/join " " (map name extra))))
         (set! (.-exitCode js/process) 2))
     (apply t/run-tests declared)))
+            [otent.nightlight-obs-test]
+            [otent.png-test]
+            [otent.parse-test]
+            [otent.parses-test]
+            [otent.receipt-test]
+            [otent.watchlist-test]))
+  '[otent.catalog-test
+    otent.nightlight-obs-test
+    otent.png-test
+    otent.parse-test
+    otent.parses-test
+    otent.receipt-test
+    otent.watchlist-test])
