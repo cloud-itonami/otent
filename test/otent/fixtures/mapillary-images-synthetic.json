@@ -1,0 +1,45 @@
+{
+  "data": [
+    {
+      "id": "482194673015931",
+      "geometry": {"type": "Point", "coordinates": [139.7654, 35.6789]},
+      "captured_at": 1755100800000,
+      "compass_angle": 271.5,
+      "is_pano": false
+    },
+    {
+      "id": "482194673015932",
+      "geometry": {"type": "Point", "coordinates": [139.7661, 35.6792]},
+      "captured_at": 1755100860000,
+      "compass_angle": 92.0,
+      "is_pano": true
+    },
+    {
+      "id": "482194673015933",
+      "geometry": {"type": "Point", "coordinates": [35.6801, 139.7668]},
+      "captured_at": 1755100920000,
+      "compass_angle": 45.0,
+      "is_pano": false
+    },
+    {
+      "id": "482194673015934",
+      "geometry": {"type": "Point", "coordinates": [139.7672, 35.6799]},
+      "compass_angle": 180.0,
+      "is_pano": false
+    },
+    {
+      "id": "482194673015935",
+      "geometry": {"type": "Point", "coordinates": [139.7680, 35.6794]},
+      "captured_at": "not-a-number",
+      "compass_angle": 10.0,
+      "is_pano": false
+    },
+    {
+      "id": "482194673015936",
+      "geometry": {"type": "Point", "coordinates": [139.7681, 35.6795]},
+      "captured_at": 1755101000000,
+      "compass_angle": 300.0,
+      "is_pano": false
+    }
+  ]
+}

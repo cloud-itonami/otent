@@ -1399,6 +1399,81 @@ live mode hard-fails exit 2 with `:mapillary-image/no-credential` —
 keychain — re-verified), so no pixel has been fetched from Mapillary
 and none is invented. A 401 must never be misread as an empty tile.
 
+## One open street source, credential-gated: Mapillary image metadata
+
+`bin/mapillary_images.cljs` ingests street-imagery **metadata** (no pixel
+is fetched or stored, and the thumbnail URL is never requested) from
+Mapillary's Graph API v4 `/images`, through the **registered client**
+`com-mapillary-graph-api` — the request is built by the client, not
+re-implemented beside it. Its constraints (bbox < 0.01° a side, limit
+≤ 2000, token in the `Authorization` header, never the query string) are
+the client's, and this source deliberately adds only what the client
+does not decide:
+
+- **one source, one area, one request** per invocation (`--bbox W S E N`,
+  strictly under 0.01° a side). A `paging.next` in the payload is
+  counted and recorded, **not followed** — the run bound is in the
+  provenance, not in a comment.
+- **the token is a capability of the caller**: read from
+  `MAPILLARY_ACCESS_TOKEN` in the environment only. Without it the live
+  mode hard-fails exit 2 — a 401 must never be misread as an empty tile,
+  and no data is invented.
+- **fields are curated**: `id`, `geometry`, `captured_at`,
+  `compass_angle`, `is_pano`. No pixel URL, and a redaction check
+  refuses any observation that ever carries an `@` or an exif/email key.
+- **uncertainty stated, not assumed**: the API publishes no per-image
+  spatial-error figure and no per-image blur-result flag, so spatial
+  uncertainty is `:unknown` and `provider-blur-verified` is `false` with
+  the limitation stated. Faces and plates stay outside the observation
+  space entirely.
+- **geometry refused, not repaired**: a point that is only plausible if
+  lon/lat swapped is a refusal and a count, never a coordinate.
+- **capture time is `captured_at`**, never ingest time; both ride on
+  every observation, and the response bytes are hashed
+  (`input sha256=…`) before anything else runs, so provenance survives
+  even a refusal.
+
+Storage and readback go through the same R2 path as every other source;
+without `$CF_CATALOG_TOKEN` the run reports that nothing was written —
+which is not the same as writing nothing — and exits 2. Counts are
+checked against the stored document itself: fetched = accepted + refused
++ outside, accepted = observations, or the readback refuses.
+
+No live observation has been ingested yet: **no `MAPILLARY_ACCESS_TOKEN`
+exists** (env, keychain, secrets — re-verified this run). Live mode is
+ready and will run one ≤0.01° tile the moment a token is provisioned.
+
+### One derived task over the Mapillary metadata: vintage (temporal coverage)
+
+`bin/mapillary_coverage.cljs` runs **one** derived task —
+`mapillary-street-vintage-v1` — over the Mapillary observations the
+metadata pass normalized: a temporal-coverage table for the one ≤0.01°
+area, built from the provider's own `captured_at` epoch milliseconds.
+No model, no inference: `model-id` is `:none`, stated rather than
+hidden.
+
+What it keeps honest:
+
+- **The span endpoints are the provider's numbers.** `captured_at` is
+  compared numerically over the published epoch milliseconds — the
+  earliest/latest are the published values themselves. No timezone is
+  invented, no calendar string derived on top of them.
+- **Unknowns stay visible.** An observation without a numeric capture
+  time is counted `capture-unknown`, never dropped, never folded into
+  the span — and the stored document refuses its own readback if the
+  derived span is not inside the capture times it carries.
+- **A lower bound, said out loud.** The Graph API pages results; the
+  table records `coverage-bound: lower-bound` with `paging-next` in the
+  note — a span proves nothing outside the fetched area or page.
+- **The privacy gate is upstream and stated.** Only metadata (no pixel
+  fetched or stored, thumbnail URLs never requested) reaches the table;
+  `provider-blur-verified` stays `false` because the API publishes no
+  per-image blur result, and the derived provenance re-asserts that no
+  face, plate, person or vehicle entity exists in this task.
+- **The epistemic boundary is part of the table**: a vintage
+  observation is not road condition, accessibility, ownership,
+  inventory, availability, legal compliance, or current existence.
+
 ## Tests
 
 `npm test` — 143 tests, 1,611 assertions, against **captured real payloads**

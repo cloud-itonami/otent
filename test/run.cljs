@@ -47,7 +47,10 @@
 [otent.panoramax-test]
             [otent.panorama-density-test]
             [otent.panorama-coverage-test]            [otent.parses-test]
-            [otent.receipt-test]
+[otent.mapillary-images-test]
+            [otent.mapillary-coverage-test]
+            [otent.parse-test]
+            [otent.parses-test]            [otent.receipt-test]
             [otent.sanctions-test]
             [otent.watchlist-test]
             [otent.mapillary-mapfeature-detections-test]
@@ -70,7 +73,10 @@ otent.panoramax-coverage-test
 otent.panoramax-test
     otent.panorama-density-test
     otent.panorama-coverage-test    otent.parses-test
-    otent.receipt-test
+otent.mapillary-images-test
+    otent.mapillary-coverage-test
+    otent.parse-test
+    otent.parses-test    otent.receipt-test
     otent.sanctions-test
     otent.watchlist-test
     otent.mapillary-mapfeature-detections-test
