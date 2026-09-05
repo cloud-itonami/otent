@@ -1399,6 +1399,43 @@ live mode hard-fails exit 2 with `:mapillary-image/no-credential` —
 keychain — re-verified), so no pixel has been fetched from Mapillary
 and none is invented. A 401 must never be misread as an empty tile.
 
+## One derived capture-daylight task over the Panoramax observations
+
+`bin/panoramax_daylight.cljs` runs **one** derived task —
+`panoramax-capture-daylight-v1` — over the observations normalized by
+`otent.panoramax`: a deterministic, locally-reproducible solar-elevation
+classifier (`otent.solar-elevation`, NOAA low-precision algorithm) that
+labels each observation's published UTC capture time and own lon/lat as
+`:daylight` (> 0°), `:civil-twilight` (−6°…0°) or `:night` (< −6°),
+thresholds pinned as model parameters.
+
+- the **model artifact is pinned**: the bin script hashes the
+  classifier source file at run time (`sha256`) and records it in the
+  derived provenance — every table names the exact arithmetic that
+  produced it. When the hash cannot be read it is stated `:unknown`,
+  never invented.
+- **no pixels are touched**: classification is astronomy over published
+  metadata, not scene analysis — overcast noon and clear noon are both
+  `:daylight`, and the table says so in its epistemic boundary.
+- **uncertainty is declared, not implied**: the approximate model
+  carries a stated ±2° elevation uncertainty (classes near a threshold
+  are provisional), and each observation's provider positional
+  accuracy rides alongside.
+- **unknowns stay visible**: a non-conforming published datetime is
+  counted `capture-unknown`, a malformed footprint `geometry-unknown` —
+  counted, never dropped, never classified.
+- the table is a **lower bound** over the fetched page (`links-next`
+  restated in the coverage-bound note).
+
+```
+nbb --classpath src bin/panoramax_daylight.cljs --bbox 139.765 35.675 139.77 35.68
+nbb --classpath src bin/panoramax_daylight.cljs --fixture payload.json --bbox W S E N
+```
+
+As with the other derived tasks, `$CF_CATALOG_TOKEN` absence stops at
+the write gate (exit 2): nothing is written, and that refusal is
+reported rather than faked.
+
 ## Tests
 
 `npm test` — 143 tests, 1,611 assertions, against **captured real payloads**
