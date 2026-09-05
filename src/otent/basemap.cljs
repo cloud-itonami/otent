@@ -71,6 +71,47 @@
     ;; Same service, same shape as the MODIS layer: served to level 9,
     ;; bound to z4 -- 341 tiles per capture date.
     :max-source-zoom 9
+    :max-ingest-zoom 4}
+
+   {:id "modis-aqua-truecolor"
+    :label "NASA GIBS MODIS Aqua CorrectedReflectance TrueColor (daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / MODIS Aqua"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "MODIS_Aqua_CorrectedReflectance_TrueColor/default/"
+                       "{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg")
+    :time-mode :daily
+    :format "jpeg"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "MODIS (Aqua)"
+    :bands "bands 1,4,3 as RGB true colour"
+    :native-gsd "250 m"
+    ;; Same layer family as the Terra source: served to level 9, bound
+    ;; to z4 -- 341 tiles per capture date. Aqua is the afternoon
+    ;; overpass, so the same day is a genuinely different observation.
+    :max-source-zoom 9
+    :max-ingest-zoom 4}
+
+   {:id "modis-terra-bands721"
+    :label "NASA GIBS MODIS Terra CorrectedReflectance Bands721 (daily)"
+    :licence "NASA -- public domain"
+    :attribution "NASA EOSDIS GIBS / MODIS Terra"
+    :url-template (str "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
+                       "MODIS_Terra_CorrectedReflectance_Bands721/default/"
+                       "{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg")
+    :time-mode :daily
+    :format "jpeg"
+    :crs "EPSG:3857"
+    :tile-size 256
+    :sensor "MODIS (Terra)"
+    :bands "bands 7,2,1 as RGB false colour (SWIR burn/flood discrimination)"
+    :native-gsd "500 m"
+    ;; Same service, same shape as the true-colour Terra layer: served
+    ;; to level 9, bound to z4 -- 341 tiles per capture date. Band 7 is
+    ;; shortwave infrared, so this is information the true-colour
+    ;; source does not carry, not a re-render of it.
+    :max-source-zoom 9
     :max-ingest-zoom 4}])
 
 (def vector-sources
