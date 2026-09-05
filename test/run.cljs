@@ -42,6 +42,7 @@
             [otent.lock-test]
             [otent.mapillary-image-detections-test]
             [otent.parse-test]
+            [otent.panoramax-coverage-test]
             [otent.parses-test]
             [otent.receipt-test]
             [otent.sanctions-test]
@@ -60,6 +61,7 @@
     otent.lock-test
     otent.mapillary-image-detections-test
     otent.parse-test
+    otent.panoramax-coverage-test
     otent.parses-test
     otent.receipt-test
     otent.sanctions-test
