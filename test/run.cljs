@@ -18,6 +18,7 @@
             ["fs" :as fs]
             ["path" :as path]
             [otent.imagery-test]
+            [otent.natural-earth-test]
             [otent.catalog-test]
             [otent.coverage-test]
             [otent.darkness-test]
@@ -82,7 +83,8 @@
   otent.kartaview-test
   otent.street-coverage-test
   otent.night-lights-test
-  otent.mapillary-coverage-test))
+  otent.mapillary-coverage-test
+  otent.natural-earth-test))
 
 (def min-tests 20)
 
