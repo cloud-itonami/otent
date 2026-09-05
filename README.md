@@ -938,6 +938,19 @@ accepted=11 refused=1 outside-bbox=5 has-more=false`, vintage span
 R2 write stopped at the no-credential gate. `--fixture` replays a
 labeled SYNTHETIC payload offline with identical checks.
 
+### Night lights: one composite, bounded
+
+`night_lights.cljs` ingests NASA GIBS `VIIRS_Black_Marble` (Suomi NPP
+Day/Night Band, public domain, keyless) under `otent/night-lights/<composite>/`.
+The Time dimension declares exactly two composites — 2012-01-01 and
+2016-01-01 — and the plan refuses any other date: the service's `default`
+alias moves under us, so it is never ingested. The layer serves to z8
+(z9 answers 400), but the ingest bound is z4 = 341 tiles, one composite
+per run. The per-composite manifest records asset id, source URL,
+capture (composite) and retrieval times, sha256, CRS, tile geometry,
+sensor/bands, resolution, licence and attribution per tile, and states
+the max zoom MEASURED in the bucket.
+
 ## Three planes, and what is allowed on each
 
 | plane | holds | addressed by |
