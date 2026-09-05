@@ -1619,6 +1619,37 @@ table counts accepted items and the span of their **provider-published**
   road condition, accessibility, ownership, inventory, availability,
   legal compliance, or current existence.
 
+### One derived task over the Mapillary metadata: vintage (temporal coverage)
+
+`bin/mapillary_coverage.cljs` runs **one** derived task —
+`mapillary-street-vintage-v1` — over the Mapillary observations the
+metadata pass normalized: a temporal-coverage table for the one ≤0.01°
+area, built from the provider's own `captured_at` epoch milliseconds.
+No model, no inference: `model-id` is `:none`, stated rather than
+hidden.
+
+What it keeps honest:
+
+- **The span endpoints are the provider's numbers.** `captured_at` is
+  compared numerically over the published epoch milliseconds — the
+  earliest/latest are the published values themselves. No timezone is
+  invented, no calendar string derived on top of them.
+- **Unknowns stay visible.** An observation without a numeric capture
+  time is counted `capture-unknown`, never dropped, never folded into
+  the span — and the stored document refuses its own readback if the
+  derived span is not inside the capture times it carries.
+- **A lower bound, said out loud.** The Graph API pages results; the
+  table records `coverage-bound: lower-bound` with `paging-next` in the
+  note — a span proves nothing outside the fetched area or page.
+- **The privacy gate is upstream and stated.** Only metadata (no pixel
+  fetched or stored, thumbnail URLs never requested) reaches the table;
+  `provider-blur-verified` stays `false` because the API publishes no
+  per-image blur result, and the derived provenance re-asserts that no
+  face, plate, person or vehicle entity exists in this task.
+- **The epistemic boundary is part of the table**: a vintage
+  observation is not road condition, accessibility, ownership,
+  inventory, availability, legal compliance, or current existence.
+
 ## Tests
 
 `npm test` — 143 tests, 1,611 assertions, against **captured real payloads**

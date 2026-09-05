@@ -29,6 +29,7 @@
             [otent.lock-test]
             [otent.mapillary-image-detections-test]
             [otent.mapillary-image-test]
+            [otent.mapillary-coverage-test]
             [otent.mapillary-images-test]
             [otent.mapillary-mapfeature-detections-test]
             [otent.mapillary-mapfeatures-bbox-test]
@@ -78,7 +79,8 @@
   otent.watchlist-test
   otent.basemap-test
   otent.kartaview-test
-  otent.street-coverage-test))
+  otent.street-coverage-test
+  otent.mapillary-coverage-test))
 
 (def min-tests 20)
 
