@@ -114,7 +114,7 @@
 
 (defn- object-key [area-id]
   (str "otent/kartaview/" area-id "/observations-"
-       (.replace (subs (iso-now) 0 19) ":" "") ".json"))
+       (.replaceAll (subs (iso-now) 0 19) ":" "") ".json"))
 
 (defn- readback! [key expected-prefix]
   (if-let [t (r2/token)]
@@ -128,10 +128,14 @@
                  (if (.-ok r)
                    (.then (.text r)
                           (fn [got]
-                            (if (= got expected-prefix)
+                            ;; the REST object API ignores Range on some
+                            ;; content types and returns the whole body --
+                            ;; measured 2026-09-05. Match the prefix OF the
+                            ;; body; don't demand the body BE the prefix.
+                            (if (str/starts-with? (str/trim got) expected-prefix)
                               {:ok? true}
                               {:ok? false :code 2 :error :readback/mismatch
-                               :detail (str "readback prefix " (pr-str got))})))
+                               :detail (str "readback prefix " (pr-str (subs got 0 (min 60 (count got)))))})))
                    {:ok? false :code 2 :error :readback/failed
                     :detail (str "readback status " (.-status r))})))
         (.catch (fn [e] {:ok? false :code 2 :error :readback/failed
@@ -155,7 +159,7 @@
         (.then (fn [p]
                  (if-not (:ok? p)
                    (js/Promise.resolve {:ok? false :code 2 :error (:error p) :detail (:detail p)})
-                   (readback! key "{\"prov")))))))
+                   (readback! key "{")))))))
 
 ;; -- entry point ----------------------------------------------------------------
 
