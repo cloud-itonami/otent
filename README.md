@@ -1518,6 +1518,32 @@ As with the other derived tasks, `$CF_CATALOG_TOKEN` absence stops at
 the write gate (exit 2): nothing is written, and that refusal is
 reported rather than faked.
 
+## One derived task over the Panoramax metadata: vintage
+
+`bin/panoramax_coverage.cljs` derives a temporal-coverage (vintage)
+table from the observations `otent.panoramax` already admitted — one
+derived task, one source, one area, one PR. No pixel, no model: the
+table counts accepted items and the span of their **provider-published**
+`properties.datetime` strings.
+
+- **Endpoints are the provider's bytes**: timestamps validated against
+  the provider's observed fixed-offset UTC STAC format
+  (`YYYY-MM-DDTHH:MM:SS[.fff…]+00:00`) and compared lexicographically,
+  which sorts chronologically (an exact second sorts before its own
+  fractional extensions); no timezone is invented, no date math runs.
+- **Unknowns stay visible**: a non-conforming published timestamp is
+  counted `capture-unknown`, never dropped, never folded into the span.
+- **Lower bound, said out loud**: `coverage-bound: lower-bound` with
+  `links-next` in the note — a span proves nothing outside the fetched
+  area or page.
+- **Privacy gate is upstream and re-asserted**: only `status=ready`,
+  `visibility=anyone`, EXIF-redacted items reach the table, and the
+  derived provenance restates that no face, plate, person or vehicle
+  entity exists in this task.
+- **Epistemic boundary in the table**: a vintage observation is not
+  road condition, accessibility, ownership, inventory, availability,
+  legal compliance, or current existence.
+
 ## Tests
 
 `npm test` — 143 tests, 1,611 assertions, against **captured real payloads**
