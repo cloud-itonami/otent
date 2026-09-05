@@ -47,7 +47,8 @@
             [otent.receipt-test]
             [otent.sanctions-test]
             [otent.watchlist-test]
-            [otent.mapillary-mapfeature-detections-test]))
+            [otent.mapillary-mapfeature-detections-test]
+            [otent.mapillary-mapfeatures-bbox-test]))
 
 (def declared
   '[otent.imagery-test
@@ -66,7 +67,8 @@
     otent.receipt-test
     otent.sanctions-test
     otent.watchlist-test
-    otent.mapillary-mapfeature-detections-test])
+    otent.mapillary-mapfeature-detections-test
+    otent.mapillary-mapfeatures-bbox-test])
 
 (def min-tests 20)
 

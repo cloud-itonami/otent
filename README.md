@@ -1154,6 +1154,48 @@ header; without it live mode exits 2 — a 401 must never be misread as an
 empty subject. A map feature is a provider-published observation, not a
 current fact about the world.
 
+## One Mapillary map-features bbox source — one tile, metadata only
+
+`src/otent/mapillary_mapfeatures_bbox.cljc` + `bin/mapillary_mapfeatures_bbox.cljs`
+covers the last client endpoint no otent run had touched: the registered
+client `com-mapillary-graph-api`'s `map-features-request`
+(`GET /map_features`).
+
+- **one tile, one request**: one `[minx,miny,maxx,maxy]` vector,
+  validated numerically and then against the client's own
+  `bbox-within-limit?` (strictly under 0.01 degree) — a larger tile is
+  refused, **not split**: this source is one tile and `paging.next` is
+  counted, printed, never followed (:run-bounds). No neighbouring
+  tile, no second request.
+- **metadata only**: the field list (`id,object_value,geometry,
+  first_seen_at,last_seen_at`) carries no thumbnail field, so no pixel
+  was requested and none had to be defended.
+- **a map feature is a triangulated object, not a current fact**:
+  `first_seen_at`/`last_seen_at` are carried verbatim as provider
+  claims; nothing here asserts the object stands there now.
+- **privacy boundary before normalization**: any `object_value` naming
+  a person, face or licence plate is refused before any record exists
+  (counted, never stored); the redaction check also refuses any record
+  carrying an `@` or an exif/email key; only a plausible GeoJSON Point
+  lon/lat is admissible — anything else is refused, not repaired.
+- **provenance**: provider map-feature id, `object_value` verbatim,
+  Point lon/lat, first/last-seen (ms since epoch), tile bbox string,
+  retrieval time, permalink-style evidence URL, licence named where it
+  actually lives (the payload carries no per-feature licence field),
+  attribution, `requests-made 1`, `:unknown` spatial uncertainty.
+- **token**: `MAPILLARY_ACCESS_TOKEN` from the environment only, in
+  the client's `Authorization` header; without it live mode exits 2 —
+  a 401 must never be misread as an empty subject.
+
+**Measured this run (offline, synthetic fixture)**: 4 raw features →
+2 recorded, 1 privacy-refused (`object--human--person`), 1
+geometry-refused (LineString), counted not stored; `paging.next`
+present, not followed. Refusal paths verified live: malformed bbox →
+exit 1, over-limit tile → exit 1, no credential → exit 2
+`no-credential` — **no token exists** in this environment (env,
+keychain — re-verified), so nothing was fetched from Mapillary and
+none is invented. `npm test` — 230 tests, 1,841 assertions, 0 failures.
+
 ## One Mapillary per-image detections source — metadata only
 
 `bin/mapillary_image_detections.cljs` covers the client endpoint no
