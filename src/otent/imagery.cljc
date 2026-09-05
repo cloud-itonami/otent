@@ -760,3 +760,84 @@
    :retrieved-at "2026-09-05T04:12:00Z"
    :payload-sha256
    "e3153c07cad07401cbcc6d86aa8b51059e70d1ae8360df7a162f4be908f5ae02"})
+
+(def modis-terra-ndvi-8day-sample
+  "The eighteenth bounded sample: MODIS Terra NDVI 8-Day, one EPSG:4326
+  level-0 tile for ONE declared capture date. A new quantity class in
+  this slice -- a vegetation index rendered through a colour map:
+  MOD13Q1 NDVI composited over eight days, a derived vegetation-health
+  quantity rather than a reflectance image the sensor saw. Served from
+  the 250m tile matrix (2x1 tiles at level 0), so the single level-0
+  tile is the north-west half of the globe -- the record states that
+  footprint exactly. A dated 8-day-composite acquisition; the declared
+  capture date selects the layer's time dimension, stated verbatim,
+  not a date guessed from the wall clock. One tile, level 0, public
+  domain."
+  {:asset-id "MODIS_Terra_NDVI_8Day/250m/0/0/0"
+   :layer "MODIS_Terra_NDVI_8Day"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Terra_NDVI_8Day/default/"
+        "2026-08-26/250m/0/0/0.png")
+   :capture-time "2026-08-26"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's 8-day-composite time dimension. The date is declared per
+  run, not guessed from the wall clock."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 250
+   :sensor "MODIS (Terra), MOD13Q1 8-day NDVI composite"
+   :bands #{:ndvi}
+   :band-source
+   "single-band vegetation index rendered through the GIBS NDVI colour map"
+   :licence :nasa-public-domain
+   :tile-matrix "250m"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-04T10:35:44Z"
+   :payload-sha256
+   "5ed77eff38d6d1ce55871a7b2bbc73f67f8d3c09bb17d7fb93095dc0288ce665"})
+
+(def modis-terra-lst-day-sample
+  "The seventeenth bounded sample: MODIS Terra Land Surface Temperature
+  (Day), one EPSG:4326 level-0 tile for ONE declared capture date. A new
+  quantity class in this slice -- a thermal measurement rendered through
+  a colour map, not a reflectance image: measured surface temperature
+  (MOD11 L2 processing family) rather than radiance the sensor saw, so
+  deserts glow red at night in the colour ramp and a bare optical true
+  colour would show nothing. Served from the 1km tile matrix (2x1 tiles
+  at level 0), so the single level-0 tile is the north-west half of the
+  globe -- the record states that footprint exactly. A dated daily
+  acquisition; the declared capture date selects the layer's time
+  dimension, stated verbatim, not a date guessed from the wall clock.
+  One tile, level 0, public domain."
+  {:asset-id "MODIS_Terra_Land_Surface_Temp_Day/1km/0/0/0"
+   :layer "MODIS_Terra_Land_Surface_Temp_Day"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Terra_Land_Surface_Temp_Day/default/"
+        "2026-09-03/1km/0/0/0.png")
+   :capture-time "2026-09-03"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 1000
+   :sensor "MODIS (Terra), MOD11 daily land surface temperature (day)"
+   :bands #{:lst}
+   :band-source
+   "single-band surface temperature rendered through the GIBS thermal colour map"
+   :licence :nasa-public-domain
+   :tile-matrix "1km"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-04T02:39:58Z"
+   :payload-sha256
+   "e603f7bd151f88550c2ac072f632b7954b5f54f81fb34be5ac893022773721a3"})
