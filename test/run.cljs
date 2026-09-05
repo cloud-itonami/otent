@@ -51,7 +51,9 @@
             [otent.sanctions-test]
             [otent.watchlist-test]
             [otent.mapillary-mapfeature-detections-test]
-            [otent.mapillary-mapfeatures-bbox-test]))
+            [otent.mapillary-mapfeatures-bbox-test]
+            [otent.mapillary-images-test]
+            [otent.street-heading-test]))
 
 (def declared
   '[otent.imagery-test
@@ -74,7 +76,9 @@ otent.panoramax-test
     otent.sanctions-test
     otent.watchlist-test
     otent.mapillary-mapfeature-detections-test
-    otent.mapillary-mapfeatures-bbox-test])
+    otent.mapillary-mapfeatures-bbox-test
+  otent.mapillary-images-test
+  otent.street-heading-test])
 
 (def min-tests 20)
 
