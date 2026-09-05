@@ -28,6 +28,8 @@
 (t/deftest only-registered-sources-are-ingestable
   (t/is (= "blue-marble" (:id (bm/source-for "blue-marble"))))
   (t/is (= "modis-terra-truecolor" (:id (bm/source-for "modis-terra-truecolor"))))
+  (t/is (= "viirs-noaa20-truecolor" (:id (bm/source-for "viirs-noaa20-truecolor"))))
+  (t/is (= "viirs-snpp-truecolor" (:id (bm/source-for "viirs-snpp-truecolor"))))
   (let [r (bm/source-for "google-photorealistic-tiles")]
     (t/is (= :licence/unknown-source (:refusal r)))))
 
@@ -43,12 +45,28 @@
     (t/is (str/includes? (bm/tile-url s [4 1 3] "2026-08-28")
                          "MODIS_Terra_CorrectedReflectance_TrueColor/default/2026-08-28/"))
     (t/is (str/ends-with? (bm/tile-url s [4 1 3] "2026-08-28") "/4/3/1.jpeg"))
+    (t/is (str/includes? (bm/tile-url s [4 1 3] nil) "{date}")))
+  (let [s (bm/source-for "viirs-noaa20-truecolor")]
+    (t/is (str/includes? (bm/tile-url s [4 1 3] "2026-08-28")
+                         "VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/2026-08-28/"))
+    (t/is (str/ends-with? (bm/tile-url s [4 1 3] "2026-08-28") "/4/3/1.jpeg"))
+    (t/is (str/includes? (bm/tile-url s [4 1 3] nil) "{date}")))
+  (let [s (bm/source-for "viirs-snpp-truecolor")]
+    (t/is (str/includes? (bm/tile-url s [4 1 3] "2026-08-28")
+                         "VIIRS_SNPP_CorrectedReflectance_TrueColor/default/2026-08-28/"))
+    (t/is (str/ends-with? (bm/tile-url s [4 1 3] "2026-08-28") "/4/3/1.jpeg"))
     (t/is (str/includes? (bm/tile-url s [4 1 3] nil) "{date}"))))
 
 (t/deftest daily-tiles-are-keyed-by-capture-date
   (let [s (bm/source-for "modis-terra-truecolor")]
     (t/is (= "otent/basemap/modis-terra-truecolor/2026-08-28/4/1/3.jpg"
              (bm/tile-key s [4 1 3] "2026-08-28"))))
+  (let [s (bm/source-for "viirs-noaa20-truecolor")]
+    (t/is (= "otent/basemap/viirs-noaa20-truecolor/2026-08-28/4/1/3.jpg"
+             (bm/tile-key s [4 1 3] "2026-08-28")))
+    (t/is (not= (bm/tile-key s [4 1 3] "2026-08-28")
+                (bm/tile-key (bm/source-for "viirs-snpp-truecolor") [4 1 3] "2026-08-28"))
+          "two daily sources must never share a key prefix"))
   (let [s (bm/source-for "blue-marble")]
     (t/is (= "otent/basemap/blue-marble/3/4/5.jpg" (bm/tile-key s [3 4 5])))))
 
@@ -84,6 +102,19 @@
   (let [p (bm/ingest-plan "blue-marble" 4 nil)]
     (t/is (:ok? p))
     (t/is (nil? (:date p))))
+  (let [p (bm/ingest-plan "viirs-noaa20-truecolor" 4 "2026-08-28")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/viirs-noaa20-truecolor/2026-08-28/")))
+  (let [p (bm/ingest-plan "viirs-snpp-truecolor" 4 "2026-08-28")]
+    (t/is (:ok? p))
+    (t/is (= 341 (:tile-count p)))
+    (t/is (str/starts-with? (:key (first (:tiles p)))
+                            "otent/basemap/viirs-snpp-truecolor/2026-08-28/")))
+  (let [p (bm/ingest-plan "viirs-snpp-truecolor" 5 "2026-08-28")]
+    (t/is (not (:ok? p)))
+    (t/is (= :source/past-ingest-bound (:refusal p))))
   (let [bad (bm/ingest-plan "blue-marble" 9 nil)]
     (t/is (not (:ok? bad)))
     (t/is (= :source/past-max-zoom (:refusal bad)))))
