@@ -881,6 +881,48 @@
    :payload-sha256
    "263ca33203ebe9c34d2a35855f43da9ee17b30f6d70fa92b08646f2239b6730a"})
 
+(def modis-maiac-aerosol-aod-sample
+  "The twenty-second bounded sample: MAIAC Aerosol Optical Depth (MODIS,
+  Combined Aqua and Terra), one EPSG:4326 level-0 tile (1km matrix) for
+  ONE declared capture date. A new quantity class in this slice -- an
+  atmospheric column measurement, not a surface or ocean-colour product:
+  aerosol optical depth is the columnar attenuation of light by aerosols
+  (dust, smoke, haze), estimated by the MAIAC algorithm from combined
+  Aqua+Terra MODIS observations, so a hazy or smoky sky is visible in
+  the GIBS colour ramp where a true-colour image shows only weather.
+  Served from the 1km tile matrix (2x1 tiles at level 0), so the single
+  level-0 tile is the north-west half of the globe -- the record states
+  that footprint exactly. A dated daily acquisition; the declared
+  capture date selects the layer's time dimension, stated verbatim, not
+  a date guessed from the wall clock. One tile, level 0, public domain."
+  {:asset-id "MODIS_Combined_MAIAC_L2G_AerosolOpticalDepth/1km/0/0/0"
+   :layer "MODIS_Combined_MAIAC_L2G_AerosolOpticalDepth"
+   :source-url
+   (str "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+        "MODIS_Combined_MAIAC_L2G_AerosolOpticalDepth/default/"
+        "2026-09-04/1km/0/0/0.png")
+   :capture-time "2026-09-04"
+   :capture-note
+   "Dated satellite acquisition: the declared capture date selects the
+  layer's daily time dimension. The date is declared per run, not
+  guessed from the wall clock."
+   :coverage-note
+   "one 512x512 level-0 tile of a 2x1-tile matrix: the north-west half
+  of the globe (lon -180..0, lat 0..90)"
+   :footprint [-180.0 0.0 0.0 90.0]
+   :crs "EPSG:4326"
+   :resolution-gsd-m 1000
+   :sensor "MODIS (Aqua + Terra combined), MAIAC aerosol optical depth"
+   :bands #{:aerosol-optical-depth}
+   :band-source
+   "columnar aerosol optical depth (MAIAC, combined Aqua+Terra), rendered through the GIBS AOD colour ramp"
+   :licence :nasa-public-domain
+   :tile-matrix "1km"
+   :tile-zxy [0 0 0]
+   :retrieved-at "2026-09-06T02:11:00Z"
+   :payload-sha256
+   "7d11fa372b8a91660f5b38f2c6df2a319b9765cd96e2943322fa441859188402"})
+
 (def modis-terra-lst-day-sample
   "The seventeenth bounded sample: MODIS Terra Land Surface Temperature
   (Day), one EPSG:4326 level-0 tile for ONE declared capture date. A new
