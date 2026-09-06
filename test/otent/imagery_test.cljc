@@ -1248,3 +1248,61 @@
                   (:licence imagery/modis-aqua-chlorophyll-sample))))
     (t/is (nil? (imagery/refusal
                  (:licence imagery/modis-aqua-chlorophyll-sample))))))
+
+;; ---- the twenty-second bounded sample: MAIAC aerosol optical depth
+;; ---- (MODIS combined Aqua+Terra), one declared capture date, level 0,
+;; ---- 1km matrix
+
+(def aod-maiac-fixture-name "modis-maiac-aod-20260904-z0.png")
+
+(defn aod-maiac-fixture-path []
+  (path/join (js/process.cwd) "test" "otent" "fixtures"
+             aod-maiac-fixture-name))
+
+(t/deftest aod-maiac-provenance-complete-test
+  (t/is (true? (imagery/provenance-complete?
+                imagery/modis-maiac-aerosol-aod-sample)))
+  (t/testing "a dated record still carries every provenance key"
+    (t/is (false? (imagery/provenance-complete?
+                   (dissoc imagery/modis-maiac-aerosol-aod-sample
+                           :capture-time))))))
+
+(t/deftest aod-maiac-manifest-states-exactly-what-exists-test
+  (let [m (imagery/manifest imagery/modis-maiac-aerosol-aod-sample)]
+    (t/is (= (:asset-id imagery/modis-maiac-aerosol-aod-sample)
+             (:asset-id m)))
+    (t/is (re-find #"MODIS_Combined_MAIAC_L2G_AerosolOpticalDepth"
+                   (:what-exists m)))
+    (t/is (= "2026-09-04" (:capture-time m))
+          "the declared capture date is carried verbatim")
+    (t/is (true? (:level-0-only m))
+          "level 0 only -- one tile, nothing wider")
+    (t/testing "the half-globe tile states its bounds, never the planet"
+      (t/is (= [-180.0 0.0 0.0 90.0] (:bounds-epg4326-deg m)))
+      (t/is (re-find #"north-west half\s+of the globe" (:what-exists m))))))
+
+(t/deftest aod-maiac-object-readback-test
+  (t/testing "the AOD fixture bytes hash to what the record claims"
+    (let [bytes (fs/readFileSync (aod-maiac-fixture-path))
+          sha256 (-> (crypto/createHash "sha256")
+                     (.update bytes)
+                     (.digest "hex"))]
+      (t/is (= (:payload-sha256
+                imagery/modis-maiac-aerosol-aod-sample) sha256)))))
+
+(t/deftest aod-maiac-verify-sample-test
+  (let [bytes (fs/readFileSync (aod-maiac-fixture-path))
+        sha256 (-> (crypto/createHash "sha256")
+                   (.update bytes)
+                   (.digest "hex"))
+        v (imagery/verify-sample
+           imagery/modis-maiac-aerosol-aod-sample sha256)]
+    (t/is (true? (:provenance-complete v)))
+    (t/is (true? (:sha256-matches v)))))
+
+(t/deftest aod-maiac-licence-allowed-test
+  (t/testing "the same allowlist gate applies to the AOD source"
+    (t/is (true? (imagery/licence-allowed?
+                  (:licence imagery/modis-maiac-aerosol-aod-sample))))
+    (t/is (nil? (imagery/refusal
+                 (:licence imagery/modis-maiac-aerosol-aod-sample))))))

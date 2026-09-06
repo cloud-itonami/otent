@@ -1811,7 +1811,27 @@ capture date selects the layer's time dimension, stated verbatim, never
 guessed from the wall clock. NASA GIBS, public domain, one tile,
 level 0. Provenance, licence-allowlist and object-readback tests assert
 the record: fixture bytes hash to the record's `payload-sha256`.
-`npm test` -- 423 tests, 2,792 assertions, 0 failures.
+`npm test` -- 428 tests, 2,805 assertions, 0 failures.
+
+## One MAIAC aerosol optical depth sample
+
+`otent.imagery/modis-maiac-aerosol-aod-sample` is the twenty-second
+bounded sample: **one** `MODIS_Combined_MAIAC_L2G_AerosolOpticalDepth`
+EPSG:4326 level-0 tile (1km tile matrix) for ONE declared capture date,
+2026-09-04. A new quantity class in this slice -- an atmospheric column
+measurement: aerosol optical depth is the columnar attenuation of light
+by aerosols (dust, smoke, haze), estimated by the MAIAC algorithm from
+combined Aqua+Terra MODIS observations, so a hazy or smoky sky is
+visible in the GIBS AOD colour ramp where a true-colour image shows
+only weather. The 1km matrix is 2x1 tiles at level 0, so the single
+level-0 tile is the north-west half of the globe and the record states
+that footprint exactly rather than claiming the planet. A dated daily
+acquisition; the declared capture date selects the layer's time
+dimension, stated verbatim, never guessed from the wall clock. NASA
+GIBS, public domain, one tile, level 0. Provenance, licence-allowlist
+and object-readback tests assert the record: fixture bytes hash to the
+record's `payload-sha256`. `npm test` -- 428 tests, 2,805 assertions,
+0 failures.
 
 ## One KartaView image pixel sample (2026-09-02)
 
