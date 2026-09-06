@@ -28,6 +28,7 @@
             [otent.feeds-due-test]
             [otent.governor-test]
             [otent.kartaview-image-test]
+            [otent.kartaview-density-test]
             [otent.lock-test]
             [otent.mapillary-image-detections-test]
             [otent.mapillary-image-test]
@@ -63,6 +64,7 @@
   otent.feeds-due-test
   otent.governor-test
   otent.kartaview-image-test
+  otent.kartaview-density-test
   otent.lock-test
   otent.mapillary-image-detections-test
   otent.mapillary-image-test

@@ -1857,6 +1857,36 @@ the no-credential gate. `--fixture` replays a labeled SYNTHETIC
 payload offline with identical checks. `npm test` — 441 tests,
 2,863 assertions, 0 failures.
 
+## One derived spatial-density task over the KartaView observations
+
+`otent.kartaview-density` (`bin/kartaview_density.cljs`, task
+`kartaview-street-density-v1`) runs **one** derived task — the
+KartaView counterpart of the Panoramax spatial-density task
+(`panoramax-street-density-v1`, PR #47) — over the KartaView
+observations normalized by `otent.kartaview`: the one ≤0.01° area the
+run fetched is binned into a fixed deterministic grid (target cell
+0.0025°, at most a 4×4 grid, derived from the declared bbox only) and
+counts admissible pictures per cell, with per-cell
+heading-known/heading-unknown and sequence-known tallies. No model: a
+density count is a deterministic bin of provider-published lon/lat,
+and `model-id` is `:none`, stated not hidden. Explicit zeros are kept
+for empty cells; `unplaceable` items are counted, never folded into a
+neighbouring cell; the grid is a **lower bound** (`has-more-data` in
+the coverage-bound note). Privacy is upstream and stated: only
+provider-BLURRED, public, active photos reach the table, and the
+provenance re-asserts that no face, plate, person or vehicle entity
+exists in this task. `provenance-checks` verifies from the stored
+document alone that placed+unplaceable=observations and that per-cell
+counts sum to placed.
+
+Verified live (one area, central Tokyo, 2026-09-06):
+`fetched=17 accepted=11 refused=1 outside-bbox=5 has-more=false`,
+density grid 2×2, pictures-placed=11, unplaceable=0; R2 object
+`otent/kartaview-density/bbox-139.765-35.678-139.77-35.682/density-*.json`
+written and read-back-verified. `--fixture` replays a labeled SYNTHETIC
+payload offline with identical checks. `npm test` — 453 tests, 2,912
+assertions, 0 failures.
+
 ## One KartaView image pixel sample (2026-09-02)
 
 KartaView metadata (PR #12) and a derived density task (PR #34) were ingested
