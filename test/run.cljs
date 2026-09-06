@@ -49,6 +49,7 @@
             [otent.watchlist-test]
             [otent.basemap-test]
             [otent.kartaview-test]
+            [otent.kartaview-heading-test]
             [otent.street-coverage-test]
             [otent.night-lights-test]))
 
@@ -82,6 +83,7 @@
   otent.watchlist-test
   otent.basemap-test
   otent.kartaview-test
+  otent.kartaview-heading-test
   otent.street-coverage-test
   otent.night-lights-test
   otent.mapillary-coverage-test
