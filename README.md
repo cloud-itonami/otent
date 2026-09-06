@@ -1833,6 +1833,30 @@ and object-readback tests assert the record: fixture bytes hash to the
 record's `payload-sha256`. `npm test` -- 428 tests, 2,805 assertions,
 0 failures.
 
+## One derived task over the open street source: heading/projection coverage
+
+`otent.kartaview-heading` (`bin/kartaview_heading.cljs`) runs **one**
+derived task — `kartaview-imagery-heading-v1` — over the KartaView
+observations the previous pass normalized: an 8-sector compass
+histogram and projection counts for the one <= 0.01 deg area, built
+from the provider's own published `heading` and `projection` strings.
+No model, no inference: `model-id` is `:none`, stated rather than
+hidden. The provider publishes no is-pano flag, so `projection` is
+counted verbatim (`"PLANE"` or otherwise) and never reinterpreted into
+a panorama claim. Heading-unknown photos are counted, never dropped;
+the histogram sums to heading-known and the table carries a readback
+check that refuses when its own numbers disagree. Privacy is upstream
+and stated: only provider-BLURRED, public, active photos reach the
+table, and the provenance re-asserts that no face, plate, person or
+vehicle entity exists in this task.
+
+Verified live (one area, central Tokyo, 2026-09-06): `fetched=17
+accepted=11 refused=1 outside-bbox=5 has-more=false`, histogram
+`{N 3, E 1, SE 2, S 4, NW 1}`, heading-unknown=0; R2 write stopped at
+the no-credential gate. `--fixture` replays a labeled SYNTHETIC
+payload offline with identical checks. `npm test` — 441 tests,
+2,863 assertions, 0 failures.
+
 ## One KartaView image pixel sample (2026-09-02)
 
 KartaView metadata (PR #12) and a derived density task (PR #34) were ingested
