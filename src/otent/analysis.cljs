@@ -15,7 +15,7 @@
     Raw and normalized stay distinguishable: each observation row carries
     the raw per-class scores next to the normalized label, and failed
     tiles become :failed rows in the same table -- never dropped."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 ;; ------------------------------------------------------------------ model
 

@@ -6,7 +6,7 @@
 ;; means the declared window does not exist, which is an error, not a
 ;; hole.
 (require '[otent.basemap :as bm]
-         '[clojure.string :as str])
+         '[kotoba.lang.text :as str])
 
 (def window "2026-08-30")
 (def plan (bm/ingest-plan "modis-terra-ndvi-8day" 2 window))

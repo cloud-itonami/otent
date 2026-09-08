@@ -20,7 +20,7 @@
 (ns bin.panorama-density
   (:require ["crypto" :as crypto]
             ["fs" :as fs]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.deadline :as dl]
             [otent.panoramax :as px]
             [otent.panorama-density :as pxd]

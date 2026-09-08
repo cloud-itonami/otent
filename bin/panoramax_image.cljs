@@ -16,7 +16,7 @@
 (ns panoramax-image
   (:require ["crypto" :as crypto]
             ["fs" :as fs]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.panoramax-image :as pxi]))
 
 (def search-url "https://api.panoramax.xyz/api/search")

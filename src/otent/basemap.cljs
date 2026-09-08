@@ -7,7 +7,8 @@
     A fetch is not provenance, so every raster source here carries the
     fields rule 3 of the ingest scope asks for: asset id, licence,
     attribution, CRS, tile geometry, sensor/bands and -- for the daily
-    layer -- the capture date the bytes belong to.")
+    layer -- the capture date the bytes belong to."
+  (:require [kotoba.lang.text]))
 
 ;; ------------------------------------------------------------------ sources
 
@@ -195,11 +196,11 @@
   ([source tile] (tile-url source tile nil))
   ([source [z x y] date]
    (let [t (-> (:url-template source)
-               (clojure.string/replace "{z}" (str z))
-               (clojure.string/replace "{x}" (str x))
-               (clojure.string/replace "{y}" (str y)))]
+               (kotoba.lang.text/replace "{z}" (str z))
+               (kotoba.lang.text/replace "{x}" (str x))
+               (kotoba.lang.text/replace "{y}" (str y)))]
      (if (and (dated? source) date)
-       (clojure.string/replace t "{date}" (str date))
+       (kotoba.lang.text/replace t "{date}" (str date))
        t))))
 
 (defn tile-key

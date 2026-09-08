@@ -11,7 +11,7 @@
   (:require ["crypto" :as crypto]
             ["fs" :as fs]
             ["zlib" :as zlib]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.natural-earth :as ne]))
 
 (def ^:private asset (ne/get-asset "NE1_50M_SR_W"))

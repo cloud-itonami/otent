@@ -40,7 +40,7 @@
   it, and `:licence` travels in every object written here."
   (:require ["fs" :as fs]
             ["crypto" :as crypto]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [kotoba.map.mvt :as mvt]))
 
 (def ACCOUNT "4da88288dc30d9ee257f319d3c33ecf0")

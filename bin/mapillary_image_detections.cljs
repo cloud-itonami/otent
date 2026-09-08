@@ -18,7 +18,7 @@
 ;; .then decides the outcome, so the parens cannot drift.
 (ns mapillary-image-detections
   (:require ["fs" :as fs]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.mapillary-image-detections :as mid]
             [com-mapillary-graph-api.core :as mi]))
 

@@ -14,7 +14,7 @@
   exit 2. The list is the convenience; the scan is the control."
   (:require [clojure.test :as t]
             [clojure.set :as clojure.set]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             ["fs" :as fs]
             ["path" :as path]
             [otent.imagery-test]

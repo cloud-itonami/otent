@@ -2,7 +2,7 @@
 ;; produces must be exactly what the service answers, and the bytes
 ;; must be JPEGs. Bounded: z2 = 21 tiles, one capture date.
 (require '[otent.basemap :as bm]
-         '[clojure.string :as str])
+         '[kotoba.lang.text :as str])
 
 (def plan (bm/ingest-plan "viirs-snpp-truecolor" 2 "2026-08-30"))
 (assert (:ok? plan))
