@@ -27,7 +27,7 @@
     Faces and plates remain outside the observation space entirely.
   - geometry arrives GeoJSON lon/lat; a point that is only plausible
     if swapped is refused, not repaired."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [com-mapillary-graph-api.core :as mi]))
 
 ;; -- source identity -----------------------------------------------------------
@@ -118,8 +118,8 @@
 (defn- clean-value? [v]
   (cond
     (string? v) (not (str/includes? v "@"))
-    (map? v) (every? (fn [[k v2]] (and (not (str/includes? (str/lower-case (str k)) "exif"))
-                                       (not (str/includes? (str/lower-case (str k)) "email"))
+    (map? v) (every? (fn [[k v2]] (and (not (str/includes? (str/lower (str k)) "exif"))
+                                       (not (str/includes? (str/lower (str k)) "email"))
                                        (clean-value? v2)))
                      v)
     (vector? v) (every? clean-value? v)

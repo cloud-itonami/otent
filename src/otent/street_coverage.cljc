@@ -24,7 +24,7 @@
   ;; - every unknown stays visible: photos whose published timestamp
   ;;   does not parse are counted as capture-unknown, never dropped,
   ;;   never folded into the span
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [otent.kartaview :as kv]))
 
 ;; ── task identity ────────────────────────────────────────────────────

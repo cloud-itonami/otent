@@ -27,7 +27,7 @@
   ;; - every unknown stays visible: a picture whose published datetime
   ;;   does not match the validated form is counted as
   ;;   capture-unknown, never dropped, never folded into the span
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [otent.panoramax :as px]))
 
 ;; ── task identity ────────────────────────────────────────────────────

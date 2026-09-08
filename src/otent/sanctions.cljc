@@ -31,7 +31,7 @@
 
   **It will not report on tables it could not read.** Any input missing is
   `:cannot-answer`, which is exit 2 -- not a clean run with small numbers."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def min-vessels
   "Below this, there is no fleet to report on and the command says so rather

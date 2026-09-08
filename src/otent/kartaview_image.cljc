@@ -32,7 +32,7 @@
     entities. No person/vehicle tracking or re-identification. A redaction
     check refuses the whole run if an `@` or an exif/email-shaped key
     reaches an emitted record."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 ;; ── source identity ──────────────────────────────────────────────────
 
@@ -58,8 +58,8 @@
   [v]
   (cond
     (map? v) (and (not-any? (fn [k]
-                              (some #(str/includes? (str/lower-case (name k))
-                                                    (str/lower-case %))
+                              (some #(str/includes? (str/lower (name k))
+                                                    (str/lower %))
                                     exif-keys-forbidden))
                             (keys v))
                   (every? (fn [[_ v2]] (redacted? v2)) v))

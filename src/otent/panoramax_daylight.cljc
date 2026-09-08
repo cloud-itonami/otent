@@ -25,7 +25,7 @@
   - every unknown stays visible: items whose published datetime does
     not conform to the provider's observed format are counted
     capture-unknown, never dropped, never classified"
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [otent.panoramax :as px]
             [otent.solar-elevation :as solar]))
 

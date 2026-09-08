@@ -3,7 +3,7 @@
   open-data photo search metadata. The fixture is SYNTHETIC — the
   anonymous endpoint needs no credential, but no live payload is
   claimed here."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :as t]
             [otent.kartaview :as kv]
             [otent.kartaview-heading :as kh]))

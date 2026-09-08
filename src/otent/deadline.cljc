@@ -27,7 +27,7 @@
   report them as failures. Each call carries its own, and the reason names
   which call and how long it waited, so `feed did not answer in 60s` and
   `feed answered 500` stay different sentences."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def default-ms
   "60 s. Long enough for a 2.3 MB FIRMS payload over a slow link -- measured
@@ -61,7 +61,7 @@
         m (some-> e .-message str)]
     (boolean (or (= "TimeoutError" n)
                  (= "AbortError" n)
-                 (and m (str/includes? (str/lower-case m) "timed out"))))))
+                 (and m (str/includes? (str/lower m) "timed out"))))))
 
 (defn describe
   "The sentence that goes in the receipt when a call ran out of time.

@@ -6,7 +6,7 @@
   against the author's belief about the format, which is the belief that
   was wrong in the first place."
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.feeds.parse :as p]
             [otent.feeds.core :as feeds]
             [otent.observation :as obs]
@@ -236,7 +236,7 @@
           by-mmsi (into {} (for [o (:ok r)] [(:object-id o) o]))]
       (doseq [v raw
               :let [o (get by-mmsi (str (get v "mmsi")))
-                    d (some-> (get v "destination") clojure.string/trim not-empty)]
+                    d (some-> (get v "destination") str/trim not-empty)]
               :when (and o d)]
         (is (= d (get-in o [:attrs :destination]))
             (str "destination for " (:object-id o) " was rewritten"))))))

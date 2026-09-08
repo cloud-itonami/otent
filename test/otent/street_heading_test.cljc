@@ -3,7 +3,7 @@
   /images metadata. The fixture is SYNTHETIC and clearly labelled as
   such -- no token exists in any secret store (re-verified this run),
   so no live payload is claimed."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :as t]
             [otent.mapillary-images :as mimg]
             [otent.street-heading :as sh]))

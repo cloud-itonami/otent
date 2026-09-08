@@ -34,7 +34,7 @@
   the same as being checked. That gap is real and is written here rather
   than left for someone to assume otherwise."
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             ["child_process" :as cp]
             ["path" :as path]))
 

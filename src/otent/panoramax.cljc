@@ -30,7 +30,7 @@
   - geometry arrives GeoJSON lon/lat (EPSG:4326); a point that is only
     plausible if swapped is refused, not repaired
   - one source, one area, one PR (:run-bounds)."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 ;; ── source identity ──────────────────────────────────────────────────
 
@@ -92,8 +92,8 @@
             (cond
               (map? v) (and (not-any? (fn [k]
                                         (some #(str/includes?
-                                                (str/lower-case (name k))
-                                                (str/lower-case %))
+                                                (str/lower (name k))
+                                                (str/lower %))
                                               exif-keys-forbidden))
                                       (keys v))
                             (every? (fn [[_ v2]] (clean v2)) v))

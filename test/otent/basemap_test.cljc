@@ -2,7 +2,7 @@
   "Deterministic tests for the pure half of the basemap ingest: tile
    maths, refusal rules, provenance shape and manifest shape. No network."
   (:require [clojure.test :as t]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.basemap :as bm]))
 
 (t/deftest tiles-to-zoom-counts

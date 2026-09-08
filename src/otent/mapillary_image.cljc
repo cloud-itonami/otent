@@ -38,7 +38,7 @@
   - **token**: `MAPILLARY_ACCESS_TOKEN` from the environment only, sent
     through the client's `authorization-header` — never a URL, never a
     log line, never an observation."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [com-mapillary-graph-api.core :as mi]))
 
 ;; ── source identity ──────────────────────────────────────────────────
@@ -141,7 +141,7 @@
 (defn- clean-value? [v]
   (cond
     (string? v) (not (str/includes? v "@"))
-    (map? v) (every? (fn [[k v2]] (and (not-any? #(str/includes? (str/lower-case (str k)) %)
+    (map? v) (every? (fn [[k v2]] (and (not-any? #(str/includes? (str/lower (str k)) %)
                                                  exif-keys-forbidden)
                                        (clean-value? v2)))
                      v)

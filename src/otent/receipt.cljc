@@ -21,7 +21,7 @@
   and it is not a failed one either: it is a tick that mostly did not
   happen, and the exit code has to say so or a scheduler will treat a
   month of missing vessels as a month of empty oceans."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (defn build [results at-ms]
   (let [by (group-by :status results)]
@@ -72,7 +72,7 @@
           "  UNMEASURED " (:tick/unmeasured r)
           "  rows " (:tick/rows-appended r))]
     (for [x (:tick/results r)]
-      (str "  " (str/upper-case (name (:status x)))
+      (str "  " (str/upper (name (:status x)))
            " " (name (:feed x))
            (when (:table x) (str " -> " (:table x)))
            (when (:appended x) (str "  +" (:appended x) " rows"

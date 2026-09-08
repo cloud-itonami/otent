@@ -33,7 +33,7 @@
 
   **It will not absorb a new dark feed into an exemption written for
   others.** `expected-unmeasured` is checked by name."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def default-tolerance
   "How far past its declared interval a feed may drift before it is a
@@ -334,7 +334,7 @@
                           (.padStart (if (:reachability f)
                                        (str (.toFixed (* 100 (:reachability f)) 0) "%")
                                        "--") 5)])
-          (when (not= :ok (:status f)) (str "  " (str/upper-case (name (:status f)))))))
+          (when (not= :ok (:status f)) (str "  " (str/upper (name (:status f)))))))
    [""]
    (if (nil? tables)
      ["tables UNMEASURED -- no $CF_CATALOG_TOKEN. Not zero rows, and not a clean run."]
@@ -344,7 +344,7 @@
        ;; and there is no way to tell where the name ends. A column that
        ;; silently joins two numbers is worse than no column.
        (str "table  " (.padEnd (name kind) 16)
-            (if (number? v) v (str (str/upper-case (name v)) " -- not zero")))))
+            (if (number? v) v (str (str/upper (name v)) " -- not zero")))))
    [""]
    (if (seq dark)
      [(str "unmeasured feeds: " (str/join "," dark)
@@ -354,7 +354,7 @@
      ["unmeasured feeds: none"])
    (when (seq findings)
      (cons "" (for [[k id detail] findings]
-                (str (str/upper-case (name k)) " " (name id) "  " detail))))
+                (str (str/upper (name k)) " " (name id) "  " detail))))
    [""
     (case verdict
       :ok "coverage OK"
@@ -362,4 +362,4 @@
                           " ledger entries is too few to measure a cadence from"
                           (when window-ms " in this window"))
       :tables-unmeasured "REFUSING to report coverage: the tables were not read"
-      (str "coverage " (str/upper-case (name verdict))))]))
+      (str "coverage " (str/upper (name verdict))))]))

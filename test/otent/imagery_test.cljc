@@ -1,7 +1,7 @@
 (ns otent.imagery-test
   "Provenance, licence and refusal controls for the earth-imagery slice."
   (:require [clojure.test :as t]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             ["crypto" :as crypto]
             ["fs" :as fs]
             ["path" :as path]
