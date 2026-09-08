@@ -5,7 +5,7 @@
 ;; 404 here means the declared date has no published data yet, which is
 ;; an error, not a hole.
 (require '[otent.imagery :as imagery]
-         '[clojure.string :as str])
+         '[kotoba.lang.text :as str])
 
 (def sample imagery/modis-maiac-aerosol-aod-sample)
 (println "sample:" (:asset-id sample)

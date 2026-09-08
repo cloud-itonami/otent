@@ -9,7 +9,7 @@
 (ns panoramax-coverage
   (:require ["fs" :as fs]
             ["crypto" :as crypto]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.panoramax-coverage :as pc]))
 
 (def source-url "https://api.panoramax.xyz/api/collections")

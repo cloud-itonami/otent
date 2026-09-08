@@ -34,7 +34,7 @@
             ["path" :as path]
             ["crypto" :as crypto]
             ["child_process" :as cp]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.feeds.core :as feeds]
             [otent.feeds.parse :as parse]
             [otent.governor :as gov]

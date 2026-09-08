@@ -13,7 +13,7 @@
             ["path" :as path]
             ["crypto" :as crypto]
             ["jpeg-js" :as jpeg]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.basemap :as bm]
             [otent.analysis :as an]))
 

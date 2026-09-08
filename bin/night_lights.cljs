@@ -14,7 +14,7 @@
   accidentally ingest -- but the ingest bound (z4, 341 tiles) is tighter
   than the source anyway, because 341 is what one bounded run takes."
   (:require ["crypto" :as crypto]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.night-lights :as nl]
             [otent.r2 :as r2]))
 

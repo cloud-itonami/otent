@@ -5,7 +5,7 @@
 ;; answer here, so the check is: every answer is 200-with-JPEG-magic or
 ;; exactly 404, and every 200 lands on the right key shape.
 (require '[otent.basemap :as bm]
-         '[clojure.string :as str])
+         '[kotoba.lang.text :as str])
 
 (def year "1998-12-01")
 (def plan (bm/ingest-plan "landsat-weld-truecolor-annual" 2 year))

@@ -19,7 +19,7 @@
   Different keys still run concurrently -- that is the whole point of the
   change. Measured on the run that verified it: satellite and vessel commits
   overlapped, 49.6 s of wall clock for 82 s of per-feed work."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (defn make
   "A fresh lock table. Not a global: a test that shared one with the

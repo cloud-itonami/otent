@@ -21,7 +21,7 @@
 (ns mapillary-image
   (:require ["crypto" :as crypto]
             ["fs" :as fs]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.mapillary-image :as mxi]
             [com-mapillary-graph-api.core :as mi]))
 

@@ -20,7 +20,7 @@
 (ns bin.kartaview-density
   (:require ["crypto" :as crypto]
             ["fs" :as fs]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.deadline :as dl]
             [otent.kartaview :as kv]
             [otent.kartaview-density :as kvd]

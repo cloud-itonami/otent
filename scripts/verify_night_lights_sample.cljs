@@ -9,7 +9,7 @@
 ;; URL <-> key pair matches what the plan declares.
 
 (require '[otent.night-lights :as nl]
-         '[clojure.string :as str])
+         '[kotoba.lang.text :as str])
 
 (def plan (nl/plan {:composite "2016-01-01" :max-zoom 2}))
 (assert (:ok? plan) (pr-str plan))

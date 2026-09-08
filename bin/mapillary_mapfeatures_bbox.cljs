@@ -19,7 +19,7 @@
 ;; .then decides the outcome, so the parens cannot drift.
 (ns mapillary-mapfeatures-bbox
   (:require ["fs" :as fs]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.mapillary-mapfeatures-bbox :as mfb]
             [com-mapillary-graph-api.core :as mi]))
 

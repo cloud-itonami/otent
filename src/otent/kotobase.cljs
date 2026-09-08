@@ -12,7 +12,7 @@
   (:require ["fs" :as fs]
             ["path" :as path]
             [cljs.reader :as reader]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [kotobase.client :as client]
             [otent.deadline :as dl]
             [otent.catalog :as cat]))

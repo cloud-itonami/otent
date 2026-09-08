@@ -32,7 +32,7 @@
   (:require ["fs" :as fs]
             ["path" :as path]
             ["crypto" :as crypto]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.basemap :as bm]))
 
 (defn- log [& xs] (binding [*print-fn* *print-err-fn*] (apply println xs)))

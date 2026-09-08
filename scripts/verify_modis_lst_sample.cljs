@@ -7,7 +7,7 @@
 ;; day's tiles publish the day after capture), which is an error, not a
 ;; hole.
 (require '[otent.basemap :as bm]
-         '[clojure.string :as str])
+         '[kotoba.lang.text :as str])
 
 (def date "2026-08-30")
 (def plan (bm/ingest-plan "modis-terra-lst-day" 2 date))

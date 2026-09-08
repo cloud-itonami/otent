@@ -20,7 +20,7 @@
 (ns kartaview-image
   (:require ["crypto" :as crypto]
             ["fs" :as fs]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.kartaview-image :as kvi]))
 
 (def search-url "https://api.openstreetcam.org/2.0/photo/")

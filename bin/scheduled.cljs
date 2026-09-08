@@ -51,7 +51,7 @@
   (:require ["child_process" :as cp]
             ["fs" :as fs]
             ["path" :as path]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.feeds.core :as feeds]
             [otent.darkness :as dark]))
 
