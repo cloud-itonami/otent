@@ -37,7 +37,7 @@
   What it gives up is the ability to ask later about a vessel that was not
   on a list at the time it sailed past. That is a real loss and it is the
   reason the scope is one parameter rather than a hard-coded set."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (defn build
   "Risk rows -> `{:mmsi #{...} :imo #{...}}`.

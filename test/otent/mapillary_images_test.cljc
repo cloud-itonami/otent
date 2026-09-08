@@ -3,7 +3,7 @@
   SYNTHETIC and clearly labelled as such -- no token exists in any
   secret store (re-verified this run), so no live payload is claimed."
   (:require [clojure.test :as t]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             ["fs" :as fs]
             [otent.mapillary-images :as mimg]
             [com-mapillary-graph-api.core :as mi]))

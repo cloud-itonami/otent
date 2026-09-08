@@ -28,7 +28,7 @@
   - coordinates stay lon/lat ordered (EPSG:4326); a swapped point is
     refused, not repaired
   - one source, one area, one PR (:run-bounds)."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 ;; ── source identity ──────────────────────────────────────────────────
 

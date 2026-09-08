@@ -28,7 +28,7 @@
   carries, so republishing the same receipt is an upsert rather than a
   duplicate. The tick ledger is append-only on disk; this plane is
   idempotent."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def dataset "otent")
 

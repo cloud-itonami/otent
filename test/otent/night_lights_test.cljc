@@ -4,7 +4,7 @@
   Each refusal here is written against a specific way the ingest could
   quietly become unbounded, unlicensed or untraceable."
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.night-lights :as nl]))
 
 (deftest plan-bounded-at-z4

@@ -1,5 +1,5 @@
 (ns otent.panorama-coverage-test
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :as t]
             [otent.panorama-coverage :as pxc]
             [otent.panoramax :as px]))

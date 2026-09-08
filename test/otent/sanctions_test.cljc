@@ -2,7 +2,7 @@
   "The join that was run by hand six times, with the two mistakes the hand
   runs actually made turned into tests."
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.sanctions :as sanc]))
 
 (defn- vessels [n]

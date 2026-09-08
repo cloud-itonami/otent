@@ -34,7 +34,7 @@
     or re-identified; the sample is an imagery-asset observation only, and
     a redaction check refuses the run if an `@` or an exif/email-shaped key
     reaches an emitted record."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def pixel-permitted-licences
   "Licences under which storing the bytes is explicitly permitted (attribution
@@ -54,8 +54,8 @@
   [v]
   (cond
     (map? v) (and (not-any? (fn [k]
-                              (some #(str/includes? (str/lower-case (name k))
-                                                    (str/lower-case %))
+                              (some #(str/includes? (str/lower (name k))
+                                                    (str/lower %))
                                     exif-keys-forbidden))
                             (keys v))
                   (every? (fn [[_ v2]] (redacted? v2)) v))

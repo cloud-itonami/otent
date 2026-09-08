@@ -13,7 +13,7 @@
   and the run that appeared to honour it was a feed that happened to be due
   anyway. Same class as `:min-interval-ms` sitting in the feed registry
   unread, in the same file, on the same day."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def boolean-flags
   "Switches that take no value."

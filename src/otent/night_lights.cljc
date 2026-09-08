@@ -26,7 +26,8 @@
     recent -- this ingest does not use `default`, because `default` is a
     value that changes under us without anything telling us).
   - At z4 the whole globe is 341 tiles (sum of 4^z, z=0..4), same bound
-    the daily true colour sources use. One composite per run.")
+    the daily true colour sources use. One composite per run."
+  (:require [kotoba.lang.text]))
 
 (def source
   {:id "viirs-black-marble"
@@ -112,10 +113,10 @@
   "The source URL for one `[z x y]` tile of `composite`."
   [[z x y] composite]
   (-> (:url-template source)
-      (clojure.string/replace "{composite}" (str composite))
-      (clojure.string/replace "{z}" (str z))
-      (clojure.string/replace "{x}" (str x))
-      (clojure.string/replace "{y}" (str y))))
+      (kotoba.lang.text/replace "{composite}" (str composite))
+      (kotoba.lang.text/replace "{z}" (str z))
+      (kotoba.lang.text/replace "{x}" (str x))
+      (kotoba.lang.text/replace "{y}" (str y))))
 
 (defn object-key
   "Where the tile lives in the bucket. Date-keyed like the daily

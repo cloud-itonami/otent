@@ -54,7 +54,7 @@
   be shaped like a clean one. `bin/otent.cljs` refuses to commit when the
   held fraction crosses a threshold, because at that point the parser is
   wrong, not the feed."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [otent.observation :as obs]))
 
 (def ^{:doc "Field names that mark a person rather than a vehicle or event.
@@ -79,7 +79,7 @@
 (defn person-identifier?
   "Does this attribute key name a person?"
   [k]
-  (let [s (str/lower-case (name k))]
+  (let [s (str/lower (name k))]
     (some #(str/includes? s %) person-field-markers)))
 
 ;; Milliseconds. Timestamps outside [2001-09-09, 2286-11-20] are refused.

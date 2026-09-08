@@ -36,7 +36,7 @@
   other sensors available under the same key that are not being asked for,
   so the ceiling is in the registry where it can be argued with, rather
   than in a path segment where it cannot."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def registry
   [{:id :celestrak
@@ -451,7 +451,7 @@
   run -- that is the whole point of printing it."
   []
   (for [{:keys [id kind access label credential-env]} registry]
-    (str (str/upper-case (name id))
+    (str (str/upper (name id))
          "  kind=" (name kind)
          "  access=" (name access)
          (when credential-env (str "  needs=$" credential-env))

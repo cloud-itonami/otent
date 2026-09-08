@@ -30,7 +30,7 @@
   that, every feed eventually accumulates its way to the threshold and the
   refusal fires for a feed that has been healthy for a week. Pure, so the
   reset is something a test can hold."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def default-threshold
   "Three consecutive cycles. At a five-minute timer that is fifteen minutes

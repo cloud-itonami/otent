@@ -1,5 +1,5 @@
 (ns otent.street-coverage-test
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :as t]
             [otent.kartaview :as kv]
             [otent.street-coverage :as sc]))

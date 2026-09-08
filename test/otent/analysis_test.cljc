@@ -5,7 +5,7 @@
    synthetic RGBA buffers, so the same fixture always yields the same
    observation, and a change in behaviour is a change in this file."
   (:require [clojure.test :as t]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [otent.analysis :as an]
             [otent.basemap :as bm]))
 

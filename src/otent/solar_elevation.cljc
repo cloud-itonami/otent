@@ -13,7 +13,7 @@
   This file is the model artifact: its own sha256 is recorded in the
   derived provenance by the bin script, so every table names the exact
   arithmetic that produced it."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 ;; ── task identity ────────────────────────────────────────────────────
 

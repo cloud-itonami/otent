@@ -31,7 +31,7 @@
   to look like one namespace by this layer. Joining them is a question
   somebody asks later, with evidence; doing it here would bake an
   unrecorded guess into the only copy of the data."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def kinds
   "Every kind that may be written. The ONE copy.

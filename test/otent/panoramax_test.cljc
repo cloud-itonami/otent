@@ -1,5 +1,5 @@
 (ns otent.panoramax-test
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :as t]
             [otent.panoramax :as px]))
 

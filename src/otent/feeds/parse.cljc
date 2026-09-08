@@ -9,7 +9,7 @@
   Each parser returns `{:ok [obs ...] :failed [{...}]}` for the same reason
   `sgp4.tle/parse-catalog` does: a feed with four unparsable records must
   not be shaped like a clean one."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [csv.core :as csv]
             [otent.observation :as obs]
             [sgp4.tle :as tle]))
