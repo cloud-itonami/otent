@@ -1,8 +1,8 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; One Mapillary /map_features bbox sample -- one bounded run.
 ;;
-;;   nbb --classpath src bin/mapillary_mapfeatures_bbox.cljk --fixture <features.json> [--bbox-str "minx,miny,maxx,maxy"]
-;;   MAPILLARY_ACCESS_TOKEN=... nbb --classpath src bin/mapillary_mapfeatures_bbox.cljk --live --bbox 139.76,35.67,139.77,35.68
+;;   kbb --backend sci --classpath src bin/mapillary_mapfeatures_bbox.cljk --fixture <features.json> [--bbox-str "minx,miny,maxx,maxy"]
+;;   MAPILLARY_ACCESS_TOKEN=... kbb --backend sci --classpath src bin/mapillary_mapfeatures_bbox.cljk --live --bbox 139.76,35.67,139.77,35.68
 ;;
 ;; Live: ONE /map_features request built by the registered client
 ;; com-mapillary-graph-api (the client's `map-features-request`), token

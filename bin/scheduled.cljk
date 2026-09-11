@@ -2,7 +2,7 @@
   "One scheduled cycle: ingest what is due, then prune what is past its
   horizon.
 
-    nbb --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src bin/scheduled.cljk
+    kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/kotobase-client/src bin/scheduled.cljk
 
   Run by launchd every five minutes. Five minutes is not the poll rate --
   each feed's `:min-interval-ms` decides that, and a feed inside its

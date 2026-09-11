@@ -1,8 +1,8 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Ingest one bounded Natural Earth raster asset into R2, with the
 ;; integrity checks the pure module declares.
 ;;
-;;   nbb --classpath src bin/natural_earth.cljk NE1_50M_SR_W
+;;   kbb --backend sci --classpath src bin/natural_earth.cljk NE1_50M_SR_W
 ;;
 ;; One asset per invocation, from the catalogue in `otent.natural-earth`.
 ;; Nothing is unzipped or repacked: the zip is stored as published, so a
@@ -167,7 +167,7 @@
 ;; asset id is the last argument.
 (let [arg (last (js->clj js/process.argv))]
   (if (str/blank? arg)
-    (do (println "usage: nbb --classpath src bin/natural_earth.cljk ASSET-ID")
+    (do (println "usage: kbb --backend sci --classpath src bin/natural_earth.cljk ASSET-ID")
         (println (str "  catalogued assets: " (str/join " " (sort (keys ne/assets)))))
         (set! (.-exitCode js/process) 1))
     (go arg)))

@@ -1,7 +1,7 @@
 ;; Panoramax collections coverage manifest -- one bounded run.
 ;;
-;;   nbb --classpath src:test bin/panoramax_coverage.cljk --fixture <payload.json>
-;;   nbb --classpath src:test bin/panoramax_coverage.cljk --live --limit 20
+;;   kbb --backend sci --classpath src:test bin/panoramax_coverage.cljk --fixture <payload.json>
+;;   kbb --backend sci --classpath src:test bin/panoramax_coverage.cljk --live --limit 20
 ;;
 ;; Exit 0 manifest produced · 1 refused · 2 could-not-act (no write
 ;; credential, or bad payload). One request; a `rel=next` link is counted,

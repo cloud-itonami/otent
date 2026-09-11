@@ -3,7 +3,7 @@
 ;; be PNGs. Bounded: z2 = 21 tiles, one composite date. No bucket, no
 ;; token -- this fetches and checks, and writes nothing.
 ;;
-;;   nbb --classpath src scripts/verify_night_lights_sample.cljk
+;;   kbb --backend sci --classpath src scripts/verify_night_lights_sample.cljk
 ;;
 ;; Exit 0 only if every tile answers 200 with PNG magic and the
 ;; URL <-> key pair matches what the plan declares.

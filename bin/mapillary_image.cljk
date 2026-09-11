@@ -1,8 +1,8 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; One Mapillary image PIXEL sample -- one bounded run.
 ;;
-;;   nbb --classpath src bin/mapillary_image.cljk --fixture <image.json> --pixel <bytes-file> [--stored]
-;;   MAPILLARY_ACCESS_TOKEN=... nbb --classpath src bin/mapillary_image.cljk --live --bbox W S E N
+;;   kbb --backend sci --classpath src bin/mapillary_image.cljk --fixture <image.json> --pixel <bytes-file> [--stored]
+;;   MAPILLARY_ACCESS_TOKEN=... kbb --backend sci --classpath src bin/mapillary_image.cljk --live --bbox W S E N
 ;;
 ;; Live: ONE /images request built by the registered client
 ;; com-mapillary-graph-api (bbox strictly under 0.01 deg a side, token

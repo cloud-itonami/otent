@@ -2,7 +2,7 @@
   "The resident AIS collector: the one thing in this repository that holds a
   socket open instead of polling.
 
-    AISSTREAM_API_KEY=... CF_CATALOG_TOKEN=... nbb --classpath src bin/collector.cljk
+    AISSTREAM_API_KEY=... CF_CATALOG_TOKEN=... kbb --backend sci --classpath src bin/collector.cljk
 
   ## Why it exists and why it took a person to unblock
 

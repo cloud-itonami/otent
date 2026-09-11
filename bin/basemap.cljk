@@ -1,10 +1,10 @@
 (ns basemap
   "Put the Earth's surface in R2, so the globe has one to draw.
 
-    nbb --classpath src bin/basemap.cljk raster --max-zoom 4
-    nbb --classpath src bin/basemap.cljk raster --source modis-terra-truecolor --date 2026-08-28
-    nbb --classpath src bin/basemap.cljk vector
-    nbb --classpath src bin/basemap.cljk manifest
+    kbb --backend sci --classpath src bin/basemap.cljk raster --max-zoom 4
+    kbb --backend sci --classpath src bin/basemap.cljk raster --source modis-terra-truecolor --date 2026-08-28
+    kbb --backend sci --classpath src bin/basemap.cljk vector
+    kbb --backend sci --classpath src bin/basemap.cljk manifest
 
   ## Why this exists at all
 

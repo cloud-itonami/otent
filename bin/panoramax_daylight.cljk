@@ -1,9 +1,9 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Derived capture-daylight classification over Panoramax open street
 ;; imagery metadata — one source, one area, one derived task per run.
 ;;
-;;   nbb --classpath src bin/panoramax_daylight.cljk --bbox 139.765 35.678 139.77 35.682
-;;   nbb --classpath src bin/panoramax_daylight.cljk --fixture payload.json --bbox W S E N
+;;   kbb --backend sci --classpath src bin/panoramax_daylight.cljk --bbox 139.765 35.678 139.77 35.682
+;;   kbb --backend sci --classpath src bin/panoramax_daylight.cljk --fixture payload.json --bbox W S E N
 ;;
 ;; The upstream normalization (privacy gate: status=ready,
 ;; visibility=anyone, per-item licence, EXIF redaction; lon/lat order;

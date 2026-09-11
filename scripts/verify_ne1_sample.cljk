@@ -1,6 +1,6 @@
 ;; Live, bounded verification of the Natural Earth ingest path.
 ;;
-;;   nbb --classpath src scripts/verify_ne1_sample.cljk
+;;   kbb --backend sci --classpath src scripts/verify_ne1_sample.cljk
 ;;
 ;; Fetches the catalogued asset once, and checks the things a fetch
 ;; alone does not prove: the magic, the declared size band, the pinned

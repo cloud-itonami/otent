@@ -1,7 +1,7 @@
 ;; One Panoramax image pixel sample -- one bounded run.
 ;;
-;;   nbb --classpath src bin/panoramax_image.cljk --fixture <item.json> --pixel <bytes-file> [--stored]
-;;   nbb --classpath src bin/panoramax_image.cljk --live --bbox W S E N
+;;   kbb --backend sci --classpath src bin/panoramax_image.cljk --fixture <item.json> --pixel <bytes-file> [--stored]
+;;   kbb --backend sci --classpath src bin/panoramax_image.cljk --live --bbox W S E N
 ;;
 ;; Live: one search request (bbox, <= 0.01 deg/side, anonymous), the first
 ;; admissible ready+public item whose licence permits pixels, then ONE pixel

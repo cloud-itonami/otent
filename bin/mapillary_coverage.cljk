@@ -1,10 +1,10 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Derived temporal-coverage (vintage) table over Mapillary street
 ;; imagery METADATA — one source, one area, one derived task per run.
 ;;
-;;   MAPILLARY_ACCESS_TOKEN=... nbb --classpath src bin/mapillary_coverage.cljk \
+;;   MAPILLARY_ACCESS_TOKEN=... kbb --backend sci --classpath src bin/mapillary_coverage.cljk \
 ;;     --bbox W S E N
-;;   nbb --classpath src bin/mapillary_coverage.cljk --fixture payload.json \
+;;   kbb --backend sci --classpath src bin/mapillary_coverage.cljk --fixture payload.json \
 ;;     --bbox W S E N
 ;;
 ;; The upstream normalization (metadata only, no pixel; thumbnails
