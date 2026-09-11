@@ -1,8 +1,8 @@
 (ns night-lights
   "Put Earth at night in R2, one composite at a time.
 
-    nbb --classpath src bin/night_lights.cljk ingest --composite 2016-01-01 --max-zoom 4
-    nbb --classpath src bin/night_lights.cljk manifest --composite 2016-01-01
+    kbb --backend sci --classpath src bin/night_lights.cljk ingest --composite 2016-01-01 --max-zoom 4
+    kbb --backend sci --classpath src bin/night_lights.cljk manifest --composite 2016-01-01
 
   The I/O half of `otent.night-lights`, which holds every rule and every
   refusal; this file only moves bytes. Objects go to

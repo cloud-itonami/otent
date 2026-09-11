@@ -2,7 +2,7 @@
   "The suite, with an exit code the caller can see and two floors under it.
 
     npm test
-    nbb --classpath src:test test/run.cljk
+    kbb --backend sci --classpath src:test test/run.cljk
 
   Exit 0 pass · 1 failures · **2** the runner and the directory disagree ·
   **3** too few tests ran to report a pass. Three and two are separate on

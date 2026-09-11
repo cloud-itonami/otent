@@ -1,10 +1,10 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Ingest one bounded area of Mapillary street-imagery METADATA (Graph API
 ;; v4 /images, via the registered client com-mapillary-graph-api) into R2.
 ;;
-;;   MAPILLARY_ACCESS_TOKEN=... nbb --classpath src bin/mapillary_images.cljk \
+;;   MAPILLARY_ACCESS_TOKEN=... kbb --backend sci --classpath src bin/mapillary_images.cljk \
 ;;     --bbox W S E N --area-id <area>
-;;   nbb --classpath src bin/mapillary_images.cljk --fixture payload.json \
+;;   kbb --backend sci --classpath src bin/mapillary_images.cljk --fixture payload.json \
 ;;     --bbox W S E N
 ;;
 ;; One source, one area, one request per invocation. Metadata only: no

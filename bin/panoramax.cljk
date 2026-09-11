@@ -1,9 +1,9 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Ingest one bounded area of Panoramax open street imagery (STAC items)
 ;; into R2, with the checks otent.panoramax declares.
 ;;
-;;   nbb --classpath src bin/panoramax.cljk --bbox 139.765 35.678 139.77 35.682
-;;   nbb --classpath src bin/panoramax.cljk --fixture payload.json --bbox W S E N
+;;   kbb --backend sci --classpath src bin/panoramax.cljk --bbox 139.765 35.678 139.77 35.682
+;;   kbb --backend sci --classpath src bin/panoramax.cljk --fixture payload.json --bbox W S E N
 ;;
 ;; One source, one area per invocation. Metadata only: no pixel is
 ;; fetched or stored (:no-raw-image-republication-without-rights); the

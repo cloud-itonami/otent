@@ -1,10 +1,10 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Derived spatial-density (per-cell grid) table over KartaView open
 ;; street imagery metadata — one source, one area, one derived task
 ;; per run.
 ;;
-;;   nbb --classpath src bin/kartaview_density.cljk --bbox 139.765 35.678 139.77 35.682
-;;   nbb --classpath src bin/kartaview_density.cljk --fixture payload.json --bbox W S E N
+;;   kbb --backend sci --classpath src bin/kartaview_density.cljk --bbox 139.765 35.678 139.77 35.682
+;;   kbb --backend sci --classpath src bin/kartaview_density.cljk --fixture payload.json --bbox W S E N
 ;;
 ;; The upstream normalization (privacy gate: provider-BLURRED processed
 ;; imagery only, public + active; GeoJSON lon/lat; unknowns visible)

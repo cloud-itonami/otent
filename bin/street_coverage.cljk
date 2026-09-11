@@ -1,9 +1,9 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Derived temporal-coverage (vintage) table over KartaView open street
 ;; imagery metadata — one source, one area, one derived task per run.
 ;;
-;;   nbb --classpath src bin/street_coverage.cljk --bbox 139.765 35.678 139.77 35.682
-;;   nbb --classpath src bin/street_coverage.cljk --fixture payload.json --bbox W S E N
+;;   kbb --backend sci --classpath src bin/street_coverage.cljk --bbox 139.765 35.678 139.77 35.682
+;;   kbb --backend sci --classpath src bin/street_coverage.cljk --fixture payload.json --bbox W S E N
 ;;
 ;; The upstream normalization (privacy gate: provider-BLURRED imagery
 ;; only; public + active; lon/lat order; unknowns visible) belongs to

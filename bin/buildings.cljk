@@ -1,10 +1,10 @@
 (ns buildings
   "Building footprints into R2, so the globe has something to extrude.
 
-    nbb --classpath src bin/buildings.cljk areas
-    nbb --classpath src bin/buildings.cljk ingest --area tokyo
-    nbb --classpath src bin/buildings.cljk ingest --area tokyo,manhattan --radius 3
-    nbb --classpath src bin/buildings.cljk manifest
+    kbb --backend sci --classpath src bin/buildings.cljk areas
+    kbb --backend sci --classpath src bin/buildings.cljk ingest --area tokyo
+    kbb --backend sci --classpath src bin/buildings.cljk ingest --area tokyo,manhattan --radius 3
+    kbb --backend sci --classpath src bin/buildings.cljk manifest
 
   ## Why the decode happens HERE and not in the browser
 

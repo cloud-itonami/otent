@@ -2,11 +2,11 @@
   "One ingest tick: fetch the public feeds, govern the rows, append them to
   the R2 Data Catalog, read back, and write a receipt.
 
-    nbb --classpath src bin/otent.cljk tick
-    nbb --classpath src bin/otent.cljk tick --feed usgs --dry-run
-    nbb --classpath src bin/otent.cljk feeds
-    nbb --classpath src bin/otent.cljk count --kind quake
-    nbb --classpath src bin/otent.cljk coverage
+    kbb --backend sci --classpath src bin/otent.cljk tick
+    kbb --backend sci --classpath src bin/otent.cljk tick --feed usgs --dry-run
+    kbb --backend sci --classpath src bin/otent.cljk feeds
+    kbb --backend sci --classpath src bin/otent.cljk count --kind quake
+    kbb --backend sci --classpath src bin/otent.cljk coverage
 
   ## Exit codes
 

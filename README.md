@@ -22,10 +22,10 @@ Nothing renders here. `cloud-itonami/app-otent` draws the globe, and it
 reads **only** what this actor has committed.
 
 ```bash
-nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk feeds
-nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk tick --dry-run
-CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk tick
-CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk coverage
+kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk feeds
+kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk tick --dry-run
+CF_CATALOG_TOKEN=... kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk tick
+CF_CATALOG_TOKEN=... kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk coverage
 ```
 
 ## Live, measured 2026-08-27
@@ -805,8 +805,8 @@ afterwards.
 the same tiles, and stores them as flat coordinate arrays in R2.
 
 ```bash
-nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljk areas
-nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljk ingest --area tokyo
+kbb --backend sci --classpath src:../../kotoba-lang/map/src bin/buildings.cljk areas
+kbb --backend sci --classpath src:../../kotoba-lang/map/src bin/buildings.cljk ingest --area tokyo
 ```
 
 **Eighteen metro areas, 450 z14 tiles.** The first four were Tokyo,
@@ -1586,7 +1586,7 @@ ready and will run one ≤0.01° tile the moment a token is provisioned.
 Offline, with no credential:
 
 ```
-nbb --classpath src:../../kotoba-lang/com-mapillary-graph-api/src \
+kbb --backend sci --classpath src:../../kotoba-lang/com-mapillary-graph-api/src \
   bin/street_heading.cljk --fixture payload.json --bbox 139.765 35.678 139.77 35.682
 # → heading: {"N" 0, "E" 1, "W" 2, ...} heading-unknown=0 panorama=1
 ```
@@ -1626,8 +1626,8 @@ thresholds pinned as model parameters.
   restated in the coverage-bound note).
 
 ```
-nbb --classpath src bin/panoramax_daylight.cljk --bbox 139.765 35.675 139.77 35.68
-nbb --classpath src bin/panoramax_daylight.cljk --fixture payload.json --bbox W S E N
+kbb --backend sci --classpath src bin/panoramax_daylight.cljk --bbox 139.765 35.675 139.77 35.68
+kbb --backend sci --classpath src bin/panoramax_daylight.cljk --fixture payload.json --bbox W S E N
 ```
 
 As with the other derived tasks, `$CF_CATALOG_TOKEN` absence stops at
@@ -1751,8 +1751,8 @@ existing is not a road being covered or current. Producer attribution
 refuses the run if an `@` or an exif/email-shaped key reaches an observation
 anyway. No face or plate can appear here: no image was fetched.
 
-    npx nbb --classpath src:test bin/panoramax_coverage.cljk --fixture test/otent/fixtures/panoramax-collections-live.json
-    npx nbb --classpath src:test bin/panoramax_coverage.cljk --live --limit 20
+    kbb --backend sci --classpath src:test bin/panoramax_coverage.cljk --fixture test/otent/fixtures/panoramax-collections-live.json
+    kbb --backend sci --classpath src:test bin/panoramax_coverage.cljk --live --limit 20
 
 Exit 0 manifest produced · 1 refused · 2 could-not-act (no write
 credential, or bad payload). The R2 write stays behind
@@ -1928,10 +1928,10 @@ rather than assuming it:
   redaction check refuses the run if an `@` or an exif/email-shaped key
   reaches the record.
 
-    npx nbb --classpath src bin/panoramax_image.cljk \
+    kbb --backend sci --classpath src bin/panoramax_image.cljk \
       --fixture test/otent/fixtures/panoramax-image-item.json \
       --pixel test/otent/fixtures/panoramax-image-pixel.jpg
-    npx nbb --classpath src bin/panoramax_image.cljk --live --bbox 4.4750 44.1351 4.4755 44.1353
+    kbb --backend sci --classpath src bin/panoramax_image.cljk --live --bbox 4.4750 44.1351 4.4755 44.1353
 
 Exit 0 sample recorded · 1 refused · 2 could-not-act. Verified live
 2026-09-02: two requests, 226,336 bytes, `input pixel

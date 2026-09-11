@@ -1,7 +1,7 @@
 (ns analyze
   "One bounded analysis pass over the already-licensed Otent imagery asset.
 
-    nbb --classpath src bin/analyze.cljk --source modis-terra-truecolor \\
+    kbb --backend sci --classpath src bin/analyze.cljk --source modis-terra-truecolor \\
         --date 2026-08-29 --max-zoom 4 --out ledger/analysis
 
   The pure half lives in `otent.analysis` (and `otent.basemap` for the
@@ -116,7 +116,7 @@
                               "->" out))))))))))
 
 (defn- usage []
-  (log "nbb --classpath src bin/analyze.cljk --source modis-terra-truecolor --date YYYY-MM-DD [--max-zoom 4] --out ledger/analysis"))
+  (log "kbb --backend sci --classpath src bin/analyze.cljk --source modis-terra-truecolor --date YYYY-MM-DD [--max-zoom 4] --out ledger/analysis"))
 
 (defn- main []
   (let [args (js->clj (.-argv js/process))

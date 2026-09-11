@@ -1,9 +1,9 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Ingest one bounded area of KartaView (OpenStreetCam) open street
 ;; imagery metadata into R2, with the checks otent.kartaview declares.
 ;;
-;;   nbb --classpath src bin/kartaview.cljk --bbox 139.765 35.678 139.77 35.682
-;;   nbb --classpath src bin/kartaview.cljk --fixture payload.json --bbox W S E N
+;;   kbb --backend sci --classpath src bin/kartaview.cljk --bbox 139.765 35.678 139.77 35.682
+;;   kbb --backend sci --classpath src bin/kartaview.cljk --fixture payload.json --bbox W S E N
 ;;
 ;; One source, one area per invocation. Metadata only: no pixel is
 ;; fetched or stored (:no-raw-image-republication-without-rights); the
@@ -182,7 +182,7 @@
                                                   (:bbox args) retrieved-at sha result))))))))))))))
 
 ;; Under nbb, process.argv is [node, nbb, script, ...user-args] (though
-;; `nbb -e` puts the script elsewhere) — find this script by name and
+;; `kbb --backend sci -e` puts the script elsewhere) — find this script by name and
 ;; take what follows, like `bin/street.cljs` does.
 (defn- script-args []
   (let [argv (js->clj js/process.argv)

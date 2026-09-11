@@ -1,8 +1,8 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; One Mapillary per-MAP-FEATURE detections sample -- one bounded run.
 ;;
-;;   nbb --classpath src bin/mapillary_mapfeature_detections.cljk --fixture <detections.json> [--map-feature-id <id>]
-;;   MAPILLARY_ACCESS_TOKEN=... nbb --classpath src bin/mapillary_mapfeature_detections.cljk --live --map-feature-id <id>
+;;   kbb --backend sci --classpath src bin/mapillary_mapfeature_detections.cljk --fixture <detections.json> [--map-feature-id <id>]
+;;   MAPILLARY_ACCESS_TOKEN=... kbb --backend sci --classpath src bin/mapillary_mapfeature_detections.cljk --live --map-feature-id <id>
 ;;
 ;; Live: ONE /:map_feature_id/detections request built by the registered
 ;; client com-mapillary-graph-api (the client's `detections-request`

@@ -1,10 +1,10 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Derived heading/panorama coverage table over Mapillary /images
 ;; metadata — one source, one area, one derived task per run.
 ;;
-;;   MAPILLARY_ACCESS_TOKEN=... nbb --classpath src:../../kotoba-lang/com-mapillary-graph-api/src \
+;;   MAPILLARY_ACCESS_TOKEN=... kbb --backend sci --classpath src:../../kotoba-lang/com-mapillary-graph-api/src \
 ;;     bin/street_heading.cljk --bbox W S E N
-;;   nbb --classpath src:../../kotoba-lang/com-mapillary-graph-api/src \
+;;   kbb --backend sci --classpath src:../../kotoba-lang/com-mapillary-graph-api/src \
 ;;     bin/street_heading.cljk --fixture payload.json --bbox W S E N
 ;;
 ;; The upstream normalization (privacy gate: curated metadata fields,
