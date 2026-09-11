@@ -22,10 +22,10 @@ Nothing renders here. `cloud-itonami/app-otent` draws the globe, and it
 reads **only** what this actor has committed.
 
 ```bash
-nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs feeds
-nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs tick --dry-run
-CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs tick
-CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljs coverage
+nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk feeds
+nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk tick --dry-run
+CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk tick
+CF_CATALOG_TOKEN=... nbb --classpath src:../../kotoba-lang/sgp4/src bin/otent.cljk coverage
 ```
 
 ## Live, measured 2026-08-27
@@ -154,7 +154,7 @@ that as a network fault would retry forever against a wall.
 
 ### Global AIS, and the 124:1 that makes it affordable
 
-`bin/collector.cljs` is the only resident process here — everything else is
+`bin/collector.cljk` is the only resident process here — everything else is
 a timer that runs and exits. It holds a WebSocket to AISStream, subscribes
 to the whole planet, and keeps only vessels on a maritime risk list.
 
@@ -702,9 +702,9 @@ moved to where the exit code is decided. It had to be learned twice.
 
 ### The suite was green over a file that did not parse
 
-Fixing the above, a one-paren edit left `bin/otent.cljs` unparseable and
+Fixing the above, a one-paren edit left `bin/otent.cljk` unparseable and
 `npm test` reported **70 tests, 740 assertions, 0 failures**. Every
-namespace the tests require was fine. `bin/otent.cljs` is required by
+namespace the tests require was fine. `bin/otent.cljk` is required by
 nothing — it is the entry point, it ends in `(-main)`, and requiring it
 from a test would run a tick against the live feeds. So the one file that
 touches the network, holds the commit logic and is what launchd executes
@@ -716,7 +716,7 @@ and exits 2 without opening a socket, but it is a real load: every
 with `cljs.reader` was tried first and is wrong — the reader has no `#js`,
 no `#?` and no regex literal, so it calls healthy ClojureScript
 unreadable, and a checker that is wrong about good files is worse than
-none. **`bin/scheduled.cljs` is still not covered**, because a bare
+none. **`bin/scheduled.cljk` is still not covered**, because a bare
 invocation of it reads the Keychain and runs a cycle; that gap is named in
 the namespace docstring rather than left to be assumed away.
 
@@ -800,13 +800,13 @@ afterwards.
 
 ## Buildings, and the ground under them
 
-`bin/buildings.cljs` pulls OpenStreetMap building footprints — via
+`bin/buildings.cljk` pulls OpenStreetMap building footprints — via
 **OpenFreeMap**, keyless, ODbL 1.0 — plus water, landcover and parks from
 the same tiles, and stores them as flat coordinate arrays in R2.
 
 ```bash
-nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljs areas
-nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljs ingest --area tokyo
+nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljk areas
+nbb --classpath src:../../kotoba-lang/map/src bin/buildings.cljk ingest --area tokyo
 ```
 
 **Eighteen metro areas, 450 z14 tiles.** The first four were Tokyo,
@@ -865,7 +865,7 @@ basemap at all in a bucket holding 1,365 tiles.
 
 ## One open street source, anonymously: KartaView (OpenStreetCam)
 
-`bin/kartaview.cljs` ingests street-imagery **metadata** (no pixel is
+`bin/kartaview.cljk` ingests street-imagery **metadata** (no pixel is
 fetched or stored) from KartaView's open-data photo search — the
 anonymous `api.openstreetcam.org/2.0/photo/` endpoint, which still
 answers 200 where `api.kartaview.org` now 401s. No credential exists to
@@ -905,7 +905,7 @@ nothing.
 
 ## One derived task over the open street source: vintage (temporal coverage)
 
-`bin/street_coverage.cljs` runs **one** derived task —
+`bin/street_coverage.cljk` runs **one** derived task —
 `street-imagery-vintage-v1` — over the KartaView observations the
 previous pass normalized: a temporal-coverage table for the one ≤ 0.01°
 area, built from the provider's own published `shotDate` strings. No
@@ -940,7 +940,7 @@ labeled SYNTHETIC payload offline with identical checks.
 
 ## One static asset, pinned by hash: Natural Earth I at 1:50m
 
-`bin/natural_earth.cljs` ingests a single static raster asset — Natural
+`bin/natural_earth.cljk` ingests a single static raster asset — Natural
 Earth I with Shaded Relief and Water (`NE1_50M_SR_W`), public domain,
 from the official `naturalearth` S3 bucket — alongside the daily imagery
 sources. It is bounded in a way the daily sources cannot be: the
@@ -961,7 +961,7 @@ inventing a date. Without `$CF_CATALOG_TOKEN` the run fetches, checks
 everything, writes nothing, and exits 2: nothing written is not the
 same as written nothing.
 
-`scripts/verify_ne1_sample.cljs` is the read-only live check: it fetches
+`scripts/verify_ne1_sample.cljk` is the read-only live check: it fetches
 the asset once and walks the zip's local-file headers by hand (no unzip
 dependency) to confirm the published entries are present and the
 GeoTIFF inside starts with the little-endian TIFF magic.
@@ -1083,15 +1083,15 @@ evaluated at any instant.
 ## Layout
 
 ```
-src/otent/observation.cljc   the one row shape every feed lands in
-src/otent/governor.cljc      pure admit/hold
-src/otent/receipt.cljc       pure: run report and exit code
-src/otent/feeds/core.cljc    the registry, including what cannot be read
-src/otent/feeds/parse.cljc   payload -> observations, per feed. Pure.
-src/otent/coverage.cljc      pure: declared cadence vs measured cadence
-src/otent/deadline.cljc      every network call gets one, and names it
-src/otent/darkness.cljc      consecutive dark cycles, not the first one
-bin/otent.cljs               the only namespace that touches the network
+src/otent/observation.cljk   the one row shape every feed lands in
+src/otent/governor.cljk      pure admit/hold
+src/otent/receipt.cljk       pure: run report and exit code
+src/otent/feeds/core.cljk    the registry, including what cannot be read
+src/otent/feeds/parse.cljk   payload -> observations, per feed. Pure.
+src/otent/coverage.cljk      pure: declared cadence vs measured cadence
+src/otent/deadline.cljk      every network call gets one, and names it
+src/otent/darkness.cljk      consecutive dark cycles, not the first one
+bin/otent.cljk               the only namespace that touches the network
 scripts/iceberg_append.py     the only part nbb cannot do
 ```
 
@@ -1173,7 +1173,7 @@ would otherwise have been a lie:
 Scheduling before those would have grown a table behind a page that timed
 out, and called it automation.
 
-`bin/scheduled.cljs` is the cycle, not the plist: launchctl needs
+`bin/scheduled.cljk` is the cycle, not the plist: launchctl needs
 `bootout`/`bootstrap` on every edit, so a plist carrying decisions is a plist
 nobody fixes. It does three things a plist cannot express.
 
@@ -1259,7 +1259,7 @@ the archive existed, which is a failure rather than history.
 
 ## Street imagery sources (bounded, one subject per run)
 
-`src/otent/mapillary_mapfeature_detections.cljc` + `bin/mapillary_mapfeature_detections.cljs`:
+`src/otent/mapillary_mapfeature_detections.cljk` + `bin/mapillary_mapfeature_detections.cljk`:
 ONE `/:map_feature_id/detections` request through the registered client
 `com-mapillary-graph-api` (`detections-request` with `kind :map-feature`),
 metadata only — no pixel field is ever requested. `paging.next` is counted,
@@ -1272,7 +1272,7 @@ current fact about the world.
 
 ## One Mapillary map-features bbox source — one tile, metadata only
 
-`src/otent/mapillary_mapfeatures_bbox.cljc` + `bin/mapillary_mapfeatures_bbox.cljs`
+`src/otent/mapillary_mapfeatures_bbox.cljk` + `bin/mapillary_mapfeatures_bbox.cljk`
 covers the last client endpoint no otent run had touched: the registered
 client `com-mapillary-graph-api`'s `map-features-request`
 (`GET /map_features`).
@@ -1314,7 +1314,7 @@ none is invented. `npm test` — 230 tests, 1,841 assertions, 0 failures.
 
 ## One Mapillary per-image detections source — metadata only
 
-`bin/mapillary_image_detections.cljs` covers the client endpoint no
+`bin/mapillary_image_detections.cljk` covers the client endpoint no
 other otent run had touched: the registered client
 `com-mapillary-graph-api`'s `detections-request` with `kind :image`
 (`GET /:image_id/detections`). The bbox metadata source, the pixel
@@ -1351,7 +1351,7 @@ nothing was fetched from Mapillary and none is invented.
 
 ## One open street source, anonymously: Panoramax
 
-`bin/panoramax.cljs` ingests street-imagery **metadata** (no pixel is
+`bin/panoramax.cljk` ingests street-imagery **metadata** (no pixel is
 fetched or stored) from Panoramax — the IGN / OSM-FR street-imagery
 federation publishing CC-BY-SA-4.0 pictures over a STAC API. The
 anonymous aggregate endpoint `api.panoramax.xyz/api/search` answers 200
@@ -1391,7 +1391,7 @@ not current existence.
 
 ## One derived task over the Panoramax observations: spatial density (per-cell grid)
 
-`bin/panorama_density.cljs` runs **one** derived task —
+`bin/panorama_density.cljk` runs **one** derived task —
 `panoramax-street-density-v1` — over the Panoramax observations the
 upstream pass normalized: the one ≤ 0.01° area is binned into a fixed
 deterministic grid (target cell 0.0025°, so at most 4×4 cells derived
@@ -1429,7 +1429,7 @@ accepted=100 refused=0 outside-bbox=0 next-link=false`, grid 2×2,
 no-credential gate. `--fixture` replays a labeled SYNTHETIC payload
 offline with identical checks.
 
-`bin/panorama_coverage.cljs` runs **one** derived task —
+`bin/panorama_coverage.cljk` runs **one** derived task —
 `panoramax-street-vintage-v1` — over the same normalized Panoramax
 observations: a temporal-coverage (vintage) table for the one
 ≤ 0.01° area, counting admissible pictures and the span of their
@@ -1475,8 +1475,8 @@ identical checks (span `2017-09-09T08:28:31.000000+00:00` →
 
 ## One Mapillary image pixel sample — the exception, earned
 
-`bin/mapillary_image.cljs` is the **pixel** counterpart of the Mapillary
-metadata source (`bin/mapillary_images.cljs`, which deliberately never
+`bin/mapillary_image.cljk` is the **pixel** counterpart of the Mapillary
+metadata source (`bin/mapillary_images.cljk`, which deliberately never
 requested `thumb_1024_url` — a field never read was a field never had
 to defend). This one earns the exception rather than assuming it:
 
@@ -1517,7 +1517,7 @@ and none is invented. A 401 must never be misread as an empty tile.
 
 ## One open street source, credential-gated: Mapillary image metadata
 
-`bin/mapillary_images.cljs` ingests street-imagery **metadata** (no pixel
+`bin/mapillary_images.cljk` ingests street-imagery **metadata** (no pixel
 is fetched or stored, and the thumbnail URL is never requested) from
 Mapillary's Graph API v4 `/images`, through the **registered client**
 `com-mapillary-graph-api` — the request is built by the client, not
@@ -1562,7 +1562,7 @@ ready and will run one ≤0.01° tile the moment a token is provisioned.
 ## One derived task over the Mapillary image metadata: heading/panorama coverage
 
 `street-imagery-heading-v1` (`otent.street-heading`,
-`bin/street_heading.cljs`) consumes the observations the
+`bin/street_heading.cljk`) consumes the observations the
 `mapillary-images` source already normalized and produces one bounded
 **heading-coverage table** for the one ≤0.01° area the run fetched:
 
@@ -1587,7 +1587,7 @@ Offline, with no credential:
 
 ```
 nbb --classpath src:../../kotoba-lang/com-mapillary-graph-api/src \
-  bin/street_heading.cljs --fixture payload.json --bbox 139.765 35.678 139.77 35.682
+  bin/street_heading.cljk --fixture payload.json --bbox 139.765 35.678 139.77 35.682
 # → heading: {"N" 0, "E" 1, "W" 2, ...} heading-unknown=0 panorama=1
 ```
 
@@ -1599,7 +1599,7 @@ nothing is written and the run exits 2.
 
 ## One derived capture-daylight task over the Panoramax observations
 
-`bin/panoramax_daylight.cljs` runs **one** derived task —
+`bin/panoramax_daylight.cljk` runs **one** derived task —
 `panoramax-capture-daylight-v1` — over the observations normalized by
 `otent.panoramax`: a deterministic, locally-reproducible solar-elevation
 classifier (`otent.solar-elevation`, NOAA low-precision algorithm) that
@@ -1626,8 +1626,8 @@ thresholds pinned as model parameters.
   restated in the coverage-bound note).
 
 ```
-nbb --classpath src bin/panoramax_daylight.cljs --bbox 139.765 35.675 139.77 35.68
-nbb --classpath src bin/panoramax_daylight.cljs --fixture payload.json --bbox W S E N
+nbb --classpath src bin/panoramax_daylight.cljk --bbox 139.765 35.675 139.77 35.68
+nbb --classpath src bin/panoramax_daylight.cljk --fixture payload.json --bbox W S E N
 ```
 
 As with the other derived tasks, `$CF_CATALOG_TOKEN` absence stops at
@@ -1636,7 +1636,7 @@ reported rather than faked.
 
 ## One derived task over the Panoramax metadata: vintage
 
-`bin/panoramax_coverage.cljs` derives a temporal-coverage (vintage)
+`bin/panoramax_coverage.cljk` derives a temporal-coverage (vintage)
 table from the observations `otent.panoramax` already admitted — one
 derived task, one source, one area, one PR. No pixel, no model: the
 table counts accepted items and the span of their **provider-published**
@@ -1662,7 +1662,7 @@ table counts accepted items and the span of their **provider-published**
 
 ### One derived task over the Mapillary metadata: vintage (temporal coverage)
 
-`bin/mapillary_coverage.cljs` runs **one** derived task —
+`bin/mapillary_coverage.cljk` runs **one** derived task —
 `mapillary-street-vintage-v1` — over the Mapillary observations the
 metadata pass normalized: a temporal-coverage table for the one ≤0.01°
 area, built from the provider's own `captured_at` epoch milliseconds.
@@ -1751,8 +1751,8 @@ existing is not a road being covered or current. Producer attribution
 refuses the run if an `@` or an exif/email-shaped key reaches an observation
 anyway. No face or plate can appear here: no image was fetched.
 
-    npx nbb --classpath src:test bin/panoramax_coverage.cljs --fixture test/otent/fixtures/panoramax-collections-live.json
-    npx nbb --classpath src:test bin/panoramax_coverage.cljs --live --limit 20
+    npx nbb --classpath src:test bin/panoramax_coverage.cljk --fixture test/otent/fixtures/panoramax-collections-live.json
+    npx nbb --classpath src:test bin/panoramax_coverage.cljk --live --limit 20
 
 Exit 0 manifest produced · 1 refused · 2 could-not-act (no write
 credential, or bad payload). The R2 write stays behind
@@ -1835,7 +1835,7 @@ record's `payload-sha256`. `npm test` -- 428 tests, 2,805 assertions,
 
 ## One derived task over the open street source: heading/projection coverage
 
-`otent.kartaview-heading` (`bin/kartaview_heading.cljs`) runs **one**
+`otent.kartaview-heading` (`bin/kartaview_heading.cljk`) runs **one**
 derived task — `kartaview-imagery-heading-v1` — over the KartaView
 observations the previous pass normalized: an 8-sector compass
 histogram and projection counts for the one <= 0.01 deg area, built
@@ -1859,7 +1859,7 @@ payload offline with identical checks. `npm test` — 441 tests,
 
 ## One derived spatial-density task over the KartaView observations
 
-`otent.kartaview-density` (`bin/kartaview_density.cljs`, task
+`otent.kartaview-density` (`bin/kartaview_density.cljk`, task
 `kartaview-street-density-v1`) runs **one** derived task — the
 KartaView counterpart of the Panoramax spatial-density task
 (`panoramax-street-density-v1`, PR #47) — over the KartaView
@@ -1928,10 +1928,10 @@ rather than assuming it:
   redaction check refuses the run if an `@` or an exif/email-shaped key
   reaches the record.
 
-    npx nbb --classpath src bin/panoramax_image.cljs \
+    npx nbb --classpath src bin/panoramax_image.cljk \
       --fixture test/otent/fixtures/panoramax-image-item.json \
       --pixel test/otent/fixtures/panoramax-image-pixel.jpg
-    npx nbb --classpath src bin/panoramax_image.cljs --live --bbox 4.4750 44.1351 4.4755 44.1353
+    npx nbb --classpath src bin/panoramax_image.cljk --live --bbox 4.4750 44.1351 4.4755 44.1353
 
 Exit 0 sample recorded · 1 refused · 2 could-not-act. Verified live
 2026-09-02: two requests, 226,336 bytes, `input pixel
