@@ -2,7 +2,7 @@
 """iceberg_retain.py -- delete observations older than a horizon, and expire
 the snapshots that held them.
 
-`bin/otent.cljs` owns the orchestration; this owns the Iceberg delete and
+`bin/otent.cljk` owns the orchestration; this owns the Iceberg delete and
 nothing else, the same split `iceberg_append.py` follows.
 
 ## Why this can exist now and could not before

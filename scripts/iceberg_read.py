@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """iceberg_read.py -- dump one table's rows as NDJSON on stdout.
 
-`bin/otent.cljs` owns every decision; this owns the Iceberg read and nothing
+`bin/otent.cljk` owns every decision; this owns the Iceberg read and nothing
 else, the same split `iceberg_append.py` and `iceberg_retain.py` follow.
 
 ## Why a reader had to exist before `otent sanctions` could
