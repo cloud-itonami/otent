@@ -36,7 +36,7 @@
 (defn- artifact-hash []
   ;; the analysis source IS the artifact: hash it, so the run manifest
   ;; pins exactly the code that produced the table
-  (sha256 (fs/readFileSync (path/join "src" "otent" "analysis.cljs"))))
+  (sha256 (fs/readFileSync (path/join "src" "otent" "analysis.cljk"))))
 
 ;; ------------------------------------------------------------------ I/O
 

@@ -145,7 +145,7 @@
                                                (path/join ".." ".." "kotoba-lang" "sgp4" "src") ":"
                                                (path/join ".." ".." "kotoba-lang" "kotobase-client" "src") ":"
                                                (path/join ".." ".." "kotoba-lang" "org-ietf-csv" "src"))
-                                          (path/join "bin" "otent.cljs")]
+                                          (path/join "bin" "otent.cljk")]
                                          args))
                         #js {:encoding "utf8"
                              :env (js/Object.assign #js {} js/process.env env)
