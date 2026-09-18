@@ -737,7 +737,7 @@
   the user typed nothing."
   []
   (let [argv (js->clj js/process.argv)
-        i (first (keep-indexed (fn [i a] (when (str/ends-with? a "otent.cljs") i)) argv))]
+        i (first (keep-indexed (fn [i a] (when (str/ends-with? a "otent.cljk") i)) argv))]
     (if i (drop (inc i) argv) (drop 2 argv))))
 
 (def archive-began-ms

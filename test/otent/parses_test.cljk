@@ -65,9 +65,9 @@
     {:code (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r))}))
 
 (deftest the-entry-points-load
-  (doseq [[script marker] [["otent.cljs" "usage: otent.cljs"]
-                           ["basemap.cljs" "usage: basemap.cljs"]
-                           ["buildings.cljs" "usage:"]]]
+  (doseq [[script marker] [["otent.cljk" "usage: otent.cljs"]
+                           ["basemap.cljk" "usage: basemap.cljs"]
+                           ["buildings.cljk" "usage:"]]]
     (testing script
       (let [{:keys [code out err]} (bare-run script)]
         (is (= 2 code)
