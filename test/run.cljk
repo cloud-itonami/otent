@@ -10,8 +10,9 @@
 
   The namespaces below have to be written literally -- nbb resolves
   `require` at read time. The list is written down and then CHECKED against
-  the directory, and a `_test.cljc` that is not in the list makes this
-  exit 2. The list is the convenience; the scan is the control."
+  the directory, and a `_test.cljk` (or pre-rename `_test.cljc`) that is not
+  in the list makes this exit 2. The list is the convenience; the scan is the
+  control."
   (:require [clojure.test :as t]
             [clojure.set :as clojure.set]
             [kotoba.lang.text :as str]
@@ -96,9 +97,16 @@
 
 (def test-dir (path/join (js/process.cwd) "test" "otent"))
 
+;; The scan accepts both spellings of the test suffix: `_test.cljk` is the
+;; post-rename form (the 2026-09-11 `.cljc` -> `.cljk` rename), `_test.cljc`
+;; is the pre-rename form. A stray file of EITHER kind must remain visible to
+;; the scan, or the control goes silent on it. Both extensions are 5 chars, so
+;; the name derivation below is suffix-agnostic.
+(def test-file-suffixes #{"_test.cljk" "_test.cljc"})
+
 (defn on-disk []
   (->> (fs/readdirSync test-dir)
-       (filter #(str/ends-with? % "_test.cljc"))
+       (filter #(some (partial str/ends-with? %) test-file-suffixes))
        (map #(symbol (str "otent." (str/replace (subs % 0 (- (count %) 5)) "_" "-"))))
        set))
 
