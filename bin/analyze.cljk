@@ -68,7 +68,7 @@
 
 (def conc 8)
 
-(defn- run! [{:keys [source date tiles] :as plan} out-dir max-z]
+(defn- run! [{:keys [source date tiles] :as plan} out-dir max-z task-id]
   (let [start (js/Date.now)
         _ (fs/mkdirSync out-dir #js {:recursive true})
         out out-dir
@@ -95,15 +95,18 @@
           (.then (fn [_]
                    (let [rows* (sort-by (comp (juxt :z :x :y) :tile :provenance) @rows)
                          elapsed (- (js/Date.now) start)
-                         summary (an/run-summary {:source source :date date :max-z max-z}
-                                                 (artifact-hash) (str "node " js/process.version) @rows elapsed)]
+                         summary (cond-> (an/run-summary {:source source :date date :max-z max-z}
+                                                         (artifact-hash) (str "node " js/process.version) @rows elapsed)
+                                   task-id (assoc :task-id task-id))]
                      ;; readback: the table we are about to claim is the
-                     ;; table on disk, byte for byte
+                     ;; table on disk, byte for byte. (kotoba.lang.text/split
+                     ;; takes a REGEX, not a delimiter string -- a plain
+                     ;; "\n" used to crash here, which defeated the gate.)
                      (fs/writeFileSync (path/join out "observations.jsonl")
                                        (str/join "\n" (map #(js/JSON.stringify (clj->js %)) rows*)))
                      (fs/writeFileSync (path/join out "run.json")
                                        (js/JSON.stringify (clj->js summary) nil 2))
-                     (let [back (->> (str/split (str (fs/readFileSync (path/join out "observations.jsonl") "utf8")) "\n")
+                     (let [back (->> (str/split (str (fs/readFileSync (path/join out "observations.jsonl") "utf8")) #"\n")
                                      (remove str/blank?)
                                      (mapv #(js->clj (js/JSON.parse %) :keywordize-keys true)))]
                        (log "readback:" (count back) "rows," (:tile-count summary) "in summary")
@@ -127,8 +130,14 @@
         date (getopt "--date" nil)
         max-z (js/parseInt (getopt "--max-zoom" "4") 10)
         out (getopt "--out" "ledger/analysis")
+        task-id (getopt "--task" nil)
         source (bm/source-for source-id)
-        refusal (an/analysis-refusal source max-z date)]
+        refusal (or (an/analysis-refusal source max-z date)
+                    (when task-id
+                      (if (not= task-id (:task-id an/pinned-task))
+                        {:refusal :task/unknown-id
+                         :detail (str task-id " is not a pinned task; pinned: " (:task-id an/pinned-task))}
+                        (an/task-refusal an/pinned-task source-id date max-z))))]
     (if refusal
       (do (log "REFUSING:" (name (:refusal refusal)) "--" (:detail refusal))
           (js/process.exit 2))
@@ -136,6 +145,6 @@
         (if-not (:ok? plan)
           (do (log "REFUSING:" (name (:refusal plan)) "--" (:detail plan))
               (js/process.exit 2))
-          (run! plan out max-z))))))
+          (run! plan out max-z task-id))))))
 
 (main)
