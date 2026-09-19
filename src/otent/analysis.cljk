@@ -195,6 +195,42 @@
     {:refusal :analysis/capture-date-required
      :detail (str "a :daily asset needs a YYYY-MM-DD capture date, got " (pr-str date))}))
 
+;; ------------------------------------------------------------------ pinned task
+
+(def pinned-task
+  "The ONE analysis task this run may execute (rule 2: at most one
+   pinned model/task per run). The model above is shared by every
+   condition task; the pin is what makes THIS run exact: which asset,
+   which capture date, which zoom bound. The capture date is one the
+   service itself answered for -- probed live 2026-09-19 (HTTP 200 at
+   z2/2/1.jpeg; the day is complete and behind us, so the bytes cannot
+   change under the pin). The zoom bound is tighter than the source's
+   ingest bound on purpose: 16 tiles at z2 is what one bounded run
+   takes, and a bound nobody keeps is not a bound."
+  {:task-id "viirs-noaa20-truecolor-condition-v1"
+   :source-id "viirs-noaa20-truecolor"
+   :capture-date "2026-09-17"
+   :max-zoom 2})
+
+(defn task-refusal
+  "Why the requested run is NOT the pinned task, or nil if it is. A
+   drifted date or zoom would analyse different bytes under the same
+   task id -- a pinned task is pinned or it is refused, never silently
+   reinterpreted."
+  [pin source-id date max-z]
+  (let [mismatch (cond
+                   (not= source-id (:source-id pin))
+                   (str "source " source-id ", pinned " (:source-id pin))
+
+                   (not= date (:capture-date pin))
+                   (str "capture date " (pr-str date) ", pinned "
+                        (pr-str (:capture-date pin)))
+
+                   (> max-z (:max-zoom pin))
+                   (str "zoom " max-z " past the pinned bound " (:max-zoom pin)))]
+    (when mismatch
+      {:refusal :task/not-pinned :detail mismatch})))
+
 ;; `otent.basemap` is required by the bin script for the plan; keep this
 ;; namespace free of that dependency (and its R2 constants) by inlining
 ;; the same date shape check.

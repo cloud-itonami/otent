@@ -110,6 +110,35 @@
 
 ;; ------------------------------------------------------------------ refusals
 
+;; ------------------------------------------------------------------ pinned task
+
+(t/deftest pinned-task-is-pinned
+    (t/testing "an exact match runs; any drift in source, capture date or
+            zoom is refused -- the pin is pinned, not reinterpreted"
+    (t/is (nil? (an/task-refusal an/pinned-task
+                                 (:source-id an/pinned-task)
+                                 (:capture-date an/pinned-task)
+                                 (:max-zoom an/pinned-task))))
+    (t/is (some? (an/task-refusal an/pinned-task
+                                  (:source-id an/pinned-task) "2026-09-16" (:max-zoom an/pinned-task)))
+          "a different capture date is different bytes")
+    (t/is (some? (an/task-refusal an/pinned-task
+                                  "modis-terra-truecolor" (:capture-date an/pinned-task) (:max-zoom an/pinned-task)))
+          "a different asset is not the task")
+    (t/is (some? (an/task-refusal an/pinned-task
+                                  (:source-id an/pinned-task) (:capture-date an/pinned-task) 3))
+          "a zoom past the pinned bound is past it, whatever the source allows")))
+
+(t/deftest pinned-task-names-a-real-bounded-asset
+  (let [pin an/pinned-task
+        source (bm/source-for (:source-id pin))]
+    (t/is (string? (:task-id pin)))
+    (t/is (some? source) "the pinned source is a registered raster source")
+    (t/is (re-find #"^\d{4}-\d{2}-\d{2}$" (:capture-date pin)))
+    (t/is (<= (:max-zoom pin) (:max-ingest-zoom source))
+          "the pinned bound never passes the asset's own ingest bound")
+    (t/is (<= 0 (:max-zoom pin)))))
+
 (t/deftest analysis-refusals
   (t/is (= :analysis/past-ingest-bound
            (:refusal (an/analysis-refusal mo 5 nil))))

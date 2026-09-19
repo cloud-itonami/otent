@@ -1937,3 +1937,39 @@ Exit 0 sample recorded · 1 refused · 2 could-not-act. Verified live
 2026-09-02: two requests, 226,336 bytes, `input pixel
 sha256=7d4797e55cc012047eea9163c88d1257bcb1e8ef13e98f55816c05877fed86c9`,
 deterministic across runs; nothing written (no write credential).
+
+## One pinned condition-analysis task over an already-ingested earth asset
+
+`bin/analyze.cljk` runs **one** pinned analysis task per invocation —
+per-tile surface condition over a licensed GIBS raster, via
+`otent/tile-condition-classifier` (`otent.analysis`). The classifier is
+shared; the *task* is what is pinned, and exactly one pin is live at a
+time. The current pin is:
+
+- task id `viirs-noaa20-truecolor-condition-v1`
+- asset `viirs-noaa20-truecolor` (NASA GIBS VIIRS NOAA-20 CorrectedReflectance
+  TrueColor, public domain), capture date `2026-09-17` — probed live
+  2026-09-19 (HTTP 200); a date the service never declared is refused.
+- zoom bound `2` (21 tiles z0..z2), tighter than the asset's own z4 ingest
+  bound — one bounded run, not a crawl.
+- model pinned in the run manifest: id, version 0.1.0, artifact hash (sha256
+  of the classifier source — the code that decides the labels IS the
+  artifact), runtime, parameters, taxonomy `tile-condition/1`.
+
+Labels are coarse tile-level surface condition — never ground truth, never
+cause, ownership, or anything about people (a z2 tile is ~10,000 km across,
+broader than any sensitive inference could survive). `:unknown` is a real
+class a gray zone keeps; failed tiles become `:failed` rows and are never
+dropped; raw metrics and raw per-class scores sit beside the normalized
+label in every row.
+
+    kbb --backend sci --classpath src bin/analyze.cljk \
+      --source viirs-noaa20-truecolor --date 2026-09-17 --max-zoom 2 \
+      --task viirs-noaa20-truecolor-condition-v1 --out ledger/analysis
+
+A `--task` invocation that drifts off the pin — different capture date,
+different asset, or a zoom past the pinned bound — is REFUSED with exit 2,
+not reinterpreted. Verified live 2026-09-19: two full runs at the pin are
+byte-identical (`readback: 21 rows, 21 in summary`, committed 21 · failed 0 ·
+unknown 4), and a drifted date (`2026-09-16`) and an unknown task id both
+refuse with exit 2.
