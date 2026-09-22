@@ -1,0 +1,211 @@
+(ns weather
+  "Put the weather in R2, so the globe has a pressure field to draw.
+
+    kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src bin/weather.cljk ingest
+    kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src bin/weather.cljk ingest --out /tmp/wx
+    kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src bin/weather.cljk ingest --keychain
+
+  Scheduled every six hours by `ops/cloud.itonami.otent-weather.plist`
+  with `--keychain`. Six hours is the GFS cycle: asking faster gets the
+  same run back.
+
+  `--out DIR` writes the frames and the manifest to a local directory
+  instead of the bucket: the same bytes, checkable without a credential.
+  Without it `$CF_CATALOG_TOKEN` must be set (the scheduled wrapper reads
+  it from the Keychain by name, `gftd.cf` / `API_TOKEN`).
+
+  What a frame is -- the grid, the checks, the byte layout -- lives in
+  `otent.weather` under test. This file is only the network.
+
+  ## Order of writes
+
+  Frames first, manifest second, the run before the previous one deleted
+  last. A browser holding the previous manifest keeps finding its frames
+  until the run AFTER it lands, so a reader in the middle of loading a
+  week of frames is never handed a mix of two runs or a 404.
+
+  exit 0 every asked-for frame written · 1 some refused · 2 could not answer"
+  (:require ["child_process" :as cp]
+            ["fs" :as fs]
+            ["path" :as path]
+            ["crypto" :as crypto]
+            [kotoba.lang.text :as str]
+            [otent.deadline :as dl]
+            [otent.r2 :as r2]
+            [otent.weather :as wx]))
+
+(defn- log [& xs] (binding [*print-fn* *print-err-fn*] (apply println xs)))
+
+(defn- arg [args k]
+  (some (fn [[a b]] (when (= a k) b)) (partition 2 1 args)))
+
+(def ^:private user-agent
+  ;; ERDDAP operators ask for a contactable client, the same courtesy
+  ;; Digitraffic's terms ask for in their header.
+  "cloud-itonami/otent weather ingest (+https://github.com/cloud-itonami/otent)")
+
+(defn- fetch-text
+  "GET with one retry. ERDDAP answers a busy moment with a 502 or a stall;
+  a second try a few seconds later usually succeeds, and a third would
+  only be a slower way to report the same outage."
+  [url]
+  (letfn [(once []
+            (-> (js/fetch url #js {:signal (dl/signal 90000)
+                                   :headers #js {"User-Agent" user-agent}})
+                (.then (fn [r]
+                         (if (.-ok r)
+                           (.then (.text r) (fn [t] {:ok? true :text t}))
+                           (.then (.text r)
+                                  (fn [t] {:ok? false :status (.-status r)
+                                           :detail (subs t 0 (min 200 (count t)))})))))
+                (.catch (fn [e] {:ok? false :status 0 :detail (dl/describe e)}))))]
+    (-> (once)
+        (.then (fn [r]
+                 (if (:ok? r)
+                   r
+                   (js/Promise. (fn [res] (js/setTimeout #(res (once)) 5000)))))))))
+
+(defn- sha256 [^js buf]
+  (-> (crypto/createHash "sha256") (.update (js/Buffer.from buf)) (.digest "hex")))
+
+(defn- writer
+  "Where bytes go: the bucket, or a local directory standing in for it."
+  [out]
+  (if out
+    {:put! (fn [key body _ct]
+             (let [f (path/join out key)]
+               (fs/mkdirSync (path/dirname f) #js {:recursive true})
+               (fs/writeFileSync f (if (string? body) body (js/Buffer.from body)))
+               (js/Promise.resolve {:ok? true :key key})))
+     :get-text (fn [key]
+                 (let [f (path/join out key)]
+                   (js/Promise.resolve {:ok? true :text (when (fs/existsSync f)
+                                                          (str (fs/readFileSync f "utf8")))})))
+     :delete! (fn [key]
+                (let [f (path/join out key)]
+                  (when (fs/existsSync f) (fs/unlinkSync f))
+                  (js/Promise.resolve {:ok? true :key key})))}
+    {:put! (fn [key body ct] (r2/put! key (if (string? body) body (js/Buffer.from body)) ct))
+     :get-text r2/get-text
+     :delete! r2/delete!}))
+
+(defn- keychain-token!
+  "`--keychain`: put the bucket token in the environment from the Keychain,
+  by its exact service and account -- the same item, and the same targeted
+  lookup, `bin/scheduled.cljk` uses. Never an enumeration of the store."
+  []
+  (when (str/blank? (str (aget js/process.env "CF_CATALOG_TOKEN")))
+    (let [r (cp/spawnSync "security" #js ["find-generic-password" "-s" "gftd.cf" "-a" "API_TOKEN" "-w"]
+                          #js {:encoding "utf8"})]
+      (when (zero? (.-status r))
+        (aset js/process.env "CF_CATALOG_TOKEN" (str/trim (str (.-stdout r))))))))
+
+(defn- run-id [ms]
+  (-> (.toISOString (js/Date. ms)) (subs 0 16)
+      (str/replace "-" "") (str/replace ":" "") (str "Z")))
+
+(defn- ingest-frames
+  "Sequentially, not in parallel: 30-odd requests to a volunteer-run
+  ERDDAP, and the considerate rate is one at a time."
+  [w run times]
+  (reduce
+   (fn [p t]
+     (.then p
+            (fn [acc]
+              (-> (fetch-text (wx/frame-url t))
+                  (.then
+                   (fn [{:keys [ok? text status detail]}]
+                     (if-not ok?
+                       (update acc :refused conj {:t t :reason :unreachable
+                                                  :detail (str status " " detail)})
+                       (let [f (wx/parse-frame text)]
+                         (if-let [bad (wx/check-frame f)]
+                           (update acc :refused conj (assoc bad :t t))
+                           (let [buf (wx/pack-frame f)
+                                 key (wx/frame-key run t)]
+                             (-> ((:put! w) key buf "application/octet-stream")
+                                 (.then (fn [r]
+                                          (if (:ok? r)
+                                            (do (log "  wrote" key (.-byteLength buf) "bytes")
+                                                (update acc :frames conj
+                                                        {:t t :key key
+                                                         :bytes (.-byteLength buf)
+                                                         :sha256 (sha256 buf)}))
+                                            (update acc :refused conj
+                                                    {:t t :reason :write-failed
+                                                     :detail (str (:error r) " " (:detail r))})))))))))))))))
+   (js/Promise.resolve {:frames [] :refused []})
+   times))
+
+(defn ingest! [args]
+  (let [out (arg args "--out")
+        max-frames (some-> (arg args "--max-frames") js/parseInt)
+        now (js/Date.now)
+        run (run-id now)
+        from (wx/floor-to-hours (- now (* 3600000 (:back-hours wx/source)))
+                                (:step-hours wx/source))
+        _ (when (some #{"--keychain"} args) (keychain-token!))
+        w (writer out)]
+    (if (and (not out) (not (r2/token)))
+      (do (log "REFUSED: $CF_CATALOG_TOKEN is not set and no --out was given;"
+               "nothing was written, which is not the same as writing nothing")
+          (set! (.-exitCode js/process) 2))
+      (-> (fetch-text (wx/times-url from (quot (:step-hours wx/source) 3)))
+          (.then
+           (fn [{:keys [ok? text status detail]}]
+             (let [times (when ok? (wx/parse-times text))
+                   times (cond->> times max-frames (take max-frames))]
+               (if (empty? times)
+                 (do (log "could not answer: no time steps from ERDDAP --" status detail)
+                     (set! (.-exitCode js/process) 2)
+                     nil)
+                 (do (log "run" run ":" (count times) "frames," (first times) "->" (last times))
+                     (-> (js/Promise.all #js [(ingest-frames w run times)
+                                              ((:get-text w) wx/manifest-key)])
+                         (.then
+                          (fn [[{:keys [frames refused]} prev]]
+                            (let [prev-m (when-let [t (:text prev)]
+                                           (js->clj (js/JSON.parse t) :keywordize-keys true))
+                                  m (wx/manifest {:run run
+                                                  :issued (.toISOString (js/Date. now))
+                                                  :frames frames
+                                                  :refused refused
+                                                  :previous (when prev-m
+                                                              {:run (:run prev-m)
+                                                               :keys (mapv :key (:frames prev-m))})})]
+                              (if (empty? frames)
+                                ;; Never replace a working manifest with an
+                                ;; empty one: the globe would go from last
+                                ;; night's weather to none, and "none" is a
+                                ;; claim this run cannot make.
+                                (do (log "could not answer: every frame refused; manifest left as it was")
+                                    (doseq [r refused] (log "  refused" (:t r) (:reason r) (:detail r)))
+                                    (set! (.-exitCode js/process) 2))
+                                (-> ((:put! w) wx/manifest-key
+                                     (js/JSON.stringify (clj->js m) nil 1) "application/json")
+                                    (.then
+                                     (fn [r]
+                                       (if-not (:ok? r)
+                                         (do (log "could not write the manifest:" (:error r) (:detail r))
+                                             (set! (.-exitCode js/process) 2))
+                                         (let [stale (get-in prev-m [:previous :keys])]
+                                           (log "manifest:" (count frames) "frames,"
+                                                (count refused) "refused; pruning" (count stale)
+                                                "frames of run" (get-in prev-m [:previous :run]))
+                                           (doseq [x refused] (log "  refused" (:t x) (:reason x) (:detail x)))
+                                           (-> (js/Promise.all (clj->js (map (:delete! w) stale)))
+                                               (.then (fn [rs]
+                                                        (let [bad (remove :ok? (array-seq rs))]
+                                                          (when (seq bad)
+                                                            (log "  prune left" (count bad) "objects behind"))
+                                                          (set! (.-exitCode js/process)
+                                                                (if (seq refused) 1 0)))))))))))))))))))))
+          (.catch (fn [e]
+                    (log "could not answer:" (str e))
+                    (set! (.-exitCode js/process) 2)))))))
+
+(let [[cmd & args] *command-line-args*]
+  (case cmd
+    "ingest" (ingest! args)
+    (do (log "usage: weather.cljk ingest [--out DIR] [--max-frames N] [--keychain]")
+        (set! (.-exitCode js/process) 2))))

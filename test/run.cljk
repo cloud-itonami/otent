@@ -53,7 +53,8 @@
             [otent.kartaview-test]
             [otent.kartaview-heading-test]
             [otent.street-coverage-test]
-            [otent.night-lights-test]))
+            [otent.night-lights-test]
+            [otent.weather-test]))
 
 (def declared
   '(otent.imagery-test
@@ -91,7 +92,8 @@
   otent.night-lights-test
   otent.mapillary-coverage-test
   otent.natural-earth-test
-  otent.analysis-test))
+  otent.analysis-test
+  otent.weather-test))
 
 (def min-tests 20)
 

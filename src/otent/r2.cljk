@@ -71,3 +71,39 @@
         (.then (fn [r] {:ok? true :present? (or (.-ok r) (= 206 (.-status r)))}))
         (.catch (fn [e] {:ok? false :error :r2/unreachable :detail (str (.-message e))})))
     (js/Promise.resolve {:ok? false :error :r2/no-credential})))
+
+(defn get-text
+  "GET one object as text. `{:ok? true :text s}`, `{:ok? true :text nil}`
+  when the key is absent (a first run has no previous manifest, and that
+  is not a failure), or a refusal."
+  [key]
+  (if-let [t (token)]
+    (-> (js/fetch (str "https://api.cloudflare.com/client/v4/accounts/" account
+                       "/r2/buckets/" bucket "/objects/" key)
+                  #js {:method "GET"
+                       :signal (dl/signal)
+                       :headers #js {"Authorization" (str "Bearer " t)}})
+        (.then (fn [r]
+                 (cond
+                   (.-ok r) (.then (.text r) (fn [s] {:ok? true :text s}))
+                   (= 404 (.-status r)) {:ok? true :text nil}
+                   :else {:ok? false :error :r2/get-failed :detail (str (.-status r))})))
+        (.catch (fn [e] {:ok? false :error :r2/unreachable :detail (str (.-message e))})))
+    (js/Promise.resolve {:ok? false :error :r2/no-credential})))
+
+(defn delete!
+  "DELETE one object. A 404 counts as done: the object not being there is
+  what was asked for."
+  [key]
+  (if-let [t (token)]
+    (-> (js/fetch (str "https://api.cloudflare.com/client/v4/accounts/" account
+                       "/r2/buckets/" bucket "/objects/" key)
+                  #js {:method "DELETE"
+                       :signal (dl/signal)
+                       :headers #js {"Authorization" (str "Bearer " t)}})
+        (.then (fn [r] (if (or (.-ok r) (= 404 (.-status r)))
+                         {:ok? true :key key}
+                         {:ok? false :error :r2/delete-failed :key key
+                          :detail (str (.-status r))})))
+        (.catch (fn [e] {:ok? false :error :r2/unreachable :detail (str (.-message e))})))
+    (js/Promise.resolve {:ok? false :error :r2/no-credential})))
