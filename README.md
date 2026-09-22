@@ -50,6 +50,27 @@ The token needs **two** permissions — `R2 Data Catalog: Edit` *and*
 storage-side 401: **reaching the catalog is not the same as being able to
 write to it.**
 
+## Weather: a grid in R2, not rows in Iceberg
+
+    kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/text/src bin/weather.cljk ingest --keychain
+    kbb --backend sci --classpath src:../../kotoba-lang/sgp4/src:../../kotoba-lang/text/src bin/weather.cljk ingest --out /tmp/wx
+
+NOAA GFS (public domain) via PacIOOS ERDDAP `ncep_global`, strided to a
+2° grid and 6-hourly steps from 24 h back to the end of the latest run
+(~36 frames): sea-level pressure, 10 m wind, 2 m temperature and humidity,
+precipitation rate (converted to mm/h). Every row is **placed by its own
+lat/lon**, never by response order; a frame with a missing cell, >1%
+holes or a value outside its plausible range is refused with the reason
+and listed in the manifest. What a frame is lives in `otent.weather`,
+under test; `bin/weather.cljk` is only the network.
+
+Frames first, then `otent/weather/manifest.json`, then the run before the
+previous one is deleted — a reader holding the previous manifest never
+sees a mix or a 404. Every six hours (the GFS cycle) by
+`ops/cloud.itonami.otent-weather.plist`, its own job because it writes a
+different store with a different retention from the tick. Drawn by
+`cloud-itonami/app-otent` at `#weather`.
+
 ## `otent coverage`, and the two things it found on its first run
 
     otent coverage

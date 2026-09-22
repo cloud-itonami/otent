@@ -1,0 +1,299 @@
+(ns otent.weather
+  "The weather grid: what is asked of GFS, how a frame is checked, and the
+  bytes it is packed into for the globe.
+
+  Pure except for typed arrays. The network half is `bin/weather.cljk`;
+  everything that decides *what a frame is* lives here, under test.
+
+  ## Why a grid in R2 and not an Iceberg table
+
+  Every other layer here is rows: one aircraft, one quake. A pressure
+  field is not -- it is 16,380 numbers that mean nothing apart, read
+  together, every frame, by a renderer that interpolates between them.
+  As Iceberg rows it would be ~600,000 rows per forecast run, and the
+  Worker already measured 21 s cold to decode 7,214 aircraft out of
+  Parquet. So a frame is one flat Int16 object, the way the building
+  footprints are flat coordinate arrays: decoded once at ingest, read as
+  bytes by the browser.
+
+  ## The source, and what it leaves out
+
+  NOAA's Global Forecast System, served at 0.5 degrees by PacIOOS's ERDDAP
+  (`ncep_global`) as a best-time-series aggregation: past steps are the
+  latest analyses, future steps the latest run's forecast, 3-hourly, out to
+  about seven days. GFS output is a US-government work and public domain.
+  ERDDAP is used because it answers a strided CSV -- no GRIB2 decoder, no
+  JPEG2000 unpacking -- and that is the whole reason, stated so it can be
+  argued with.
+
+  Asked every 4th point (2 degrees) and every 2nd step (6 hours). Both are
+  ceilings, named in `:scope` rather than left in a URL."
+  (:require [kotoba.lang.text :as str]))
+
+(def source
+  {:id :gfs
+   :label "NOAA GFS 0.5° global forecast (via PacIOOS ERDDAP, dataset ncep_global)"
+   :erddap "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/ncep_global"
+   :licence "NOAA GFS -- US government work, public domain"
+   :terms "https://www.weather.gov/disclaimer"
+   :stride 4
+   :step-hours 6
+   :back-hours 24
+   :scope "2 degree grid (every 4th point of the 0.5 degree product) and
+           6-hourly steps (every 2nd of the 3-hourly ones), from 24 hours
+           before the ingest to the end of the latest run, about 7 days
+           ahead. Surface and 2 m / 10 m fields only: no upper air, no
+           cloud cover, no precipitation type. The ERDDAP aggregation is a
+           best time series, so past steps are analyses and future steps
+           one run's forecast -- which run is not in the response and is
+           not claimed here."})
+
+(def variables
+  "Each field, how it is stored, and the range outside which a value is
+  refused rather than drawn.
+
+  Int16 with an offset and a scale. Pressure at 1 Pa resolution, winds at
+  1 cm/s, temperature at 0.01 K: finer than GFS at 2 degrees can mean.
+  Precipitation is converted to mm/h at ingest -- kg m-2 s-1 is the same
+  number of millimetres per SECOND, and a value of 2.8e-4 quantized at any
+  fixed scale either clips heavy rain or rounds drizzle to zero."
+  [{:id :prmsl :erddap "prmslmsl" :unit "Pa" :offset 100000.0 :scale 1.0
+    :min 85000.0 :max 110000.0}
+   {:id :u10 :erddap "ugrd10m" :unit "m/s" :offset 0.0 :scale 0.01
+    :min -120.0 :max 120.0}
+   {:id :v10 :erddap "vgrd10m" :unit "m/s" :offset 0.0 :scale 0.01
+    :min -120.0 :max 120.0}
+   {:id :t2m :erddap "tmp2m" :unit "K" :offset 273.15 :scale 0.01
+    :min 170.0 :max 340.0}
+   {:id :rh2m :erddap "rh2m" :unit "%" :offset 0.0 :scale 0.01
+    :min 0.0 :max 105.0}
+   {:id :prate :erddap "pratesfc" :unit "mm/h" :offset 0.0 :scale 0.01
+    :min 0.0 :max 300.0 :from-source (fn [v] (* v 3600.0))}])
+
+(def grid
+  "Row 0 is the north pole, column 0 is the prime meridian, both stepping
+  by 2 degrees. The lon axis stops at 358: 360 is 0 again, and a renderer
+  that wants the seam closed wraps rather than being handed a duplicate."
+  {:nlat 91 :nlon 180 :lat0 90.0 :dlat -2.0 :lon0 0.0 :dlon 2.0})
+
+(def missing-sentinel -32768)
+
+(defn cells [{:keys [nlat nlon]}] (* nlat nlon))
+
+;; ---------------------------------------------------------------- query
+
+(defn- enc [s]
+  ;; ERDDAP wants the brackets and parentheses percent-encoded; a bare `[`
+  ;; is refused by some proxies in front of it with a 400 and no body.
+  (-> s (str/replace "[" "%5B") (str/replace "]" "%5D")))
+
+(defn times-url
+  "The time steps available from `from-iso` onwards, every `stride`th."
+  [from-iso stride]
+  (str (:erddap source) ".csv?" (enc (str "time[(" from-iso "):" stride ":(last)]"))))
+
+(defn frame-url
+  "Every variable at one instant, on the strided grid."
+  [t-iso]
+  (let [s (:stride source)
+        dims (str "[(" t-iso ")][(90):" s ":(-90)][(0):" s ":(359.5)]")]
+    (str (:erddap source) ".csv?"
+         (enc (str/join "," (map #(str (:erddap %) dims) variables))))))
+
+(defn floor-to-hours
+  "An epoch-ms instant floored to a multiple of `h` hours, as ERDDAP ISO."
+  [ms h]
+  (let [step (* h 3600000)
+        t (* step (Math/floor (/ ms step)))]
+    (str (subs (.toISOString (js/Date. t)) 0 19) "Z")))
+
+(defn parse-times
+  "ERDDAP's time-axis CSV -> ISO strings. Two header lines, then one per row."
+  [text]
+  (->> (str/split-lines text)
+       (drop 2)
+       (map str/trim)
+       (remove str/blank?)
+       vec))
+
+;; ---------------------------------------------------------------- frame
+
+(defn- ->double [s]
+  (let [s (str/trim s)]
+    (if (or (= s "") (= s "NaN")) js/NaN (js/parseFloat s))))
+
+(defn parse-frame
+  "One ERDDAP CSV frame -> `{:t iso :fields {id Float64Array} :placed n
+  :unplaced n}`.
+
+  Rows are PLACED by their own lat/lon, not by their order. The response
+  is in lat-major order today; a frame that relied on that would, on the
+  day it changed, put Tokyo's pressure over Brazil and pass every range
+  check. A row whose coordinates are not on the grid is counted, never
+  dropped silently."
+  [text]
+  (let [{:keys [nlat nlon lat0 dlat lon0 dlon]} grid
+        n (* nlat nlon)
+        fields (into {} (map (fn [v] [(:id v) (let [a (js/Float64Array. n)] (.fill a js/NaN) a)]))
+                     variables)
+        lines (drop 2 (str/split-lines text))
+        placed (volatile! 0)
+        unplaced (volatile! 0)
+        t (volatile! nil)]
+    (doseq [line lines
+            :when (not (str/blank? line))
+            :let [cols (str/split line #",")]]
+      (if (not= (count cols) (+ 3 (count variables)))
+        (vswap! unplaced inc)
+        (let [lat (->double (nth cols 1))
+              lon (->double (nth cols 2))
+              fi (/ (- lat lat0) dlat)
+              fj (/ (- lon lon0) dlon)
+              i (Math/round fi)
+              j (Math/round fj)]
+          (if (and (< (Math/abs (- fi i)) 1e-6) (< (Math/abs (- fj j)) 1e-6)
+                   (<= 0 i) (< i nlat) (<= 0 j) (< j nlon))
+            (let [k (+ (* i nlon) j)]
+              (when-not @t (vreset! t (str/trim (nth cols 0))))
+              (doseq [[vi v] (map-indexed vector variables)]
+                (let [x (->double (nth cols (+ 3 vi)))
+                      x (if-let [f (:from-source v)] (if (js/isNaN x) x (f x)) x)]
+                  (aset (get fields (:id v)) k x)))
+              (vswap! placed inc))
+            (vswap! unplaced inc)))))
+    {:t @t :fields fields :placed @placed :unplaced @unplaced}))
+
+(def max-missing-fraction
+  "A frame with more than 1% of any field missing is refused. GFS has no
+  holes; a hole means the request or the aggregation went wrong, and a
+  globe drawn with a patch of interpolated nothing reads as calm weather."
+  0.01)
+
+(defn check-frame
+  "nil when the frame may be packed, or a refusal naming the first reason.
+
+  Out-of-range is counted per field and any count refuses. A pressure of
+  0 Pa is what a fill value looks like after a unit mix-up, and drawn it
+  is a hole to the centre of the Earth -- the kind of thing that looks
+  like a spectacular storm rather than a bug."
+  [{:keys [placed unplaced fields]}]
+  (let [n (cells grid)]
+    (cond
+      (not= placed n)
+      {:reason :grid-mismatch :detail (str placed " of " n " cells placed, "
+                                           unplaced " rows off the grid")}
+      :else
+      (some (fn [{:keys [id min max]}]
+              (let [a (get fields id)
+                    [missing bad] (loop [k 0 m 0 b 0]
+                                    (if (= k n) [m b]
+                                        (let [x (aget a k)]
+                                          (cond (js/isNaN x) (recur (inc k) (inc m) b)
+                                                (or (< x min) (> x max)) (recur (inc k) m (inc b))
+                                                :else (recur (inc k) m b)))))]
+                (cond
+                  (> missing (* max-missing-fraction n))
+                  {:reason :too-many-missing :field id :detail (str missing " of " n " missing")}
+                  (pos? bad)
+                  {:reason :implausible :field id
+                   :detail (str bad " values outside [" min ", " max "]")})))
+            variables))))
+
+(defn quantize
+  "Float64Array -> Int16Array, `round((x - offset) / scale)`. NaN becomes
+  the sentinel; everything else is clamped one short of it, so no real
+  value can be read back as missing."
+  [^js a {:keys [offset scale]}]
+  (let [n (.-length a)
+        out (js/Int16Array. n)]
+    (dotimes [k n]
+      (let [x (aget a k)]
+        (aset out k (if (js/isNaN x)
+                      missing-sentinel
+                      (-> (Math/round (/ (- x offset) scale))
+                          (max -32767) (min 32767))))))
+    out))
+
+(def magic "OTWX")
+(def format-version 1)
+(def header-bytes 12)
+
+(defn pack-frame
+  "The frame as bytes: `OTWX`, u16 version, u16 field count, u16 nlat,
+  u16 nlon, then one little-endian Int16 block per field in `variables`
+  order. The header repeats the shape so a reader can refuse a frame that
+  disagrees with the manifest it was listed in, rather than drawing a
+  sheared planet."
+  [{:keys [fields]}]
+  (let [{:keys [nlat nlon]} grid
+        n (* nlat nlon)
+        nv (count variables)
+        buf (js/ArrayBuffer. (+ header-bytes (* 2 n nv)))
+        dv (js/DataView. buf)]
+    (dotimes [k 4] (.setUint8 dv k (.charCodeAt magic k)))
+    (.setUint16 dv 4 format-version true)
+    (.setUint16 dv 6 nv true)
+    (.setUint16 dv 8 nlat true)
+    (.setUint16 dv 10 nlon true)
+    (doseq [[vi v] (map-indexed vector variables)]
+      (let [q (quantize (get fields (:id v)) v)
+            base (+ header-bytes (* 2 n vi))]
+        (dotimes [k n] (.setInt16 dv (+ base (* 2 k)) (aget q k) true))))
+    buf))
+
+(defn unpack-frame
+  "The inverse, for tests and for anyone checking an object by hand.
+  Returns `{:fields {id Float64Array}}` or a refusal."
+  [^js buf]
+  (let [dv (js/DataView. buf)
+        tag (apply str (map #(js/String.fromCharCode (.getUint8 dv %)) (range 4)))
+        nv (.getUint16 dv 6 true)
+        nlat (.getUint16 dv 8 true)
+        nlon (.getUint16 dv 10 true)]
+    (cond
+      (not= tag magic) {:refused :bad-magic}
+      (not= [nv nlat nlon] [(count variables) (:nlat grid) (:nlon grid)])
+      {:refused :shape-mismatch :detail [nv nlat nlon]}
+      :else
+      (let [n (* nlat nlon)]
+        {:fields
+         (into {}
+               (map-indexed
+                (fn [vi {:keys [id offset scale]}]
+                  (let [a (js/Float64Array. n)
+                        base (+ header-bytes (* 2 n vi))]
+                    (dotimes [k n]
+                      (let [q (.getInt16 dv (+ base (* 2 k)) true)]
+                        (aset a k (if (= q missing-sentinel) js/NaN (+ offset (* scale q))))))
+                    [id a])))
+               variables)}))))
+
+;; ---------------------------------------------------------------- manifest
+
+(defn frame-key
+  "`otent/weather/gfs/<run>/<yyyymmddThh>.bin`. The run is part of the key
+  so a manifest and the frames it lists are replaced together: a browser
+  holding the old manifest keeps reading the old frames, never a mix."
+  [run t-iso]
+  (str "otent/weather/gfs/" run "/"
+       (-> t-iso (subs 0 13) (str/replace "-" "") (str/replace ":" "")) ".bin"))
+
+(def manifest-key "otent/weather/manifest.json")
+
+(defn manifest
+  "What the Worker serves at `/api/weather`. `frames` are the ones that
+  were written; `refused` are the ones that were asked for and were not,
+  each with its reason -- so a forecast that stops at +3 days says why,
+  instead of looking like a model that only sees three days ahead."
+  [{:keys [run issued frames refused previous]}]
+  {:version 1
+   :run run
+   :issued issued
+   :source (-> (select-keys source [:label :licence :terms :scope :step-hours])
+               (update :scope #(str/replace % #"\s+" " ")))
+   :grid grid
+   :missing missing-sentinel
+   :vars (mapv #(select-keys % [:id :unit :offset :scale]) variables)
+   :frames (vec frames)
+   :refused (vec refused)
+   :previous previous})

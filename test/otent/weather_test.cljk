@@ -1,0 +1,103 @@
+(ns otent.weather-test
+  "The pure half of the weather ingest: grid placement, the refusals, and
+  a pack/unpack round trip. No network."
+  (:require [clojure.test :as t]
+            [kotoba.lang.text :as str]
+            [otent.weather :as wx]))
+
+(defn- csv
+  "A synthetic ERDDAP frame. `f` gives the row's values for [lat lon]."
+  ([f] (csv f identity))
+  ([f order]
+   (let [{:keys [nlat nlon lat0 dlat lon0 dlon]} wx/grid
+         rows (for [i (range nlat) j (range nlon)
+                    :let [lat (+ lat0 (* i dlat)) lon (+ lon0 (* j dlon))]]
+                (str/join "," (concat ["2026-09-23T00:00:00Z" lat lon] (f lat lon))))]
+     (str "time,latitude,longitude,prmslmsl,ugrd10m,vgrd10m,tmp2m,rh2m,pratesfc\n"
+          "UTC,degrees_north,degrees_east,Pa,m s-1,m s-1,K,%,kg m-2 s-1\n"
+          (str/join "\n" (order rows))))))
+
+(defn- calm [lat lon]
+  [(+ 101325.0 (* 10.0 lat)) (/ lon 100.0) -1.5 (- 300.0 (Math/abs lat)) 55.0
+   (if (and (< 30 lat 40) (< 130 lon 140)) 2.5e-3 0.0)])
+
+(t/deftest the-grid-is-the-one-erddap-answers
+  ;; 90..-90 by 2 and 0..358 by 2: the strided 0.5-degree product.
+  (t/is (= 16380 (wx/cells wx/grid)))
+  (t/is (= 4 (:stride wx/source)))
+  (t/is (str/includes? (wx/frame-url "2026-09-23T00:00:00Z")
+                       "prmslmsl%5B(2026-09-23T00:00:00Z)%5D%5B(90):4:(-90)%5D%5B(0):4:(359.5)%5D"))
+  (t/is (= "2026-09-23T00:00:00Z" (wx/floor-to-hours (.getTime (js/Date. "2026-09-23T05:59:59Z")) 6)))
+  (t/is (= "2026-09-23T06:00:00Z" (wx/floor-to-hours (.getTime (js/Date. "2026-09-23T06:00:00Z")) 6))))
+
+(t/deftest every-source-field-declares-scope-and-licence
+  (t/is (string? (not-empty (:scope wx/source))))
+  (t/is (str/includes? (:licence wx/source) "public domain"))
+  (doseq [v wx/variables]
+    (t/is (< (:min v) (:max v)) (str (:id v)))
+    ;; the plausible range must survive quantization, or a legal value
+    ;; is clamped into a different one
+    (t/is (<= (/ (- (:max v) (:offset v)) (:scale v)) 32767) (str (:id v)))
+    (t/is (>= (/ (- (:min v) (:offset v)) (:scale v)) -32767) (str (:id v)))))
+
+(t/deftest rows-are-placed-by-coordinate-not-by-order
+  (let [a (wx/parse-frame (csv calm))
+        b (wx/parse-frame (csv calm reverse))]
+    (t/is (= 16380 (:placed a) (:placed b)))
+    (t/is (= 0 (:unplaced a)))
+    (t/is (nil? (wx/check-frame a)))
+    ;; Tokyo-ish cell: row (90-36)/2 = 27, col 140/2 = 70
+    (let [k (+ (* 27 180) 70)]
+      (doseq [id [:prmsl :u10 :t2m]]
+        (t/is (= (aget (get-in a [:fields id]) k) (aget (get-in b [:fields id]) k)))))))
+
+(t/deftest precipitation-arrives-in-mm-per-hour
+  (let [a (wx/parse-frame (csv calm))
+        k (+ (* 27 180) 68)]
+    ;; 2.5e-3 kg m-2 s-1 = 9 mm/h
+    (t/is (< (Math/abs (- 9.0 (aget (get-in a [:fields :prate]) k))) 1e-9))))
+
+(t/deftest the-refusals-name-their-reason
+  (t/testing "a missing row"
+    (let [f (wx/parse-frame (csv calm (fn [rows] (rest rows))))]
+      (t/is (= :grid-mismatch (:reason (wx/check-frame f))))))
+  (t/testing "a row off the grid is counted, not dropped silently"
+    (let [f (wx/parse-frame (str (csv calm) "\n2026-09-23T00:00:00Z,89.0,1.0,1,1,1,1,1,1"))]
+      (t/is (= 1 (:unplaced f)))
+      (t/is (nil? (wx/check-frame f)))))
+  (t/testing "holes"
+    (let [f (wx/parse-frame (csv (fn [lat lon] (assoc (calm lat lon) 3 (if (> lat 80) "NaN" 290.0)))))]
+      (t/is (= {:reason :too-many-missing :field :t2m} (select-keys (wx/check-frame f) [:reason :field])))))
+  (t/testing "a fill value read as pressure"
+    (let [f (wx/parse-frame (csv (fn [lat lon] (assoc (calm lat lon) 0 (if (= lat 0.0) 0.0 101000.0)))))]
+      (t/is (= {:reason :implausible :field :prmsl} (select-keys (wx/check-frame f) [:reason :field])))))
+  (t/testing "the boundary itself is admitted"
+    (let [f (wx/parse-frame (csv (fn [lat lon] (assoc (calm lat lon) 0 85000.0))))]
+      (t/is (nil? (wx/check-frame f))))))
+
+(t/deftest pack-then-unpack-is-within-one-quantum
+  (let [f (wx/parse-frame (csv calm))
+        buf (wx/pack-frame f)
+        back (wx/unpack-frame buf)]
+    (t/is (= (+ 12 (* 2 16380 6)) (.-byteLength buf)))
+    (doseq [{:keys [id scale]} wx/variables]
+      (let [a (get-in f [:fields id]) b (get-in back [:fields id])
+            worst (reduce max (map #(Math/abs (- (aget a %) (aget b %))) (range 16380)))]
+        (t/is (<= worst (* 0.5 scale 1.0000001)) (str id " worst " worst))))
+    (t/testing "a truncated shape is refused, not drawn sheared"
+      (let [dv (js/DataView. buf)]
+        (.setUint16 dv 10 179 true)
+        (t/is (= :shape-mismatch (:refused (wx/unpack-frame buf))))))))
+
+(t/deftest nan-survives-as-the-sentinel
+  (let [a (js/Float64Array. #js [1.0 js/NaN -1.0e9 1.0e9])
+        q (wx/quantize a {:offset 0.0 :scale 1.0})]
+    (t/is (= [1 -32768 -32767 32767] (vec (array-seq q))))))
+
+(t/deftest keys-carry-the-run
+  (t/is (= "otent/weather/gfs/20260923T0412Z/20260924T06.bin"
+           (wx/frame-key "20260923T0412Z" "2026-09-24T06:00:00Z")))
+  (let [m (wx/manifest {:run "r" :issued "i" :frames [{:t "a"}] :refused [] :previous nil})]
+    (t/is (= 6 (count (:vars m))))
+    (t/is (= wx/grid (:grid m)))
+    (t/is (string? (get-in m [:source :scope])))))
