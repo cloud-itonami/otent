@@ -32,6 +32,7 @@
             [kotoba.lang.text :as str]
             [otent.deadline :as dl]
             [otent.r2 :as r2]
+            [otent.lake :as lake]
             [otent.weather :as wx]))
 
 (defn- log [& xs] (binding [*print-fn* *print-err-fn*] (apply println xs)))
@@ -84,10 +85,18 @@
      :delete! (fn [key]
                 (let [f (path/join out key)]
                   (when (fs/existsSync f) (fs/unlinkSync f))
-                  (js/Promise.resolve {:ok? true :key key})))}
+                  (js/Promise.resolve {:ok? true :key key})))
+     ;; the lake stand-in: ipld/{cid} under the same directory
+     :lake! (fn [buf sha]
+              (let [cid (lake/cid-for-sha256 sha)
+                    f (path/join out (lake/block-key cid))]
+                (fs/mkdirSync (path/dirname f) #js {:recursive true})
+                (fs/writeFileSync f buf)
+                (js/Promise.resolve {:ok? true :cid cid})))}
     {:put! (fn [key body ct] (r2/put! key (if (string? body) body (js/Buffer.from body)) ct))
      :get-text r2/get-text
-     :delete! r2/delete!}))
+     :delete! r2/delete!
+     :lake! lake/publish!}))
 
 (defn- keychain-token!
   "`--keychain`: put the bucket token in the environment from the Keychain,
@@ -126,11 +135,20 @@
                              (-> ((:put! w) key buf "application/octet-stream")
                                  (.then (fn [r]
                                           (if (:ok? r)
-                                            (do (log "  wrote" key (.-byteLength buf) "bytes")
-                                                (update acc :frames conj
-                                                        {:t t :key key
-                                                         :bytes (.-byteLength buf)
-                                                         :sha256 (sha256 buf)}))
+                                            (let [sha (sha256 buf)]
+                                              ;; and the same bytes to the yataverse.com
+                                              ;; lake, so the frame is fetchable by CID
+                                              ;; from anywhere -- the globe reads it there
+                                              (-> ((:lake! w) (js/Buffer.from buf) sha)
+                                                  (.then (fn [l]
+                                                           (log "  wrote" key (.-byteLength buf) "bytes"
+                                                                (if (:ok? l) (str "lake " (:cid l))
+                                                                    (str "lake REFUSED " (:error l) " " (:detail l))))
+                                                           (update acc :frames conj
+                                                                   (cond-> {:t t :key key
+                                                                            :bytes (.-byteLength buf)
+                                                                            :sha256 sha}
+                                                                     (:ok? l) (assoc :cid (:cid l))))))))
                                             (update acc :refused conj
                                                     {:t t :reason :write-failed
                                                      :detail (str (:error r) " " (:detail r))})))))))))))))))

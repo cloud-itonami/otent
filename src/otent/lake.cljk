@@ -1,0 +1,85 @@
+(ns otent.lake
+  "Publishing what otent observed to the yataverse.com data lake.
+
+  yataverse.com is the kotobase bytes plane's mirror zone
+  (adr-2609131630-yataverse-mirror-bytes-plane): one Worker
+  (cloud-kotoba/kotobase-ipfs) serves `{cid}.ipfs.yataverse.com` out of
+  R2 `kotobase-graph-database-production/ipld/{cid}`, verifying the bytes
+  against the CID on every read, with open read-only CORS. Putting a block
+  there is what makes it retrievable from the lake; nothing else has to
+  be told.
+
+  ## The CID was already on every row
+
+  A raw CIDv1 under sha2-256 is the sha256 of the bytes plus a four-byte
+  prefix. The tick has hashed every payload with sha256 since the payload
+  archive landed, and that hash travels on every Iceberg row as
+  `payload_sha256`. So every row already NAMES its payload's lake address;
+  this namespace only derives the spelling and puts the bytes where the
+  name resolves.
+
+  ## A mirror, not the archive
+
+  Our own bucket (`cloud-itonami-datalake`, `otent/payload/`) stays the
+  archive the rows are rebuilt from, and a failure there still refuses a
+  commit. A failure to publish to the lake does not: the observation is
+  durable, it is only not yet retrievable by CID, and the receipt says
+  which. Refusing the commit over a mirror would lose data to protect a
+  copy of it."
+  (:require [content-address.core :as ca]
+            [kotoba.lang.text :as str]
+            [otent.r2 :as r2]))
+
+(def bucket
+  "The yataverse.com / ipfs.kotobase.net block plane."
+  "kotobase-graph-database-production")
+
+(def gateway-suffix ".ipfs.yataverse.com")
+
+(def max-block-bytes
+  "Above 8 MiB a block is not put through the REST object API -- the
+  workspace's threshold for presigned transfer. Refused by name, so an
+  oversized payload is a counted non-publication, not a timeout."
+  (* 8 1024 1024))
+
+(defn hex->octets [hex]
+  (mapv #(js/parseInt (subs hex (* 2 %) (+ 2 (* 2 %))) 16) (range (quot (count hex) 2))))
+
+(defn cid-for-sha256
+  "The raw CIDv1 for bytes whose sha256 is `hex`, or nil if `hex` is not a
+  sha256. nil rather than a throw: a row with a malformed hash has no lake
+  address, and that is an answer."
+  [hex]
+  (when (and (string? hex) (re-matches #"[0-9a-f]{64}" hex))
+    (ca/cid-string :raw (hex->octets hex))))
+
+(defn block-key [cid] (str "ipld/" cid))
+
+(defn gateway-url [cid] (str "https://" cid gateway-suffix "/"))
+
+(defn publish!
+  "Put `bytes` (a Buffer whose sha256 is `sha-hex`) into the lake.
+
+  Resolves `{:ok? true :cid :already? bool}` or a refusal. Checks presence
+  first: a block is immutable, and re-PUTting it would only move its
+  upload time -- which the yataverse index reads as when it arrived."
+  [^js bytes sha-hex]
+  (let [cid (cid-for-sha256 sha-hex)]
+    (cond
+      (nil? cid)
+      (js/Promise.resolve {:ok? false :error :lake/no-cid :detail (str "not a sha256: " sha-hex)})
+
+      (> (.-length bytes) max-block-bytes)
+      (js/Promise.resolve {:ok? false :cid cid :error :lake/too-large
+                           :detail (str (.-length bytes) " bytes > " max-block-bytes)})
+
+      :else
+      (-> (r2/head-in bucket (block-key cid))
+          (.then (fn [h]
+                   (if (:present? h)
+                     {:ok? true :cid cid :already? true}
+                     (-> (r2/put-to! bucket (block-key cid) bytes "application/vnd.ipld.raw")
+                         (.then (fn [r]
+                                  (if (:ok? r)
+                                    {:ok? true :cid cid :already? false}
+                                    (assoc r :cid cid))))))))))))

@@ -144,7 +144,15 @@
                                           (str "src:"
                                                (path/join ".." ".." "kotoba-lang" "sgp4" "src") ":"
                                                (path/join ".." ".." "kotoba-lang" "kotobase-client" "src") ":"
-                                               (path/join ".." ".." "kotoba-lang" "org-ietf-csv" "src"))
+                                               ;; kotobase-client requires sha2.core. Missing
+                                               ;; here, every cycle failed to LOAD bin/otent
+                                               ;; and logged `tick exit 1` -- 877 in a row by
+                                               ;; 2026-09-23, with no feed committing.
+                                               (path/join ".." ".." "kotoba-lang" "org-nist-sha2" "src") ":"
+                                               (path/join ".." ".." "kotoba-lang" "org-ietf-csv" "src") ":"
+                                               ;; otent.lake: payload sha256 -> yataverse CID
+                                               (path/join ".." ".." "kotoba-lang" "content-address" "src") ":"
+                                               (path/join ".." ".." "kotoba-lang" "text" "src"))
                                           (path/join "bin" "otent.cljk")]
                                          args))
                         #js {:encoding "utf8"

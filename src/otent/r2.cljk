@@ -31,13 +31,22 @@
 (defn gzip [^js buf]
   (.gzipSync zlib buf))
 
+(declare put-to!)
+
 (defn put!
-  "PUT one object. Resolves `{:ok? true :key ...}` or a refusal that names
-  the status -- never a silent failure."
+  "PUT one object into the datalake bucket. Resolves `{:ok? true :key ...}`
+  or a refusal that names the status -- never a silent failure."
   [key body content-type]
+  (put-to! bucket key body content-type))
+
+(defn put-to!
+  "`put!` into a named bucket. The yataverse.com lake is a different bucket
+  in the same account (`otent.lake`); one PUT, so the two cannot grow
+  different retry rules."
+  [bkt key body content-type]
   (if-let [t (token)]
     (-> (js/fetch (str "https://api.cloudflare.com/client/v4/accounts/" account
-                       "/r2/buckets/" bucket "/objects/" key)
+                       "/r2/buckets/" bkt "/objects/" key)
                   #js {:method "PUT"
                        :signal (dl/signal dl/upload-ms)
                        :headers #js {"Authorization" (str "Bearer " t)
@@ -54,6 +63,8 @@
      {:ok? false :error :r2/no-credential
       :detail "$CF_CATALOG_TOKEN is not set: nothing was written, which is not the same as writing nothing"})))
 
+(declare head-in)
+
 (defn head
   "Does this key already exist? `{:ok? true :present? bool}` or a refusal.
 
@@ -61,9 +72,14 @@
   object API answers HEAD with a non-2xx even for objects that are present,
   so a HEAD probe reports an empty bucket."
   [key]
+  (head-in bucket key))
+
+(defn head-in
+  "`head` in a named bucket."
+  [bkt key]
   (if-let [t (token)]
     (-> (js/fetch (str "https://api.cloudflare.com/client/v4/accounts/" account
-                       "/r2/buckets/" bucket "/objects/" key)
+                       "/r2/buckets/" bkt "/objects/" key)
                   #js {:method "GET"
                        :signal (dl/signal)
                        :headers #js {"Authorization" (str "Bearer " t)
