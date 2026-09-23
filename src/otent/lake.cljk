@@ -83,3 +83,8 @@
                                   (if (:ok? r)
                                     {:ok? true :cid cid :already? false}
                                     (assoc r :cid cid))))))))))))
+
+(defn archive-key->sha
+  "`otent/payload/<sha>.json.gz` -> `<sha>`, or nil for anything else."
+  [k]
+  (second (re-matches #"otent/payload/([0-9a-f]{64})\.json\.gz" (str k))))

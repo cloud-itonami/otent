@@ -20,3 +20,9 @@
   (let [cid "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"]
     (t/is (= (str "ipld/" cid) (lake/block-key cid)))
     (t/is (= (str "https://" cid ".ipfs.yataverse.com/") (lake/gateway-url cid)))))
+
+(t/deftest the-archive-key-carries-the-hash
+  (t/is (= (apply str (repeat 64 "a"))
+           (lake/archive-key->sha (str "otent/payload/" (apply str (repeat 64 "a")) ".json.gz"))))
+  (t/is (nil? (lake/archive-key->sha "otent/payload/short.json.gz")))
+  (t/is (nil? (lake/archive-key->sha "otent/weather/manifest.json"))))
