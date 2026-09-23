@@ -9,8 +9,12 @@
         ;; read deps.edn or bb.edn, and the .cljs in this repo are run as
         ;; bare `nbb <file>`. A coordinate they cannot see is not a
         ;; declaration. sha and :paths are COPIED from deps.edn.
-        ;; content-address.core/cid-string: the raw CIDv1 of a payload whose
-        ;; sha256 the tick already computes, for the yataverse.com lake
-        ;; (otent.lake). The workspace's one encoder, not a second copy.
-        io.github.kotoba-lang/content-address {:git/sha "734d7fb718af7426effbb648c09c84782c7f1d8f"}
+        ;; content-address is NOT declared here, though otent.lake needs it.
+        ;; A new git coordinate makes nbb resolve deps on a cold cache, and nbb
+        ;; does that by shelling out to `bb` -- absent under launchd. Declared
+        ;; here on 2026-09-23, it stopped every scheduled cycle at startup
+        ;; (`/bin/sh: bb: command not found`). Every entry point that loads
+        ;; otent.lake puts ../../kotoba-lang/content-address/src on its
+        ;; classpath instead: bin/scheduled.cljk's child, the weather plist,
+        ;; package.json's test. deps.edn keeps the coordinate for tools.deps.
         io.github.kotoba-lang/text {:git/sha "73bdb13ae7a3d004b44bca08be03a3191157a38f"}}}
