@@ -40,6 +40,7 @@
             [otent.governor :as gov]
             [otent.observation :as obs]
             [otent.r2 :as r2]
+            [otent.lake :as lake]
             [otent.cli :as cli]
             [otent.coverage :as cov]
             [otent.deadline :as dl]
@@ -201,7 +202,17 @@
                    ;; A probe that could not run is not a probe that found
                    ;; nothing. Write, rather than assume either way.
                    :else (r2/put! key (r2/gzip (js/Buffer.from text "utf8"))
-                                  "application/gzip")))))))
+                                  "application/gzip"))))
+        ;; Then the same bytes, uncompressed, to the yataverse.com lake under
+        ;; the raw CID that `sha` already is (otent.lake). Only after the
+        ;; archive succeeded, and never refusing on the lake's account: the
+        ;; archive is what the rows are rebuilt from, the lake is where they
+        ;; can be fetched by CID. The outcome rides on the result either way.
+        (.then (fn [a]
+                 (if-not (:ok? a)
+                   a
+                   (-> (lake/publish! (js/Buffer.from text "utf8") sha)
+                       (.then (fn [l] (assoc a :lake l))))))))))
 
 ;; ---------------------------------------------------------------- parse
 
@@ -617,6 +628,13 @@
                                            :payload-sha256 (:sha f)
                                            :payload-key (:key a)
                                            :payload-already-stored (boolean (:already? a))
+                                           ;; yataverse.com: the payload's CID, and
+                                           ;; whether the lake holds it (a refusal is
+                                           ;; named, not dropped)
+                                           :payload-cid (get-in a [:lake :cid])
+                                           :lake (if (get-in a [:lake :ok?])
+                                                   (if (get-in a [:lake :already?]) :present :published)
+                                                   (get-in a [:lake :error] :lake/not-attempted))
                                            :note (:note c)}
                                           {:status :refused :error (:error c) :detail (:detail c)})))))))))))))))
         (.catch (fn [e] {:feed (:id feed) :status :unmeasured

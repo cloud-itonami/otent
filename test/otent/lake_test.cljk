@@ -1,0 +1,22 @@
+(ns otent.lake-test
+  "The lake address of a payload, derived from the sha256 already on its rows."
+  (:require [clojure.test :as t]
+            [otent.lake :as lake]))
+
+(t/deftest the-cid-is-the-sha256-spelled-as-a-raw-cidv1
+  ;; sha256 of zero bytes; its raw CIDv1 is the well-known empty block
+  (t/is (= "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"
+           (lake/cid-for-sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")))
+  ;; sha256("abc")
+  (t/is (= "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu"
+           (lake/cid-for-sha256 "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"))))
+
+(t/deftest a-malformed-hash-has-no-address
+  (t/is (nil? (lake/cid-for-sha256 nil)))
+  (t/is (nil? (lake/cid-for-sha256 "E3B0C442")))
+  (t/is (nil? (lake/cid-for-sha256 (apply str (repeat 63 "a"))))))
+
+(t/deftest the-address-resolves-on-yataverse
+  (let [cid "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"]
+    (t/is (= (str "ipld/" cid) (lake/block-key cid)))
+    (t/is (= (str "https://" cid ".ipfs.yataverse.com/") (lake/gateway-url cid)))))

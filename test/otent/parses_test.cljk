@@ -53,6 +53,13 @@
            ;; is the point of loading the entry points rather than reading
            ;; them.
            ":" (path/join ".." ".." "kotoba-lang" "org-ietf-csv" "src")
+           ;; `org-nist-sha2` (kotobase-client requires sha2.core) and
+           ;; `content-address` (otent.lake): this check was red on the first
+           ;; for weeks while the scheduler, missing the same path, failed
+           ;; every cycle -- 877 in a row. Both now match bin/scheduled.cljk.
+           ":" (path/join ".." ".." "kotoba-lang" "org-nist-sha2" "src")
+           ":" (path/join ".." ".." "kotoba-lang" "content-address" "src")
+           ":" (path/join ".." ".." "kotoba-lang" "text" "src")
            ;; `map` is here for `buildings.cljs` only. It is not in the
            ;; suite's own classpath, which is why the load check nearly
            ;; shipped with that entry point quietly excluded -- the same

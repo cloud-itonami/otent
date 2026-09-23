@@ -294,6 +294,11 @@
    :grid grid
    :missing missing-sentinel
    :vars (mapv #(select-keys % [:id :unit :offset :scale]) variables)
+   ;; Every frame with a `:cid` is also a block in the yataverse.com lake,
+   ;; byte-verified by the gateway: {cid}.ipfs.yataverse.com. The key above
+   ;; it is our own bucket, which stays the copy the manifest is sure of.
+   :lake {:gateway "https://{cid}.ipfs.yataverse.com/"
+          :adr "adr-2609131630-yataverse-mirror-bytes-plane"}
    :frames (vec frames)
    :refused (vec refused)
    :previous previous})
