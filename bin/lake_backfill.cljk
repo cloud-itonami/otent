@@ -1,0 +1,107 @@
+(ns lake-backfill
+  "Put every archived payload into the yataverse.com lake.
+
+    kbb --backend sci --classpath src:../../kotoba-lang/text/src:../../kotoba-lang/content-address/src bin/lake_backfill.cljk [--keychain] [--dry-run]
+
+  The tick publishes each new payload to the lake as it archives it
+  (otent.lake). Payloads archived before that landed (2026-09-23) exist
+  only in `cloud-itonami-datalake/otent/payload/`, so rows that point at
+  them named a CID the lake did not hold -- a 404 on yataverse. This
+  closes that gap once, and is safe to re-run: a block already in the lake
+  costs one ranged GET.
+
+  Each payload is gunzipped and its sha256 checked against the key BEFORE
+  it is published. The key is the claim; a payload whose bytes do not
+  hash to it would put wrong bytes under a CID the gateway then refuses
+  to serve, and is counted as a mismatch instead.
+
+  Prints one line per outcome kind and exits 0 when everything is in the
+  lake, 1 when something was refused (named), 2 when the archive could not
+  be listed."
+  (:require ["child_process" :as cp]
+            ["crypto" :as crypto]
+            ["zlib" :as zlib]
+            [kotoba.lang.text :as str]
+            [otent.lake :as lake]
+            [otent.r2 :as r2]))
+
+(defn- log [& xs] (binding [*print-fn* *print-err-fn*] (apply println xs)))
+
+(defn- keychain-token! []
+  (when (str/blank? (str (aget js/process.env "CF_CATALOG_TOKEN")))
+    (let [r (cp/spawnSync "security" #js ["find-generic-password" "-s" "gftd.cf" "-a" "API_TOKEN" "-w"]
+                          #js {:encoding "utf8"})]
+      (when (zero? (.-status r))
+        (aset js/process.env "CF_CATALOG_TOKEN" (str/trim (str (.-stdout r))))))))
+
+(defn- one! [k dry?]
+  (let [sha (lake/archive-key->sha k)
+        cid (lake/cid-for-sha256 sha)]
+    (if-not cid
+      (js/Promise.resolve {:outcome :not-a-payload-key :key k})
+      (-> (r2/head-in lake/bucket (lake/block-key cid))
+          (.then
+           (fn [h]
+             (cond
+               (not (:ok? h)) {:outcome :unanswered :key k :detail (:error h)}
+               (:present? h) {:outcome :already :key k}
+               dry? {:outcome :would-publish :key k}
+               :else
+               (-> (r2/get-bytes k)
+                   (.then
+                    (fn [{:keys [ok? bytes error detail]}]
+                      (cond
+                        (not ok?) {:outcome :unanswered :key k :detail (str error " " detail)}
+                        (nil? bytes) {:outcome :vanished :key k}
+                        :else
+                        (let [raw (.gunzipSync zlib bytes)
+                              got (-> (crypto/createHash "sha256") (.update raw) (.digest "hex"))]
+                          (if (not= got sha)
+                            {:outcome :mismatch :key k :detail got}
+                            (-> (lake/publish! raw sha)
+                                (.then (fn [r] (if (:ok? r)
+                                                 {:outcome :published :key k}
+                                                 {:outcome (:error r) :key k
+                                                  :detail (:detail r)})))))))))))))))))
+
+(defn run! [args]
+  (let [dry? (some #{"--dry-run"} args)]
+    (when (some #{"--keychain"} args) (keychain-token!))
+    (-> (r2/list-keys "otent/payload/")
+        (.then
+         (fn [{:keys [ok? keys error detail]}]
+           (if-not ok?
+             (do (log "could not answer: the archive did not list --" error detail)
+                 (set! (.-exitCode js/process) 2))
+             (let [queue (atom keys)
+                   results (atom [])
+                   lane (fn lane []
+                          (if-let [k (first @queue)]
+                            (do (swap! queue rest)
+                                (-> (one! k dry?)
+                                    (.catch (fn [e] {:outcome :threw :key k :detail (.-message e)}))
+                                    (.then (fn [r]
+                                             (swap! results conj r)
+                                             (when (zero? (mod (count @results) 100))
+                                               (log "  " (count @results) "/" (count keys)))
+                                             (lane)))))
+                            (js/Promise.resolve nil)))]
+               (log "archive:" (count keys) "objects" (if dry? "(dry run)" ""))
+               ;; Four at a time: the lake and the archive are the same
+               ;; account's R2, and this is a one-off, not a race.
+               (-> (js/Promise.all #js [(lane) (lane) (lane) (lane)])
+                   (.then
+                    (fn [_]
+                      (let [by (group-by :outcome @results)
+                            fine #{:already :published :would-publish}]
+                        (doseq [[o rs] (sort-by (comp str key) by)]
+                          (println (str (name o) "\t" (count rs))))
+                        (doseq [r (take 10 (remove (comp fine :outcome) @results))]
+                          (println (str "  " (name (:outcome r)) " " (:key r) " " (:detail r))))
+                        (println (str "SCANNED\t" (count @results)))
+                        (set! (.-exitCode js/process)
+                              (cond (not= (count @results) (count keys)) 2
+                                    (every? (comp fine :outcome) @results) 0
+                                    :else 1)))))))))))))
+
+(run! *command-line-args*)
