@@ -1,6 +1,6 @@
 (ns otent.kartaview-test
   (:require [kotoba.lang.text :as str]
-            [clojure.test :as t]
+            [kotoba.test :as t]
             [otent.kartaview :as kv]))
 
 (def ^:private bbox [139.765 35.678 139.77 35.682])

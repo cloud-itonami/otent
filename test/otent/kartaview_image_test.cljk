@@ -1,6 +1,6 @@
 (ns otent.kartaview-image-test
   "Bounded tests for the one-photo pixel sample (offline, synthetic bytes)."
-  (:require [clojure.test :as t]
+  (:require [kotoba.test :as t]
             [otent.kartaview-image :as kvi]))
 
 (def ^:private photo

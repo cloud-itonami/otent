@@ -1,6 +1,6 @@
 (ns otent.panoramax-test
   (:require [kotoba.lang.text :as str]
-            [clojure.test :as t]
+            [kotoba.test :as t]
             [otent.panoramax :as px]))
 
 (def ^:private bbox [139.765 35.678 139.77 35.682])

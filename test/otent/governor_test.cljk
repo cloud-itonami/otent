@@ -5,7 +5,7 @@
   rule. Every test here therefore asserts BOTH directions: a clean row is
   admitted, and a row broken in exactly the way the rule describes is held
   **with that rule's reason** -- not merely held."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [otent.governor :as gov]
             [otent.observation :as obs]))
 

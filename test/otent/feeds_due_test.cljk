@@ -3,7 +3,7 @@
 
   These pin the two directions plus the two edges that decide whether a
   scheduler is a control or a decoration."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [otent.feeds.core :as feeds]))
 
 (def celestrak (feeds/by-id :celestrak))   ; 6h

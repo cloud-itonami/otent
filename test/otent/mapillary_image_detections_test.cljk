@@ -1,6 +1,6 @@
 (ns otent.mapillary-image-detections-test
   "Bounded tests for the one-image detections source (offline, synthetic)."
-  (:require [clojure.test :as t]
+  (:require [kotoba.test :as t]
             [otent.mapillary-image-detections :as mid]))
 
 (def ^:private image-id "482194673015931")

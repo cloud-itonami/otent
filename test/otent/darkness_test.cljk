@@ -1,5 +1,5 @@
 (ns otent.darkness-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [otent.darkness :as d]))
 
 (deftest one-timeout-is-not-a-failure

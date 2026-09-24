@@ -1,6 +1,6 @@
 (ns otent.panoramax-coverage-test
   "Bounded tests for the Panoramax collections coverage manifest."
-  (:require [clojure.test :as t]
+  (:require [kotoba.test :as t]
             [kotoba.lang.text :as str]
             [otent.panoramax-coverage :as pc]))
 

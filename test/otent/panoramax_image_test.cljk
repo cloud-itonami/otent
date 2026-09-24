@@ -1,6 +1,6 @@
 (ns otent.panoramax-image-test
   "Bounded tests for the one-image pixel sample (offline, synthetic bytes)."
-  (:require [clojure.test :as t]
+  (:require [kotoba.test :as t]
             [otent.panoramax-image :as pxi]))
 
 (def ^:private item

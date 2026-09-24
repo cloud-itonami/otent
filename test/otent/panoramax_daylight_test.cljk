@@ -1,5 +1,5 @@
 (ns otent.panoramax-daylight-test
-  (:require [clojure.test :as t :refer [deftest is testing]]
+  (:require [kotoba.test :as t :refer [deftest is testing]]
             [otent.panoramax :as px]
             [otent.panoramax-daylight :as pxd]
             [otent.solar-elevation :as solar]))

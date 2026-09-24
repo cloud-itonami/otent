@@ -1,5 +1,5 @@
 (ns otent.watchlist-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [otent.watchlist :as w]))
 
 (def risk [{:imo "9260823" :mmsi "273123456" :risk "mare.shadow;sanction"}

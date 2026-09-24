@@ -1,6 +1,6 @@
 (ns otent.deadline-test
   "A deadline that cannot be told apart from a refusal is half a deadline."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [otent.deadline :as dl]))
 
 (deftest a-timeout-is-not-a-refusal
