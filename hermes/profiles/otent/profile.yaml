@@ -1,0 +1,4 @@
+description: 'otent: geospatial ingest/vision bot. Runs cloud-itonami/otent feeds
+  (satellites, quakes, aircraft, fires, vessels) into R2 Iceberg and feeds app-otent
+  globe + hyakka claims.'
+description_auto: false
