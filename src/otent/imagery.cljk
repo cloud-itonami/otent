@@ -7,7 +7,7 @@
   control lives here: a licence allowlist, a provenance-completeness
   check that refuses a record missing any required field, and the
   manifest that states exactly what exists -- no more, no less."
-  (:require [clojure.set :as set]))
+  (:require [kotoba.lang.coll :as set]))
 
 (def licence-allowlist
   "Licences this actor may ingest imagery under. Anything else is a
