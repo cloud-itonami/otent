@@ -6,7 +6,7 @@
   option nobody reads, and it swallowed the argument after it. The run that
   looked like it honoured `--force` was a feed that happened to be due
   anyway."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [otent.cli :as cli]))
 
 (deftest force-is-a-switch-not-an-option

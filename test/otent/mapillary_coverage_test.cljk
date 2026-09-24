@@ -1,6 +1,6 @@
 (ns otent.mapillary-coverage-test
   (:require [kotoba.lang.text :as str]
-            [clojure.test :as t]
+            [kotoba.test :as t]
             [otent.mapillary-images :as mimg]
             [otent.mapillary-coverage :as mc]))
 

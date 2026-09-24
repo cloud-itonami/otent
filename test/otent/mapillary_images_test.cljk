@@ -2,7 +2,7 @@
   "Tests for the Mapillary image-metadata source. The fixture is
   SYNTHETIC and clearly labelled as such -- no token exists in any
   secret store (re-verified this run), so no live payload is claimed."
-  (:require [clojure.test :as t]
+  (:require [kotoba.test :as t]
             [kotoba.lang.text :as str]
             ["fs" :as fs]
             [otent.mapillary-images :as mimg]

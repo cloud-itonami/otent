@@ -1,7 +1,7 @@
 (ns otent.sanctions-test
   "The join that was run by hand six times, with the two mistakes the hand
   runs actually made turned into tests."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.lang.text :as str]
             [otent.sanctions :as sanc]))
 

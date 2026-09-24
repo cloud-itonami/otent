@@ -1,7 +1,7 @@
 (ns otent.weather-test
   "The pure half of the weather ingest: grid placement, the refusals, and
   a pack/unpack round trip. No network."
-  (:require [clojure.test :as t]
+  (:require [kotoba.test :as t]
             [kotoba.lang.text :as str]
             [otent.weather :as wx]))
 

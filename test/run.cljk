@@ -13,7 +13,7 @@
   the directory, and a `_test.cljk` (or pre-rename `_test.cljc`) that is not
   in the list makes this exit 2. The list is the convenience; the scan is the
   control."
-  (:require [clojure.test :as t]
+  (:require [kotoba.test :as t]
             [clojure.set :as clojure.set]
             [kotoba.lang.text :as str]
             ["fs" :as fs]

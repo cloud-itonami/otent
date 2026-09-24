@@ -4,7 +4,7 @@
   Every test here is written against the shape of the real defect: a
   cadence that is honoured by the code and defeated by the schedule, and
   therefore invisible to a check that only asks whether the tick succeeded."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [otent.coverage :as cov]))
 
 (def registry

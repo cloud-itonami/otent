@@ -1,6 +1,6 @@
 (ns otent.lake-test
   "The lake address of a payload, derived from the sha256 already on its rows."
-  (:require [clojure.test :as t]
+  (:require [kotoba.test :as t]
             [otent.lake :as lake]))
 
 (t/deftest the-cid-is-the-sha256-spelled-as-a-raw-cidv1

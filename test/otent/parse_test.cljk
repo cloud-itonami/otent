@@ -5,7 +5,7 @@
   OpenSky returned on 2026-08-26. An invented payload tests the parser
   against the author's belief about the format, which is the belief that
   was wrong in the first place."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.lang.text :as str]
             [otent.feeds.parse :as p]
             [otent.feeds.core :as feeds]

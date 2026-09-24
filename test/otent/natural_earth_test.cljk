@@ -6,7 +6,7 @@
   matches what was pinned. Each one exists because ingesting changed
   bytes under a fixed identity would look identical to a healthy run in
   every downstream manifest."
-  (:require [clojure.test :as t :refer [deftest is testing]]
+  (:require [kotoba.test :as t :refer [deftest is testing]]
             [otent.natural-earth :as ne]))
 
 (def ^:private asset (ne/get-asset "NE1_50M_SR_W"))

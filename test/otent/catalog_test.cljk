@@ -1,6 +1,6 @@
 (ns otent.catalog-test
   "What reaches the kotobase datom plane, and what must not."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [otent.catalog :as cat]))
 
 (def receipt
