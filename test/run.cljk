@@ -14,7 +14,7 @@
   in the list makes this exit 2. The list is the convenience; the scan is the
   control."
   (:require [kotoba.test :as t]
-            [clojure.set :as clojure.set]
+            [kotoba.lang.coll :as kotoba.lang.coll]
             [kotoba.lang.text :as str]
             ["fs" :as fs]
             ["path" :as path]
@@ -128,8 +128,8 @@
       (t/successful? m) (println "OK")
       :else (set! (.-exitCode js/process) 1))))
 
-(def extra (clojure.set/difference (on-disk) (set declared)))
-(def missing (clojure.set/difference (set declared) (on-disk)))
+(def extra (kotoba.lang.coll/difference (on-disk) (set declared)))
+(def missing (kotoba.lang.coll/difference (set declared) (on-disk)))
 
 (when (seq (concat extra missing))
   (println "REFUSED: the runner and the directory disagree.")
