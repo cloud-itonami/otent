@@ -406,7 +406,7 @@
   It was `./ledger/tick.ledger.edn`, tracked in git, which was fine while a
   person ran the tick by hand and wrong the moment launchd started running
   it every ten minutes: a scheduled job that appends to a tracked file
-  leaves the shared checkout permanently dirty, and CLAUDE.md records what
+  leaves the shared checkout permanently dirty, and AGENTS.md records what
   that costs -- every other session's `main` sync then tries to preserve
   somebody's WIP, and stashes pile up. The detector tick next door holds the
   same invariant for the same reason: state lives under `~/.gftd/`, never in

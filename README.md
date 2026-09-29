@@ -1245,7 +1245,7 @@ the thing whose absence made this invisible for a day.
 ran the tick by hand and wrong the moment launchd started running it every
 ten minutes: **a scheduled job that appends to a tracked file leaves the
 shared checkout permanently dirty**, and every other session's `main` sync
-then tries to preserve somebody's WIP. CLAUDE.md records what that costs in
+then tries to preserve somebody's WIP. AGENTS.md records what that costs in
 piled-up stashes; the detector tick next door holds the same invariant for
 the same reason.
 
