@@ -19,7 +19,8 @@
       },
       "script": "otent_geo_schema_evidence.py",
       "skill": null,
-      "skills": []
+      "skills": [],
+      "workdir": null
     },
     {
       "base_url": "https://api.murakumo.cloud/v1",
@@ -40,7 +41,8 @@
       },
       "script": "otent_earth_imagery_evidence.py",
       "skill": null,
-      "skills": []
+      "skills": [],
+      "workdir": null
     },
     {
       "base_url": "https://api.murakumo.cloud/v1",
@@ -61,7 +63,8 @@
       },
       "script": "otent_earth_vision_evidence.py",
       "skill": null,
-      "skills": []
+      "skills": [],
+      "workdir": null
     },
     {
       "base_url": "https://api.murakumo.cloud/v1",
@@ -82,7 +85,8 @@
       },
       "script": "otent_street_imagery_evidence.py",
       "skill": null,
-      "skills": []
+      "skills": [],
+      "workdir": null
     },
     {
       "base_url": "https://api.murakumo.cloud/v1",
@@ -103,7 +107,8 @@
       },
       "script": "otent_street_vision_evidence.py",
       "skill": null,
-      "skills": []
+      "skills": [],
+      "workdir": null
     },
     {
       "base_url": "https://api.murakumo.cloud/v1",
@@ -124,7 +129,8 @@
       },
       "script": "otent_hyakka_publish_evidence.py",
       "skill": null,
-      "skills": []
+      "skills": [],
+      "workdir": null
     }
   ]
 }
