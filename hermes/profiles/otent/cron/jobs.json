@@ -5,7 +5,12 @@
       "context_from": null,
       "deliver": "local",
       "enabled": true,
-      "enabled_toolsets": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file",
+        "web",
+        "skills"
+      ],
       "id": "72d18a92b889",
       "model": "mishima",
       "name": "otent-geo-ontology",
@@ -27,7 +32,12 @@
       "context_from": null,
       "deliver": "local",
       "enabled": true,
-      "enabled_toolsets": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file",
+        "web",
+        "skills"
+      ],
       "id": "ad591e99eeaf",
       "model": "mishima",
       "name": "otent-earth-imagery",
@@ -49,7 +59,12 @@
       "context_from": null,
       "deliver": "local",
       "enabled": true,
-      "enabled_toolsets": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file",
+        "web",
+        "skills"
+      ],
       "id": "b3a870641aaa",
       "model": "mishima",
       "name": "otent-earth-vision",
@@ -71,7 +86,12 @@
       "context_from": null,
       "deliver": "local",
       "enabled": true,
-      "enabled_toolsets": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file",
+        "web",
+        "skills"
+      ],
       "id": "7eb6ae01aa17",
       "model": "mishima",
       "name": "otent-street-imagery",
@@ -93,7 +113,12 @@
       "context_from": null,
       "deliver": "local",
       "enabled": true,
-      "enabled_toolsets": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file",
+        "web",
+        "skills"
+      ],
       "id": "837df8986af0",
       "model": "mishima",
       "name": "otent-street-vision",
@@ -115,7 +140,12 @@
       "context_from": null,
       "deliver": "local",
       "enabled": true,
-      "enabled_toolsets": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file",
+        "web",
+        "skills"
+      ],
       "id": "2bc92e14b629",
       "model": "mishima",
       "name": "otent-hyakka-publish",
