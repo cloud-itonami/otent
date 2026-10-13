@@ -17,7 +17,7 @@
         "expr": "34 */6 * * *",
         "display": "34 */6 * * *"
       },
-      "script": "otent_geo_schema_evidence.py",
+      "script": "otent_geo_schema_evidence.hy",
       "skill": null,
       "skills": [],
       "workdir": null
@@ -39,7 +39,7 @@
         "expr": "15 */6 * * *",
         "display": "15 */6 * * *"
       },
-      "script": "otent_earth_imagery_evidence.py",
+      "script": "otent_earth_imagery_evidence.hy",
       "skill": null,
       "skills": [],
       "workdir": null
@@ -61,7 +61,7 @@
         "expr": "15 */6 * * *",
         "display": "15 */6 * * *"
       },
-      "script": "otent_earth_vision_evidence.py",
+      "script": "otent_earth_vision_evidence.hy",
       "skill": null,
       "skills": [],
       "workdir": null
@@ -83,7 +83,7 @@
         "expr": "11 */6 * * *",
         "display": "11 */6 * * *"
       },
-      "script": "otent_street_imagery_evidence.py",
+      "script": "otent_street_imagery_evidence.hy",
       "skill": null,
       "skills": [],
       "workdir": null
@@ -105,7 +105,7 @@
         "expr": "27 */6 * * *",
         "display": "27 */6 * * *"
       },
-      "script": "otent_street_vision_evidence.py",
+      "script": "otent_street_vision_evidence.hy",
       "skill": null,
       "skills": [],
       "workdir": null
@@ -127,7 +127,7 @@
         "expr": "17 */6 * * *",
         "display": "17 */6 * * *"
       },
-      "script": "otent_hyakka_publish_evidence.py",
+      "script": "otent_hyakka_publish_evidence.hy",
       "skill": null,
       "skills": [],
       "workdir": null
